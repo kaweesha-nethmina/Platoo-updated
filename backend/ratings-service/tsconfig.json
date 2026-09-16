@@ -1,0 +1,13 @@
+{
+    "compilerOptions": {
+      "target": "ES2017", // or higher (e.g., ES2022)
+      "module": "ESNext", // Required for top-level await
+      "strict": true,
+      "esModuleInterop": true,
+      "outDir": "./dist",
+      "rootDir": "./src",
+      "moduleResolution": "node"
+    },
+    "include": ["src/**/*"],
+    "exclude": ["node_modules"]
+  }

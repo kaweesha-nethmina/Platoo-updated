@@ -1,0 +1,58 @@
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: user-service-secrets
+type: Opaque
+data:
+  mongo-uri: bW9uZ29kYitzcnY6Ly9rYXdlZXNoYW5ldGg6NUhPSldlOTR3TEtkT3JMNEBjbHVzdGVyMC44ZmR3dS5tb25nb2RiLm5ldC91c2VyLXNlcnZpY2UtZGI/cmV0cnlXcml0ZXM9dHJ1ZSZ3PW1ham9yaXR5  # Example base64 encoded Mongo URI
+  jwt-secret: WW91clpXQUpmZWVhbnRfaGVyZQ==  # Example base64 encoded JWT Secret
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+    spec:
+      containers:
+        - name: user-service
+          image: kaweesha/user-service-dev:latest  # Replace with your image name
+          ports:
+            - containerPort: 4000
+          env:
+            - name: MONGO_URI
+              valueFrom:
+                secretKeyRef:
+                  name: user-service-secrets
+                  key: mongo-uri
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: user-service-secrets
+                  key: jwt-secret
+            - name: PORT
+              value: "4000"
+      imagePullSecrets:
+      - name: my-registry-key
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+spec:
+  selector:
+    app: user-service
+  ports:
+    - protocol: TCP
+      port: 80  # Expose this service on port 80
+      targetPort: 4000  # Container port for your app
+  type: LoadBalancer

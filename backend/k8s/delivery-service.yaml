@@ -1,0 +1,51 @@
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: delivery-service-secrets
+type: Opaque
+data:
+  mongo-uri: bW9uZ29kYitzcnY6Ly9rYXdlZXNoYW5ldGg6NUhPSldlOTR3TEtkT3JMNEBjbHVzdGVyMC44ZmR3dS5tb25nb2RiLm5ldC9kZWxpdmVyeS1zZXJ2aWNlLWRiP3JldHJ5V3JpdGVzPXRydWUmdz1tYWpvcml0eQ==  # Base64 encoded MONGO_URI (already created)
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: delivery-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: delivery-service
+  template:
+    metadata:
+      labels:
+        app: delivery-service
+    spec:
+      containers:
+        - name: delivery-service
+          image: kaweesha/delivery-service:latest  # Replace with your image name
+          ports:
+            - containerPort: 3003
+          env:
+            - name: MONGO_URI
+              valueFrom:
+                secretKeyRef:
+                  name: delivery-service-secrets
+                  key: mongo-uri
+            - name: PORT
+              value: "3003"
+      imagePullSecrets:
+        - name: my-registry-key
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: delivery-service
+spec:
+  selector:
+    app: delivery-service
+  ports:
+    - protocol: TCP
+      port: 80  # Expose this service on port 80
+      targetPort: 3003  # Container port for your app
+  type: LoadBalancer

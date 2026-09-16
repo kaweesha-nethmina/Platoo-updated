@@ -1,0 +1,63 @@
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: notification-service-secrets
+type: Opaque
+data:
+  mongo-uri: bW9uZ29kYitzcnY6Ly9rYXdlZXNoYW5ldGg6NUhPSldlOTR3TEtkT3JMNEBjbHVzdGVyMC44ZmR3dS5tb25nb2RiLm5ldC91c2VyLXNlcnZpY2UtZGI/cmV0cnlXcml0ZXM9dHJ1ZSZ3PW1ham9yaXR5  # Base64 encoded MONGO_URI (already created)
+  email-user: aDFydW5pY2hhbWF0aGthMjMwQGdtYWlsLmNvbQ==  # Base64 encoded EMAIL_USER
+  email-pass: Z3F2cCB5ZXFpIHZwZG4gZ3FpaQ==  # Base64 encoded EMAIL_PASS
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: notification-service
+  template:
+    metadata:
+      labels:
+        app: notification-service
+    spec:
+      containers:
+        - name: notification-service
+          image: kaweesha/notification-service:latest  # Replace with your image name
+          ports:
+            - containerPort: 4006
+          env:
+            - name: MONGO_URI
+              valueFrom:
+                secretKeyRef:
+                  name: notification-service-secrets
+                  key: mongo-uri
+            - name: EMAIL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: notification-service-secrets
+                  key: email-user
+            - name: EMAIL_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: notification-service-secrets
+                  key: email-pass
+            - name: PORT
+              value: "4006"
+      imagePullSecrets:
+        - name: my-registry-key
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-service
+spec:
+  selector:
+    app: notification-service
+  ports:
+    - protocol: TCP
+      port: 80  # Expose this service on port 80
+      targetPort: 4006  # Container port for your app
+  type: LoadBalancer

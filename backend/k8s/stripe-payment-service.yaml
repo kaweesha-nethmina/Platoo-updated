@@ -1,0 +1,51 @@
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: stripe-payment-secrets
+type: Opaque
+data:
+  stripe-secret-key: c2tfdGVzdF81MVI0Y3F6TGVsSzJQTVltdVF6akRWZEY1M2V6ZVA4cEVOU1haaDE4bGQ0RzUwWldpWUxRbmRVd1ZOeXp3Nm1xYnVEZXVmajAwWHNlNEE5QWk0cW1BWlhIZzAwUmxaVFJGNHQ=  # Base64-encoded stripe secret key
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stripe-payment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: stripe-payment
+  template:
+    metadata:
+      labels:
+        app: stripe-payment
+    spec:
+      containers:
+        - name: stripe-payment
+          image: kaweesha/stripe-payment:latest  # Replace with your image name
+          ports:
+            - containerPort: 8081
+          env:
+            - name: STRIPE_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: stripe-payment-secrets
+                  key: stripe-secret-key
+            - name: SERVER_PORT
+              value: "8081"
+      imagePullSecrets:
+        - name: my-registry-key
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: stripe-payment
+spec:
+  selector:
+    app: stripe-payment
+  ports:
+    - protocol: TCP
+      port: 80  # Expose this service on port 80
+      targetPort: 8081  # Container port for your app
+  type: LoadBalancer

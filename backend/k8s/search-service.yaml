@@ -1,0 +1,51 @@
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: search-service-secrets
+type: Opaque
+data:
+  mongo-uri: bW9uZ29kYitzcnY6Ly9oMXJ1bmljaGFtYXRoa2EyMzA6MTIzNEBjbHVzdGVyMC51eG1rOWltLm1vbmdvZGIubmV0L21lbnVfZGI=  # Base64 encoded MONGO_URI (already created)
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: search-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: search-service
+  template:
+    metadata:
+      labels:
+        app: search-service
+    spec:
+      containers:
+        - name: search-service
+          image: kaweesha/search-service:latest  # Replace with your image name
+          ports:
+            - containerPort: 3002
+          env:
+            - name: MONGO_URI
+              valueFrom:
+                secretKeyRef:
+                  name: search-service-secrets
+                  key: mongo-uri
+            - name: PORT
+              value: "3002"
+      imagePullSecrets:
+        - name: my-registry-key
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: search-service
+spec:
+  selector:
+    app: search-service
+  ports:
+    - protocol: TCP
+      port: 80  # Expose this service on port 80
+      targetPort: 3002  # Container port for your app
+  type: LoadBalancer

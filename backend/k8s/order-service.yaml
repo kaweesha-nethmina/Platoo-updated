@@ -1,0 +1,69 @@
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: order-service-secrets
+type: Opaque
+data:
+  mongo-uri: bW9uZ29kYitzcnY6Ly9rYXdlZXNoYW5ldGg6NUhPSldlOTR3TEtkT3JMNEBjbHVzdGVyMC44ZmR3dS5tb25nb2RiLm5ldC91c2VyLXNlcnZpY2UtZGI/cmV0cnlXcml0ZXM9dHJ1ZSZ3PW1ham9yaXR5  # Replace this with the base64-encoded MONGO_URI
+  email-user: a2F3ZWVzaGFuZXRoNzIwQGdtYWlsLmNvbQ==  # Base64 encode the email address
+  email-pass: cHV4ZyB4dHJzIGNsZ2MgdGl0ZQ==  # Base64 encode the email password
+  menu-service-url: aHR0cDovL2xvY2FsaG9zdDozMDAx  # Base64 encode the MENU_SERVICE_URL
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: order-service
+  template:
+    metadata:
+      labels:
+        app: order-service
+    spec:
+      containers:
+        - name: order-service
+          image: kaweesha/order-service-dev:latest  # Replace with your image name
+          ports:
+            - containerPort: 3008
+          env:
+            - name: MONGO_URI
+              valueFrom:
+                secretKeyRef:
+                  name: order-service-secrets
+                  key: mongo-uri
+            - name: MENU_SERVICE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: order-service-secrets
+                  key: menu-service-url
+            - name: EMAIL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: order-service-secrets
+                  key: email-user
+            - name: EMAIL_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: order-service-secrets
+                  key: email-pass
+            - name: PORT
+              value: "3008"
+      imagePullSecrets:
+        - name: my-registry-key
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-service
+spec:
+  selector:
+    app: order-service
+  ports:
+    - protocol: TCP
+      port: 80  # Expose this service on port 80
+      targetPort: 3008  # Container port for your app
+  type: LoadBalancer

@@ -1,0 +1,69 @@
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: admin-service-secrets
+type: Opaque
+data:
+  db-uri: bW9uZ29kYjovL2xvY2FsaG9zdDoyNzAxNy9mb29kX29yZGVyaW5n  # Base64 encoded DB_URI
+  email-user: dGFzaGltd2VlcmFzaW5naGVAZ21haWwuY29t  # Base64 encoded EMAIL_USER
+  email-password: b3N2dyBueWZpIHR6YWcgd2R0bw==  # Base64 encoded EMAIL_PASSWORD
+  app-name: UGxhdG9v  # Base64 encoded APP_NAME
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: admin-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: admin-service
+  template:
+    metadata:
+      labels:
+        app: admin-service
+    spec:
+      containers:
+        - name: admin-service
+          image: kaweesha/admin-service:latest  # Replace with your image name
+          ports:
+            - containerPort: 4005
+          env:
+            - name: DB_URI
+              valueFrom:
+                secretKeyRef:
+                  name: admin-service-secrets
+                  key: db-uri
+            - name: EMAIL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: admin-service-secrets
+                  key: email-user
+            - name: EMAIL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: admin-service-secrets
+                  key: email-password
+            - name: APP_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: admin-service-secrets
+                  key: app-name
+            - name: PORT
+              value: "4005"
+      imagePullSecrets:
+        - name: my-registry-key
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: admin-service
+spec:
+  selector:
+    app: admin-service
+  ports:
+    - protocol: TCP
+      port: 80  # Expose this service on port 80
+      targetPort: 4005  # Container port for your app
+  type: LoadBalancer
