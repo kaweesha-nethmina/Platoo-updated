@@ -42,8 +42,12 @@ export const useCart = () => {
           image: "/placeholder.svg", // Placeholder for images
         }));
         setCartItems(items);
-      } catch (error) {
-        console.error("Failed to fetch cart data:", error);
+      } catch (error: any) {
+        if (error.response?.status === 404) {
+          setCartItems([]);
+        } else {
+          console.error("Failed to fetch cart data:", error);
+        }
       } finally {
         setIsLoading(false);
       }

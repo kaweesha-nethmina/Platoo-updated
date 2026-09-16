@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
+import { ImagePlus } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -22,6 +23,13 @@ interface OwnerInfo {
   phone: string
   address: string
   restaurantName: string
+}
+
+const safeNumber = (value: any, fallback = 0): number => {
+  if (typeof value === "number" && Number.isFinite(value)) return value
+  if (value === "" || value === null || value === undefined) return fallback
+  const parsed = parseFloat(value)
+  return Number.isFinite(parsed) ? parsed : fallback
 }
 
 const RESTAURANT_SCHEMA = {
@@ -247,6 +255,21 @@ export default function RestaurantSettings() {
       const restaurantData = {
         ...restaurantForm,
         owner_id: ownerId,
+        image: restaurantForm.image || "/placeholder.svg",
+        deliveryTime: restaurantForm.deliveryTime || "30 mins",
+        deliveryFee: restaurantForm.deliveryFee || "0",
+        minOrder: restaurantForm.minOrder || "0",
+        distance: restaurantForm.distance || "0",
+        cuisines: restaurantForm.cuisines?.length ? restaurantForm.cuisines : ["Mixed"],
+        priceLevel: safeNumber(restaurantForm.priceLevel, 1),
+        location: {
+          type: "Point",
+          coordinates: [
+            safeNumber(restaurantForm.location?.coordinates?.[0]),
+            safeNumber(restaurantForm.location?.coordinates?.[1]),
+          ] as [number, number],
+          tag: restaurantForm.location?.tag || "Unknown location",
+        },
       }
       const response = await fetch(url, {
         method,
@@ -397,6 +420,32 @@ export default function RestaurantSettings() {
           })
         })
         .addTo(mapInstance)
+      // Click anywhere on the map to pick the location
+      mapInstance.on("click", (e: any) => {
+        const { lat, lng } = e.latlng
+        updateAddRestaurantLocation(lat, lng)
+        if (addMarker) {
+          mapInstance.removeLayer(addMarker)
+        }
+        const newMarker = window.L.marker([lat, lng], { draggable: true }).addTo(mapInstance)
+        newMarker.on("dragend", (event: any) => {
+          const position = event.target.getLatLng()
+          updateAddRestaurantLocation(position.lat, position.lng)
+        })
+        setAddMarker(newMarker)
+        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`)
+          .then((res) => res.json())
+          .then((data) => {
+            setAddRestaurantForm((prev: any) => ({
+              ...prev,
+              location: {
+                ...prev.location,
+                tag: data.display_name || prev.location.tag,
+              },
+            }))
+          })
+          .catch(() => {})
+      })
       // If editing, place marker
       if (hasCoords) {
         const markerInstance = window.L.marker([coords[1], coords[0]], {
@@ -421,6 +470,21 @@ export default function RestaurantSettings() {
       const restaurantData = {
         ...addRestaurantForm,
         owner_id: ownerId,
+        image: addRestaurantForm.image || "/placeholder.svg",
+        deliveryTime: addRestaurantForm.deliveryTime || "30 mins",
+        deliveryFee: addRestaurantForm.deliveryFee || "0",
+        minOrder: addRestaurantForm.minOrder || "0",
+        distance: addRestaurantForm.distance || "0",
+        cuisines: addRestaurantForm.cuisines?.length ? addRestaurantForm.cuisines : ["Mixed"],
+        priceLevel: safeNumber(addRestaurantForm.priceLevel, 1),
+        location: {
+          type: "Point",
+          coordinates: [
+            safeNumber(addRestaurantForm.location?.coordinates?.[0]),
+            safeNumber(addRestaurantForm.location?.coordinates?.[1]),
+          ] as [number, number],
+          tag: addRestaurantForm.location?.tag || "Unknown location",
+        },
       }
       const response = await fetch("http://localhost:3001/api/restaurants", {
         method: "POST",
@@ -484,6 +548,23 @@ export default function RestaurantSettings() {
         [field]: value,
       },
     }))
+  }
+
+  const handleImageUpload = async (file: File): Promise<string | null> => {
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      const response = await fetch("http://localhost:3001/api/upload", {
+        method: "POST",
+        body: formData,
+      })
+      if (!response.ok) throw new Error("Image upload failed")
+      const data = await response.json()
+      return data.url
+    } catch (error) {
+      console.error("Error uploading image:", error)
+      return null
+    }
   }
 
   // --- GEOLOCATION LOGIC WITH MAP SEARCH ---
@@ -596,6 +677,32 @@ export default function RestaurantSettings() {
           })
         })
         .addTo(mapInstance)
+      // Click anywhere on the map to pick the location
+      mapInstance.on("click", (e: any) => {
+        const { lat, lng } = e.latlng
+        updateRestaurantLocation(lat, lng)
+        if (marker) {
+          mapInstance.removeLayer(marker)
+        }
+        const newMarker = window.L.marker([lat, lng], { draggable: true }).addTo(mapInstance)
+        newMarker.on("dragend", (event: any) => {
+          const position = event.target.getLatLng()
+          updateRestaurantLocation(position.lat, position.lng)
+        })
+        setMarker(newMarker)
+        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`)
+          .then((res) => res.json())
+          .then((data) => {
+            setRestaurantForm((prev: any) => ({
+              ...prev,
+              location: {
+                ...prev.location,
+                tag: data.display_name || prev.location.tag,
+              },
+            }))
+          })
+          .catch(() => {})
+      })
       // If editing, place marker
       if (hasCoords) {
         const markerInstance = window.L.marker([coords[1], coords[0]], {
@@ -656,19 +763,49 @@ export default function RestaurantSettings() {
             <div className="space-y-2">
               <Label htmlFor="add-restaurant-image">Restaurant Image</Label>
               <div className="flex flex-col gap-4 w-full">
-                <Input
-                  id="add-restaurant-image"
-                  value={addRestaurantForm.image}
-                  onChange={(e) => handleAddRestaurantInput("image", e.target.value)}
-                  placeholder="Enter image URL"
+                <div className="flex items-center justify-center border-2 border-dashed rounded-md p-4">
+                  {addRestaurantForm.image ? (
+                    <div className="text-center w-full">
+                      <img
+                        src={addRestaurantForm.image}
+                        alt="Restaurant Preview"
+                        className="w-full h-40 object-cover rounded-md"
+                      />
+                      <label htmlFor="add-restaurant-image-upload">
+                        <Button type="button" variant="outline" size="sm" className="mt-2" asChild>
+                          <span>
+                            <ImagePlus className="mr-2 h-4 w-4" /> Change Image
+                          </span>
+                        </Button>
+                      </label>
+                    </div>
+                  ) : (
+                    <div className="text-center">
+                      <ImagePlus className="mx-auto h-12 w-12 text-muted-foreground" />
+                      <div className="mt-2">
+                        <label htmlFor="add-restaurant-image-upload">
+                          <Button type="button" variant="outline" size="sm" asChild>
+                            <span>Choose Image</span>
+                          </Button>
+                        </label>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">PNG, JPG, GIF or WebP, max 2MB</p>
+                    </div>
+                  )}
+                </div>
+                <input
+                  id="add-restaurant-image-upload"
+                  type="file"
+                  accept="image/png,image/jpeg,image/gif,image/webp"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0]
+                    if (!file) return
+                    const url = await handleImageUpload(file)
+                    if (url) handleAddRestaurantInput("image", url)
+                    e.target.value = ""
+                  }}
                 />
-                {addRestaurantForm.image && (
-                  <img
-                    src={addRestaurantForm.image || "/placeholder.svg"}
-                    alt="Restaurant Preview"
-                    className="w-full h-60 object-cover rounded-md mt-2"
-                  />
-                )}
               </div>
             </div>
             <div className="space-y-2">
@@ -686,8 +823,8 @@ export default function RestaurantSettings() {
                 <Input
                   id="add-restaurant-rating"
                   type="number"
-                  value={addRestaurantForm.rating}
-                  onChange={(e) => handleAddRestaurantInput("rating", Number.parseFloat(e.target.value))}
+                  value={safeNumber(addRestaurantForm.rating)}
+                  onChange={(e) => handleAddRestaurantInput("rating", safeNumber(e.target.value))}
                 />
               </div>
               <div className="space-y-2">
@@ -727,8 +864,8 @@ export default function RestaurantSettings() {
                 <Input
                   id="add-restaurant-priceLevel"
                   type="number"
-                  value={addRestaurantForm.priceLevel}
-                  onChange={(e) => handleAddRestaurantInput("priceLevel", Number.parseInt(e.target.value))}
+                  value={safeNumber(addRestaurantForm.priceLevel)}
+                  onChange={(e) => handleAddRestaurantInput("priceLevel", safeNumber(e.target.value))}
                 />
               </div>
             </div>
@@ -773,10 +910,10 @@ export default function RestaurantSettings() {
                 <Input
                   id="add-restaurant-location-lng"
                   type="number"
-                  value={addRestaurantForm.location.coordinates[0]}
+                  value={safeNumber(addRestaurantForm.location.coordinates[0])}
                   onChange={(e) =>
                     handleAddLocationInput("coordinates", [
-                      Number.parseFloat(e.target.value),
+                      safeNumber(e.target.value),
                       addRestaurantForm.location.coordinates[1],
                     ])
                   }
@@ -787,11 +924,11 @@ export default function RestaurantSettings() {
                 <Input
                   id="add-restaurant-location-lat"
                   type="number"
-                  value={addRestaurantForm.location.coordinates[1]}
+                  value={safeNumber(addRestaurantForm.location.coordinates[1])}
                   onChange={(e) =>
                     handleAddLocationInput("coordinates", [
                       addRestaurantForm.location.coordinates[0],
-                      Number.parseFloat(e.target.value),
+                      safeNumber(e.target.value),
                     ])
                   }
                 />
@@ -855,24 +992,67 @@ export default function RestaurantSettings() {
                     }}
                     className="space-y-6"
                   >
-                    {/* Restaurant Image Preview and Input */}
+                    {/* Restaurant Image Preview and Upload */}
                     <div className="space-y-2">
                       <Label htmlFor="restaurant-image">Restaurant Image</Label>
                       <div className="flex flex-col gap-4 w-full">
-                        <Input
-                          id="restaurant-image"
-                          value={restaurantForm.image}
-                          onChange={(e) => handleRestaurantInput("image", e.target.value)}
-                          placeholder="Enter image URL"
+                        <div className="flex items-center justify-center border-2 border-dashed rounded-md p-4">
+                          {restaurantForm.image ? (
+                            <div className="text-center w-full">
+                              <img
+                                src={restaurantForm.image}
+                                alt="Restaurant Preview"
+                                className="w-full h-40 object-cover rounded-md"
+                              />
+                              <label htmlFor="restaurant-image-upload">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="mt-2"
+                                  asChild
+                                  disabled={!isRestaurantEditing}
+                                >
+                                  <span>
+                                    <ImagePlus className="mr-2 h-4 w-4" /> Change Image
+                                  </span>
+                                </Button>
+                              </label>
+                            </div>
+                          ) : (
+                            <div className="text-center">
+                              <ImagePlus className="mx-auto h-12 w-12 text-muted-foreground" />
+                              <div className="mt-2">
+                                <label htmlFor="restaurant-image-upload">
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    asChild
+                                    disabled={!isRestaurantEditing}
+                                  >
+                                    <span>Choose Image</span>
+                                  </Button>
+                                </label>
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-2">PNG, JPG, GIF or WebP, max 2MB</p>
+                            </div>
+                          )}
+                        </div>
+                        <input
+                          id="restaurant-image-upload"
+                          type="file"
+                          accept="image/png,image/jpeg,image/gif,image/webp"
+                          className="hidden"
                           disabled={!isRestaurantEditing}
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0]
+                            if (!file) return
+                            const url = await handleImageUpload(file)
+                            if (url) handleRestaurantInput("image", url)
+                            e.target.value = ""
+                          }}
                         />
-                        {restaurantForm.image && (
-                          <img
-                            src={restaurantForm.image || "/placeholder.svg"}
-                            alt="Restaurant Preview"
-                            className="w-full h-60 object-cover rounded-md mt-2"
-                          />
-                        )}
                       </div>
                     </div>
                     <div className="space-y-2">
@@ -891,8 +1071,8 @@ export default function RestaurantSettings() {
                         <Input
                           id="restaurant-rating"
                           type="number"
-                          value={restaurantForm.rating}
-                          onChange={(e) => handleRestaurantInput("rating", Number.parseFloat(e.target.value))}
+                          value={safeNumber(restaurantForm.rating)}
+                          onChange={(e) => handleRestaurantInput("rating", safeNumber(e.target.value))}
                           disabled={!isRestaurantEditing}
                         />
                       </div>
@@ -937,8 +1117,8 @@ export default function RestaurantSettings() {
                         <Input
                           id="restaurant-priceLevel"
                           type="number"
-                          value={restaurantForm.priceLevel}
-                          onChange={(e) => handleRestaurantInput("priceLevel", Number.parseInt(e.target.value))}
+                          value={safeNumber(restaurantForm.priceLevel)}
+                          onChange={(e) => handleRestaurantInput("priceLevel", safeNumber(e.target.value))}
                           disabled={!isRestaurantEditing}
                         />
                       </div>
@@ -987,10 +1167,10 @@ export default function RestaurantSettings() {
                         <Input
                           id="restaurant-location-lng"
                           type="number"
-                          value={restaurantForm.location.coordinates[0]}
+                          value={safeNumber(restaurantForm.location.coordinates[0])}
                           onChange={(e) =>
                             handleLocationInput("coordinates", [
-                              Number.parseFloat(e.target.value),
+                              safeNumber(e.target.value),
                               restaurantForm.location.coordinates[1],
                             ])
                           }
@@ -1002,11 +1182,11 @@ export default function RestaurantSettings() {
                         <Input
                           id="restaurant-location-lat"
                           type="number"
-                          value={restaurantForm.location.coordinates[1]}
+                          value={safeNumber(restaurantForm.location.coordinates[1])}
                           onChange={(e) =>
                             handleLocationInput("coordinates", [
                               restaurantForm.location.coordinates[0],
-                              Number.parseFloat(e.target.value),
+                              safeNumber(e.target.value),
                             ])
                           }
                           disabled={!isRestaurantEditing}

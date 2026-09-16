@@ -111,10 +111,12 @@ export default function RestaurantsPage() {
   
     // Apply delivery time filter
     filtered = filtered.filter((restaurant) => {
-      const deliveryTimeRange = restaurant.deliveryTime.includes("-")
-        ? restaurant.deliveryTime.split("-").map((time) => parseInt(time.trim(), 10))
-        : [parseInt(restaurant.deliveryTime.replace("min", "").trim(), 10), parseInt(restaurant.deliveryTime.replace("min", "").trim(), 10)];
-      return deliveryTimeRange.length === 2 && deliveryTimeRange[1] <= maxDeliveryTime;
+      const timeText = String(restaurant.deliveryTime || "60 mins").toLowerCase()
+      const parts = timeText.split("-").map((t) => parseInt(t.replace(/[^0-9]/g, ""), 10))
+      const min = parts[0]
+      const max = parts[1] ?? parts[0]
+      if (!Number.isFinite(max)) return true
+      return max <= maxDeliveryTime
     });
     
   

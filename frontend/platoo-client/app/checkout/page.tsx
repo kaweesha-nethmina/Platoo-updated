@@ -614,8 +614,8 @@ export default function CheckoutPage() {
         quantity: itemsToSend.reduce((acc, item) => acc + item.quantity, 0),
         name: "Food Order",
         currency: "USD",
-        successUrl: "http://localhost:8000/payment-success",
-        cancelUrl: "http://localhost:8000/checkout",
+        successUrl: "http://localhost:3000/payment-success",
+        cancelUrl: "http://localhost:3000/checkout",
       };
 
       const response = await fetch("http://localhost:8081/product/v1/checkout", {

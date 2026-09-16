@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/product/v1")
-@CrossOrigin(origins = "http://localhost:8000") // Allow requests from localhost:8000
+@CrossOrigin(origins = "http://localhost:3000") // Allow requests from localhost:3000
 public class ProductCheckoutController {
 
 

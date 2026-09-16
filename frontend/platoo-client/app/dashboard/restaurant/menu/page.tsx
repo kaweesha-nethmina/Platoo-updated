@@ -223,14 +223,19 @@ export default function MenuPage() {
 
   const handleAddCategory = async () => {
     try {
+      const payload = {
+        ...categoryForm,
+        description: categoryForm.description || "Category",
+        image_url: categoryForm.image_url || "/placeholder.svg",
+      };
       const response = await fetch("http://localhost:3001/api/category", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(categoryForm),
+        body: JSON.stringify(payload),
       });
       if (!response.ok) throw new Error("Failed to add category");
       const newCategory: Category = await response.json();
-      setCategories((prev) => [...prev, newCategory]);
+      setCategories((prev) => [...prev, { ...newCategory, id: (newCategory as any)._id || newCategory.id }]);
       setIsCategoryDialogOpen(false);
     } catch (error) {
       console.error("Error adding category:", error);
@@ -247,8 +252,9 @@ export default function MenuPage() {
       });
       if (!response.ok) throw new Error("Failed to update category");
       const updated: Category = await response.json();
+      const normalized = { ...updated, id: (updated as any)._id || updated.id };
       setCategories((prev) =>
-        prev.map((cat) => (cat.id === updated.id ? updated : cat))
+        prev.map((cat) => (cat.id === normalized.id ? normalized : cat))
       );
       setIsCategoryDialogOpen(false);
       setEditingCategory(null);
@@ -290,14 +296,20 @@ export default function MenuPage() {
 
   const handleAddItem = async (newItem: Omit<MenuItem, "id">) => {
     try {
+      const payload = {
+        ...newItem,
+        description: newItem.description || "Delicious food",
+        image_url: newItem.image_url || "/placeholder.svg",
+        price: typeof newItem.price === "string" ? parseFloat(newItem.price) : newItem.price,
+      };
       const response = await fetch("http://localhost:3001/api/menu-items", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newItem),
+        body: JSON.stringify(payload),
       });
       if (!response.ok) throw new Error("Failed to add menu item");
       const created: MenuItem = await response.json();
-      setMenuItems((prev) => [...prev, created]);
+      setMenuItems((prev) => [...prev, { ...created, id: created._id || created.id }]);
     } catch (error) {
       console.error("Error adding menu item:", error);
     }
@@ -311,9 +323,10 @@ export default function MenuPage() {
         body: JSON.stringify(updatedItem),
       });
       if (!response.ok) throw new Error("Failed to update menu item");
-      const updatedData: MenuItem = await response.json();
+      const updatedData: { _id?: string; id?: string } & MenuItem = await response.json();
+      const normalized = { ...updatedData, id: updatedData._id || updatedData.id };
       setMenuItems((prevItems) =>
-        prevItems.map((item) => (item.id === updatedData.id ? updatedData : item))
+        prevItems.map((item) => (item.id === (updatedData._id || updatedData.id) ? normalized : item))
       );
     } catch (error) {
       console.error("Error updating menu item:", error);
@@ -328,9 +341,10 @@ export default function MenuPage() {
         body: JSON.stringify({ is_available: updatedAvailability }),
       });
       if (!response.ok) throw new Error("Failed to update availability");
-      const updatedItem: MenuItem = await response.json();
+      const updatedItem: { _id?: string; id?: string } & MenuItem = await response.json();
+      const normalized = { ...updatedItem, id: updatedItem._id || updatedItem.id };
       setMenuItems((prevItems) =>
-        prevItems.map((item) => (item.id === updatedItem.id ? updatedItem : item))
+        prevItems.map((item) => (item.id === (updatedItem._id || updatedItem.id) ? normalized : item))
       );
     } catch (error) {
       console.error("Error toggling availability:", error);
@@ -343,6 +357,23 @@ export default function MenuPage() {
       setMenuItems((prevItems) => prevItems.filter((item) => item.id !== id));
     } catch (error) {
       console.error("Error deleting menu item:", error);
+    }
+  };
+
+  const handleImageUpload = async (file: File): Promise<string | null> => {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await fetch("http://localhost:3001/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+      if (!response.ok) throw new Error("Image upload failed");
+      const data = await response.json();
+      return data.url;
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      return null;
     }
   };
 
@@ -610,12 +641,49 @@ export default function MenuPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="category-image">Image URL</Label>
-              <Input
-                id="category-image"
-                placeholder="https://example.com/image.jpg"
-                value={categoryForm.image_url}
-                onChange={(e) => handleCategoryFormChange("image_url", e.target.value)}
+              <Label htmlFor="category-image">Category Image</Label>
+              <div className="flex items-center justify-center border-2 border-dashed rounded-md p-4">
+                {categoryForm.image_url ? (
+                  <div className="text-center">
+                    <img
+                      src={categoryForm.image_url}
+                      alt={categoryForm.name}
+                      className="mx-auto h-32 w-32 rounded-md object-cover"
+                    />
+                    <label htmlFor="category-image-upload">
+                      <Button variant="outline" size="sm" className="mt-2" asChild>
+                        <span>
+                          <ImagePlus className="mr-2 h-4 w-4" /> Change Image
+                        </span>
+                      </Button>
+                    </label>
+                  </div>
+                ) : (
+                  <div className="text-center">
+                    <ImagePlus className="mx-auto h-12 w-12 text-muted-foreground" />
+                    <div className="mt-2">
+                      <label htmlFor="category-image-upload">
+                        <Button variant="outline" size="sm" asChild>
+                          <span>Choose Image</span>
+                        </Button>
+                      </label>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">PNG, JPG, GIF or WebP, max 2MB</p>
+                  </div>
+                )}
+              </div>
+              <input
+                id="category-image-upload"
+                type="file"
+                accept="image/png,image/jpeg,image/gif,image/webp"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const url = await handleImageUpload(file);
+                  if (url) handleCategoryFormChange("image_url", url);
+                  e.target.value = "";
+                }}
               />
             </div>
             <div className="flex items-center space-x-2">
@@ -664,27 +732,40 @@ export default function MenuPage() {
                         alt={itemForm.name}
                         className="mx-auto h-32 w-32 rounded-md object-cover"
                       />
-                      <Button variant="outline" size="sm" className="mt-2" disabled>
-                        <ImagePlus className="mr-2 h-4 w-4" /> Change Image
-                      </Button>
+                      <label htmlFor="item-image-upload">
+                        <Button variant="outline" size="sm" className="mt-2" asChild>
+                          <span>
+                            <ImagePlus className="mr-2 h-4 w-4" /> Change Image
+                          </span>
+                        </Button>
+                      </label>
                     </div>
                   ) : (
                     <div className="text-center">
                       <ImagePlus className="mx-auto h-12 w-12 text-muted-foreground" />
                       <div className="mt-2">
-                        <Button variant="outline" size="sm" disabled>
-                          Upload Image
-                        </Button>
+                        <label htmlFor="item-image-upload">
+                          <Button variant="outline" size="sm" asChild>
+                            <span>Choose Image</span>
+                          </Button>
+                        </label>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-2">PNG, JPG or GIF, max 2MB</p>
+                      <p className="text-xs text-muted-foreground mt-2">PNG, JPG, GIF or WebP, max 2MB</p>
                     </div>
                   )}
                 </div>
-                <Input
-                  id="item-image"
-                  placeholder="Image URL"
-                  value={itemForm.image_url}
-                  onChange={(e) => setItemForm((f) => ({ ...f, image_url: e.target.value }))}
+                <input
+                  id="item-image-upload"
+                  type="file"
+                  accept="image/png,image/jpeg,image/gif,image/webp"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const url = await handleImageUpload(file);
+                    if (url) setItemForm((f) => ({ ...f, image_url: url }));
+                    e.target.value = "";
+                  }}
                 />
               </div>
               {/* Name */}

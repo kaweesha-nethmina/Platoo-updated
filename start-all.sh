@@ -59,20 +59,20 @@ for svc in "${SERVICES[@]}"; do
 done
 
 # ----------------------------------------------------------------------------
-# 3. Frontend (Next.js on port 8000)
+# 3. Frontend (Next.js on port 3000)
 # ----------------------------------------------------------------------------
 if [ ! -d "$FRONTEND/node_modules" ]; then
   echo "[frontend] installing dependencies..."
   (cd "$FRONTEND" && npm install --no-audit --no-fund --legacy-peer-deps --silent)
 fi
-echo "[frontend] starting on http://localhost:8000 ..."
+echo "[frontend] starting on http://localhost:3000 ..."
 (cd "$FRONTEND" && npm run dev) >> "$LOGS/frontend.log" 2>&1 &
 PIDS+=("$!")
 
 echo ""
 echo "==========================================================================="
 echo " Platoo is starting..."
-echo " Frontend : http://localhost:8000"
+echo " Frontend : http://localhost:3000"
 echo " Backend  : user 4000 | menu 3001 | search 3002 | delivery 3003 | cart 3005"
 echo "            geo-location 3007 | order 3008 | ratings 5000 | admin 4005"
 echo "            notification 4006"
