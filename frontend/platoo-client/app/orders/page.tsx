@@ -25,23 +25,13 @@ interface Order {
   estimatedDelivery: string
   total: number
 }
-const {
-  cartItems,
-  isLoading,
-  updateQuantity,
-  removeItem,
-  subtotal,
-  deliveryFee,
-  tax,
-  total,
-} = useCart();
 export default function OrdersPage() {
   const [activeOrders, setActiveOrders] = useState<Order[]>([])
   const [completedOrders, setCompletedOrders] = useState<Order[]>([])
   const [cancelledOrders, setCancelledOrders] = useState<Order[]>([])
   const [isLoading, setIsLoading] = useState<boolean>(true)
-  
-  const loggedInUserId = localStorage.getItem("userId"); // Retrieve the logged-in user's ID
+  const { cartItems } = useCart();
+  const loggedInUserId = typeof window !== "undefined" ? localStorage.getItem("userId") : null; // Retrieve the logged-in user's ID
 
   useEffect(() => {
     const fetchOrders = async () => {

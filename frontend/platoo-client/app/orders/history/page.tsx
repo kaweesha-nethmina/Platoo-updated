@@ -53,7 +53,10 @@ export default function OrderHistoryPage() {
   const [showModal, setShowModal] = useState(false); // State to control modal visibility
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null); // To hold the selected order
 
-  const loggedInUserId = localStorage.getItem("userId"); // Retrieve the logged-in user's ID
+  const [loggedInUserId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem("userId"); // Retrieve the logged-in user's ID
+  });
 
   useEffect(() => {
     if (!loggedInUserId) {

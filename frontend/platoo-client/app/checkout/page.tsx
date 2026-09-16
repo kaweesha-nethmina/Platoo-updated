@@ -550,7 +550,9 @@ export default function CheckoutPage() {
   }, [selectedQuantity, selectedItem]);
 
   if (!userId) {
-    alert("User is not logged in. Please log in before placing the order.");
+    if (typeof window !== "undefined") {
+      alert("User is not logged in. Please log in before placing the order.");
+    }
     return null;
   }
 
