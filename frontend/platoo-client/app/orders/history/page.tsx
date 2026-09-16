@@ -93,13 +93,18 @@ export default function OrderHistoryPage() {
           const restaurant = restaurants.find((r: any) => r._id === order.restaurant_id);
           const menuItems = await fetchMenuItems(order.restaurant_id);
 
-          // Map menu items to order items
-          const itemsWithNames = order.items.map((item: any) => {
-            const menuItem = menuItems.find((menu: MenuItem) => menu._id === item.menu_item_id);
-            return {
-              ...item,
-              name: menuItem ? menuItem.name : "Unknown Item", // Fallback if item is not found
-            };
+          // Map menu items to order items: prefer the name already persisted on the order,
+          // fall back to a menu-service lookup, and only then to the generic fallback.
+          const menuItem = menuItems.find((menu: MenuItem) => menu._id === item.menu_item_id);
+          return {
+            ...item,
+            name:
+              item.name && item.name !== "Unknown Item"
+                ? item.name
+                : menuItem
+                ? menuItem.name
+                : "Unknown Item",
+          };
           });
 
           return {

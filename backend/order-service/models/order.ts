@@ -29,6 +29,7 @@ const orderSchema: Schema = new Schema(
     items: [
       {
         menu_item_id: { type: mongoose.Schema.Types.ObjectId, ref: 'MenuItem' },
+        name: { type: String }, // Persist the item name the checkout already sends -> history page needs it
         quantity: { type: Number, required: true },
         price: { type: Number, required: true },
       },

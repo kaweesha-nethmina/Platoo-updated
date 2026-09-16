@@ -67,7 +67,7 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
         return
       }
     } catch (error) {
-      console.error("Invalid token:", error)
+      console.warn("Invalid token:", error)
       localStorage.removeItem("token")
       router.push("/login")
       return
@@ -93,7 +93,7 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
         })
       })
       .catch((err) => {
-        console.error(err)
+        console.warn(err)
         setUserData({
           id: decoded.id,
           name: decoded.name || "Admin User",
@@ -115,7 +115,7 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
         setOrdersCount(Array.isArray(orders) ? orders.length : 0)
       })
       .catch((err) => {
-        console.error(err)
+        console.warn(err)
         setOrdersCount(0)
       })
   }, [])
@@ -178,7 +178,7 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen">
+      <div className="flex min-h-screen w-full">
         {/* Sidebar */}
         <Sidebar>
           <SidebarHeader className="flex h-16 items-center border-b px-6">
@@ -260,7 +260,7 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
           </header>
 
           <main className="flex-1 overflow-auto">
-            <div className="container mx-auto p-6">{children}</div>
+            <div className="w-full p-4 md:p-6">{children}</div>
           </main>
         </div>
       </div>

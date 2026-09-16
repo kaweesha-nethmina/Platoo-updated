@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { ChevronDown, ShoppingCart, User } from "lucide-react"
+import { ChevronDown, Menu, ShoppingCart, User } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuItem,
@@ -9,6 +9,7 @@ import {
   DropdownMenuContent,
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
@@ -57,6 +58,38 @@ const Header = ({ cartCount }: { cartCount: number }) => {
       <div className="max-w-[1400px] mx-auto px-6 py-4 flex items-center justify-between">
         {/* Left side - Logo and Navigation */}
         <div className="flex items-center gap-12">
+          {/* Mobile hamburger */}
+          <div className="md:hidden">
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" aria-label="Open menu">
+                  <Menu className="h-6 w-6" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-64">
+                <SheetHeader>
+                  <SheetTitle>
+                    <span className="text-2xl font-bold text-red-500">platoo.</span>
+                  </SheetTitle>
+                </SheetHeader>
+                <nav className="flex flex-col gap-4 mt-6">
+                  <Link href="/dashboard" className={getLinkClassName("/dashboard")}>
+                    Home
+                  </Link>
+                  <Link href="/categories" className={getLinkClassName("/categories")}>
+                    Categories
+                  </Link>
+                  <Link href="/restaurants" className={getLinkClassName("/restaurants")}>
+                    Restaurants
+                  </Link>
+                  <Link href="/about" className={getLinkClassName("/about")}>
+                    About us
+                  </Link>
+                </nav>
+              </SheetContent>
+            </Sheet>
+          </div>
+
           <Link href="/dashboard" className="flex items-center">
             <span className="text-2xl font-bold text-red-500">platoo.</span>
           </Link>

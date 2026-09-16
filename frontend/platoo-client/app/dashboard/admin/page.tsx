@@ -138,7 +138,7 @@ export default function AdminDashboardPage() {
           totalUsers: Array.isArray(data) ? data.length : 0,
         }))
       } catch (error) {
-        console.error("Error fetching total users:", error)
+        console.warn("Error fetching total users:", error)
         setDashboardData((prev) => ({
           ...prev,
           totalUsers: 0,
@@ -211,7 +211,7 @@ export default function AdminDashboardPage() {
         }))
         setRevenueData(revenueDataArr)
       } catch (error) {
-        console.error("Error fetching dashboard data:", error)
+        console.warn("Error fetching dashboard data:", error)
       } finally {
         setIsLoading(false)
       }
@@ -250,7 +250,7 @@ export default function AdminDashboardPage() {
           restaurantName: userData.restaurantName || ""
         });
       } catch (error) {
-        console.error("Error fetching admin profile:", error);
+        console.warn("Error fetching admin profile:", error);
       } finally {
         setIsAdminProfileLoading(false);
       }
@@ -337,7 +337,7 @@ export default function AdminDashboardPage() {
         restaurantName: data.restaurantName ?? owner.restaurantName
       });
     } catch (error) {
-      console.error("Update error:", error);
+      console.warn("Update error:", error);
       toast.error(error instanceof Error ? error.message : "Failed to update profile");
     }
   };
@@ -676,7 +676,7 @@ function OrderHistoryPage() {
           data: dateLabels.map((date) => counts[date]),
         })
       } catch (error) {
-        console.error("Error fetching orders:", error)
+        console.warn("Error fetching orders:", error)
         setOrders([])
         setDailyCounts({ labels: [], data: [] })
       } finally {

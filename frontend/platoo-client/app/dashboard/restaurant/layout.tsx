@@ -94,7 +94,7 @@ export default function RestaurantDashboardLayout({
           restaurantName: userData.restaurantName,
         })
       } catch (error) {
-        console.error("Error fetching user data:", error)
+        console.warn("Error fetching user data:", error)
         localStorage.removeItem("token")
         router.push("/login")
       } finally {
@@ -140,7 +140,7 @@ export default function RestaurantDashboardLayout({
 
         setTotalOrders(restaurantOrders.length)
       } catch (error) {
-        console.error("Error fetching orders:", error)
+        console.warn("Error fetching orders:", error)
       }
     }
 
@@ -199,7 +199,7 @@ export default function RestaurantDashboardLayout({
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen">
+      <div className="flex min-h-screen w-full">
         {/* Sidebar */}
         <Sidebar>
           <SidebarHeader className="flex h-16 items-center border-b px-6">
@@ -293,7 +293,7 @@ export default function RestaurantDashboardLayout({
           </header>
 
           <main className="flex-1 overflow-auto ">
-            <div className="container mx-auto p-6">{children}</div>
+            <div className="w-full p-4 md:p-6">{children}</div>
           </main>
         </div>
       </div>
