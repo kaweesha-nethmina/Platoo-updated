@@ -27,6 +27,40 @@ export default function LoginPage() {
   const router = useRouter();
   const { setUser } = useUser();
   const googleInitializedRef = useRef(false);
+  const [formErrors, setFormErrors] = useState({ email: "", password: "" });
+
+  const validateForm = () => {
+    const errors = { email: "", password: "" };
+    let isValid = true;
+    const trimmedEmail = email.trim();
+
+    if (!trimmedEmail) {
+      errors.email = "Email is required";
+      isValid = false;
+    } else if (trimmedEmail.length > 254) {
+      errors.email = "Email is too long (max 254 characters)";
+      isValid = false;
+    } else if (
+      !/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(trimmedEmail)
+    ) {
+      errors.email = "Please enter a valid email address";
+      isValid = false;
+    }
+
+    if (!password) {
+      errors.password = "Password is required";
+      isValid = false;
+    } else if (password.length < 8) {
+      errors.password = "Password must be at least 8 characters";
+      isValid = false;
+    } else if (password.length > 128) {
+      errors.password = "Password is too long (max 128 characters)";
+      isValid = false;
+    }
+
+    setFormErrors(errors);
+    return isValid;
+  };
 
   const decodeToken = (token: string) => {
     try {
@@ -84,6 +118,11 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!validateForm()) {
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -92,7 +131,7 @@ export default function LoginPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: email.trim(), password }),
       });
 
       const data = await response.json();
@@ -200,10 +239,18 @@ export default function LoginPage() {
                 type="email"
                 placeholder="your.email@example.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setFormErrors((prev) => ({ ...prev, email: "" }));
+                }}
                 required
+                maxLength={254}
+                autoComplete="email"
                 className="bg-white/30 border-white/30 text-white placeholder:text-white/60 focus:border-orange-400 focus:ring-orange-400"
               />
+              {formErrors.email && (
+                <p className="text-red-500 text-sm">{formErrors.email}</p>
+              )}
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
@@ -221,10 +268,18 @@ export default function LoginPage() {
                 id="password"
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setFormErrors((prev) => ({ ...prev, password: "" }));
+                }}
                 required
+                maxLength={128}
+                autoComplete="current-password"
                 className="bg-white/30 border-white/30 text-white placeholder:text-white/60 focus:border-orange-400 focus:ring-orange-400"
               />
+              {formErrors.password && (
+                <p className="text-red-500 text-sm">{formErrors.password}</p>
+              )}
             </div>
             <Button
               type="submit"
