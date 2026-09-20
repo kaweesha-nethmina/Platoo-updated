@@ -606,6 +606,7 @@ export default function OrdersPage() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

@@ -1,7 +1,7 @@
 import { Router, Response } from "express";
 import { AuthRequest } from "../middleware/authMiddleware"; // Import AuthRequest
 import { UserRole } from "../models/User"; // Ensure UserRole is correctly imported
-import { register, login, updateUser, deleteUser, getAllUsers, getUserById, getRestaurantOwnerByIdPublic } from "../controllers/authController";
+import { register, login, updateUser, deleteUser, getAllUsers, getUserById, getRestaurantOwnerByIdPublic, googleAuth } from "../controllers/authController";
 import { protect } from "../middleware/authMiddleware";
 
 const router = Router();
@@ -14,6 +14,11 @@ router.post("/register", async (req: AuthRequest, res: Response) => {
 // Login route
 router.post("/login", async (req: AuthRequest, res: Response) => {
   await login(req, res); // Call the login function directly
+});
+
+// Google OAuth (OIDC) sign-in route
+router.post("/google", async (req: AuthRequest, res: Response) => {
+  await googleAuth(req, res); // Call the googleAuth function directly
 });
 
 // Update user route

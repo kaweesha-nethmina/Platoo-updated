@@ -4,10 +4,13 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { AuthRequest } from "../middleware/authMiddleware";  // Ensure this is correct
 import mongoose from "mongoose";
+import { OAuth2Client } from "google-auth-library";
 
 const generateToken = (id: string, role: string): string => {
   return jwt.sign({ id, role }, process.env.JWT_SECRET!, { expiresIn: "1d" });
 };
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 // Register user
 export const register = async (req: Request, res: Response): Promise<void> => {
@@ -44,13 +47,60 @@ export const login = async (req: Request, res: Response): Promise<void> => {
   const { email, password } = req.body;
   const user = await User.findOne({ email });
 
-  if (!user || !(await bcrypt.compare(password, user.password))) {
+  if (!user || !user.password || !(await bcrypt.compare(password, user.password))) {
     res.status(401).json({ msg: "Invalid credentials" });
     return; // Ensure to exit early after sending the response
   }
 
   const token = generateToken(user.id, user.role);
   res.json({ token });
+};
+
+// Google OAuth (OIDC) sign-in
+export const googleAuth = async (req: Request, res: Response): Promise<void> => {
+  const { idToken } = req.body;
+
+  if (!idToken || typeof idToken !== "string") {
+    res.status(400).json({ msg: "Missing ID token" });
+    return;
+  }
+
+  try {
+    const ticket = await googleClient.verifyIdToken({
+      idToken,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    const payload = ticket.getPayload();
+
+    if (!payload || !payload.email || !payload.sub) {
+      res.status(401).json({ msg: "Invalid Google token" });
+      return;
+    }
+
+    const { email, sub: googleId, name } = payload;
+
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      user = new User({
+        name: name || email.split("@")[0],
+        email,
+        googleId,
+        authProvider: "google",
+        role: UserRole.USER,
+      });
+      await user.save();
+    } else if (user.authProvider === "local") {
+      user.googleId = googleId;
+      await user.save();
+    }
+
+    const token = generateToken(user.id, user.role);
+    res.json({ token });
+  } catch (error) {
+    console.error("Google auth error:", error);
+    res.status(401).json({ msg: "Invalid Google token" });
+  }
 };
 
 // Update user - Admin can update any profile, others can only update their own
