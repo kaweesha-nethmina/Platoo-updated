@@ -1,12 +1,21 @@
 import express, { Request, Response } from 'express';
-import { createOrder, getAllOrders, getOrderById, updateOrder, deleteOrder, getOrdersByUserId, updateOrderStatus, confirmPaymentHandler } from '../controllers/orderController';
+import {
+  createOrder,
+  getAllOrders,
+  getOrderById,
+  updateOrder,
+  deleteOrder,
+  getOrdersByUserId,
+  updateOrderStatus,
+  confirmPaymentHandler,
+} from '../controllers/orderController';
 
 const router = express.Router();
 
 // Create a new order
 router.post('/orders', async (req: Request, res: Response) => {
   try {
-    await createOrder(req, res);  // Call the async handler function
+    await createOrder(req, res);
   } catch (error: unknown) {
     if (error instanceof Error) {
       res.status(500).json({ message: 'Error creating order', error: error.message });
@@ -68,26 +77,24 @@ router.delete('/orders/:orderId', async (req: Request, res: Response) => {
   }
 });
 
-
-// Get orders by user_id
+// Get orders by user_id  -> /orders/history/:userId
 router.get('/orders/history/:userId', async (req: Request, res: Response) => {
-    try {
-      await getOrdersByUserId(req, res);  // Call the async handler function
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        res.status(500).json({ message: 'Error fetching orders by user ID', error: error.message });
-      } else {
-        res.status(500).json({ message: 'Unknown error occurred' });
-      }
+  try {
+    await getOrdersByUserId(req, res);
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      res.status(500).json({ message: 'Error fetching orders by user ID', error: error.message });
+    } else {
+      res.status(500).json({ message: 'Unknown error occurred' });
     }
-  });
+  }
+});
+
 // Update only the status of an order
 router.patch('/orders/:orderId/status', async (req: Request, res: Response) => {
   try {
     const { orderId } = req.params;
     const { status } = req.body;
-
-    // Call the controller function to update the order status
     await updateOrderStatus(orderId, status, res);
   } catch (error: unknown) {
     if (error instanceof Error) {
@@ -97,7 +104,8 @@ router.patch('/orders/:orderId/status', async (req: Request, res: Response) => {
     }
   }
 });
-// Confirm an order's payment after server-side Stripe verification
+
+// Confirm a payment for an order (server-side Stripe verification via payment-service)
 router.patch('/orders/:orderId/payment', async (req: Request, res: Response) => {
   try {
     await confirmPaymentHandler(req, res);
@@ -109,7 +117,5 @@ router.patch('/orders/:orderId/payment', async (req: Request, res: Response) => 
     }
   }
 });
-;
-  
-  
+
 export default router;

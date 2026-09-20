@@ -32,8 +32,16 @@ Legend: Critical → do first · High → next · Medium → then · Observation
       (server-side payment verification below).
 
 - [ ] **V-04 — Add authentication to order-service** (all routes `orderRoutes.ts`, `app.ts:17`)
-      Apply user-service JWT verification middleware to every order route;
-      enforce that non-admin users only touch their own resources.
+      **Backend middleware is in place** — `order-service/middleware/authenticate.ts` provides
+      `protect(roles?)` (verifies the user-service JWT using the shared `JWT_SECRET`), an
+      internal-service bypass via `x-internal-key` header = `INTERNAL_SERVICE_KEY`, and
+      `isOwnerOrPrivileged(req, ownerUserId)` for resource-ownership checks. **Still outstanding:**
+      (1) wire `protect`/ownership onto *every* route in `orderRoutes.ts`; (2) share the same
+      `JWT_SECRET` + `INTERNAL_SERVICE_KEY` in order-service and payment-service `.env` /
+      `.env.example`; (3) have payment-service send `x-internal-key` when it fetches an order
+      (`StripeService.fetchOrder`, verify flow); (4) add `Authorization: Bearer` to all frontend
+      callers of order-service. Do not commit real secret values. Partially mirrored by the
+      V-12 checklist item (ownership on `GET /orders/history/:userId`).
 
 ---
 
@@ -107,11 +115,58 @@ Legend: Critical → do first · High → next · Medium → then · Observation
       mongoose, nodemailer, form-data (critical), lodash, sequelize, validator, etc.
       (23 vulnerabilities).
 
+---
+
+## Operational / build fixes (done — not security findings, for completeness)
+
+- [x] **payment-service missing from `start-all.sh`** — the launcher ran every Node backend
+      service but never booted payment-service (`:8081`), so checkout always returned
+      "Payment session failed." Added a `mvn -o spring-boot:run` block that sources
+      `payment-service/.env` first (Spring Boot does **not** auto-load `.env`, so
+      `STRIPE_SECRET_KEY` must be exported). See `start-all.sh:99-117`.
+- [x] **Cart page logged `AxiosError 404` for new users** — `cart-service` `getCartByUserId`
+      returned 404 when a user had no cart yet, and the frontend treated that as failure.
+      Now returns `200` with an empty cart. See `cartController.ts:getCartByUserId`.
+
 - [ ] **payment-service deps** — update `stripe-java` (24.3.0 → latest 27.x+); drop
       unused `spring-boot-starter-thymeleaf`; run OWASP dependency-check.
 
 - [ ] **NoSQL injection hygiene (order-service)** — keep user input out of Mongo
       operators (`$nor`, `$or`, …) and upgrade mongoose past the sanitizeFilter bypass CVE.
+
+---
+
+## Runtime observations (2026-09-20, live smoke test)
+
+- **Checkout → `400` on `POST /api/orders`** → **RESOLVED** (this session). Two-stage root cause,
+      now fixed and verified end-to-end:
+      1. `restaurant_id: undefined` — `orderNow` in `restaurants/[id]/page.tsx` stored
+         `selectedItem`/`selectedQuantity` but never `restaurantId`, so checkout's
+         `restaurant?._id` was `undefined`. Fixed by persisting `restaurantId` before the
+         `/checkout` navigation (`restaurants/[id]/page.tsx`).
+      2. `menu_item_id: "undefined"` → `"Invalid menu items in order"` — cart items are stored
+         with a `menuItemId` key (remapped in `useCart.ts:38` / cart page, which drops
+         `productId`), but checkout built `menu_item_id: item.productId`, which serialized as
+         `undefined` and was rejected by `order-service` → menu-service quote. Fixed in
+         `checkout/page.tsx`: `itemsToSend` now resolves the id via
+         `menuItemId ?? productId` (cart) / `_id ?? productId ?? menuItemId` (single item) and
+         coerces `quantity` with `Number()`.
+      Diagnostic aid added (kept, harmless): `orderController.ts` 400 now returns a `failed`
+      array naming the exact missing/incorrect field, and `orderService.ts` 500 includes the
+      rejected `menu_item_id`s — so any future rejections self-diagnose.
+
+- **New-user "My Orders" page still lists all orders** (`orders/page.tsx:39-47`) — the page
+      fetches `GET /api/orders` and filters client-side by `user_id`. This is the V-12 pattern
+      (client-side filtering ≠ authorization); it also means the public `GET /api/orders` still
+      returns the whole collection to any caller. Tracked under V-12.
+
+- **payment-service now boots via `start-all.sh`** (fixed this session) — sourced
+      `payment-service/.env` for `STRIPE_SECRET_KEY` (Spring Boot does not auto-load `.env`).
+      Verified a checkout session is created without the former "Payment session failed" error.
+
+- **cart-service empty-cart 404** (fixed this session) — `GET /api/cart/:userId` returns
+      `200 []` for a brand-new user's empty cart instead of 404 (the 404 was thrown as an
+      `AxiosError` and treated as failure by the cart page).
 
 ---
 

@@ -42,11 +42,13 @@ export class OrderService {
 
     if (invalid.length > 0) {
       console.error('Invalid menu items in order:', invalid);
-      throw new Error('Invalid menu items in order');
+      throw new Error('Invalid menu items in order: ' + JSON.stringify(invalid));
     }
 
     if (valid.length !== items.length) {
-      throw new Error('Invalid menu items in order');
+      const sent = items.map((i) => ({ menu_item_id: String(i.menu_item_id), quantity: i.quantity, quantityType: typeof i.quantity }));
+      console.error('Menu item count mismatch. Sent:', sent, 'Valid:', valid);
+      throw new Error('Invalid menu items in order: count mismatch. Sent=' + JSON.stringify(sent));
     }
 
     return valid.map((entry: any) => ({

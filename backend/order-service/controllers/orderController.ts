@@ -28,9 +28,25 @@ export const createOrder = async (req: Request, res: Response): Promise<Response
       typeof location.lat !== 'number' ||
       typeof location.lng !== 'number'
     ) {
+      const missing = {
+        user_id: user_id ? undefined : 'missing',
+        items: Array.isArray(items) && items.length > 0 ? undefined : (Array.isArray(items) ? 'empty' : 'not-an-array'),
+        restaurant_id: restaurant_id ? undefined : 'missing',
+        delivery_fee: delivery_fee !== undefined ? undefined : 'missing',
+        delivery_address: delivery_address ? undefined : 'missing',
+        phone: phone ? undefined : 'missing',
+        email: email ? undefined : 'missing',
+        location: location
+          ? typeof location.lat !== 'number' || typeof location.lng !== 'number'
+            ? `invalid-type lat=${typeof location.lat} lng=${typeof location.lng}`
+            : undefined
+          : 'missing',
+      };
+      const failed = Object.entries(missing).filter(([, v]) => v).map(([k, v]) => `${k}:${v}`);
       return res.status(400).json({
         message:
           'Invalid request body. Ensure user_id, items, restaurant_id, delivery_fee, delivery_address, phone, email, and location (with lat and lng) are provided.',
+        failed,
       });
     }
 

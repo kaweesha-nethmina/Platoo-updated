@@ -36,6 +36,8 @@ declare global {
 
 interface MenuItem {
   _id: string;
+  productId?: string;
+  menuItemId?: string;
   name: string;
   description: string;
   price: number;
@@ -64,6 +66,7 @@ interface Restaurant {
 interface CartItem {
   id: string;
   productId: string;
+  menuItemId?: string;
   name: string;
   price: number;
   quantity: number;
@@ -571,18 +574,24 @@ export default function CheckoutPage() {
     setIsProcessing(true);
 
     try {
-      const itemsToSend =
-        cartItems.length > 0
-          ? cartItems.map((item) => ({
-              menu_item_id: item.productId,
-              quantity: item.quantity,
-              price: item.price,
-              name: item.name,
-            }))
+      const itemsToSend = cartItems.length > 0
+          ? cartItems.map((item) => {
+              // Cart items can carry the menu id under either name depending on
+              // which path created them (cart-service uses `productId`, the
+              // cart page re-maps it to `menuItemId`). Resolve whichever is
+              // present so menu_item_id is never undefined.
+              const menu_item_id = item.menuItemId ?? item.productId;
+              return {
+                menu_item_id,
+                quantity: Number(item.quantity),
+                price: item.price,
+                name: item.name,
+              };
+            })
           : [
               {
-                menu_item_id: selectedItem!._id,
-                quantity: selectedQuantity,
+                menu_item_id: selectedItem?._id ?? selectedItem?.productId ?? selectedItem?.menuItemId,
+                quantity: Number(selectedQuantity),
                 price: selectedItem!.price,
                 name: selectedItem!.name,
               },
@@ -600,8 +609,12 @@ export default function CheckoutPage() {
         status: "pending",
         delivery_address: deliveryAddress,
         location: { // Match your backend schema
-          lat: deliveryLocation.lat,
-          lng: deliveryLocation.lng
+          // The map/marker and auto-fill paths can produce string lat/lng
+          // (e.g. "7.291418" or 6.9271); the order-service rejects anything
+          // that is not typeof 'number'. Coerce explicitly at the payload
+          // boundary so numeric coordinates always reach the server.
+          lat: Number(deliveryLocation.lat),
+          lng: Number(deliveryLocation.lng),
         },
         phone,
         email,
@@ -618,6 +631,10 @@ export default function CheckoutPage() {
       });
 
       if (!orderResponse.ok) {
+        // Capture the server's actual rejection reason — the browser only gets
+        // "Failed to create order." otherwise)Skip; this surfaces which field
+        // order-service's createOrder validation rejected so we stop guessing.
+        void orderResponse.clone().text().then((t) => console.error("createOrder 400 body:", t));
         console.error("Failed to create order.");
         setIsProcessing(false);
         return;
