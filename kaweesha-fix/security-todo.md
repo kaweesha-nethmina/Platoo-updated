@@ -2,7 +2,8 @@
 
 Actionable todo list derived from [`vulnerability-assessment.md`](./vulnerability-assessment.md).
 Boxes marked `[x]` are already addressed by the Google-auth and form-validation work plus the
-V-01 admin-credential fix (see [`kaweesha.md`](./kaweesha.md)); everything else is outstanding.
+V-01 admin-credential and V-02 role-guard fixes (see [`kaweesha.md`](./kaweesha.md)); everything
+else is outstanding.
 
 Legend: Critical → do first · High → next · Medium → then · Observations → hardening backlog.
 
@@ -16,9 +17,10 @@ Legend: Critical → do first · High → next · Medium → then · Observation
       `ADMIN_EMAIL` / `ADMIN_RESET_PASSWORD=1` allow overriding the email and
       rotating an existing admin password. See `kaweesha.md`.
 
-- [ ] **V-02 — Prevent unauthenticated self-role-assignment on register** (`authController.ts:14,31`)
-      Server-side: ignore client-supplied `role` on registration, default to `"user"`.
-      Assign elevated roles only via admin-only flows. Add a Mongoose enum validator.
+- [x] **V-02 — Prevent unauthenticated self-role-assignment on register** (`authController.ts:14,31`)
+      Done: server-side whitelist (`PUBLIC_REGISTRATION_ROLES`) allows customer, restaurant owner,
+      and delivery person to pick their own role; any `admin`/unknown role is downgraded to `user`.
+      Mongoose enum validator already present. See `kaweesha.md`.
 
 - [ ] **V-03 — Recompute payment amount server-side** (payment-service `StripeService.java:23`)
       Accept an order reference, look up items, compute the trusted total;
@@ -104,7 +106,7 @@ Legend: Critical → do first · High → next · Medium → then · Observation
 
 ## Suggested order of attack
 
-1. V-01 ✅, V-02, V-04 (auth + role hardening) — everything else depends on auth working.
+1. V-01 ✅, V-02 ✅, V-04 (auth + role hardening) — everything else depends on auth working.
 2. V-06, V-11 (stop hash leakage) + V-09 pattern everywhere.
 3. V-05, V-07, V-03 (payment/order trust) — then V-12.
 4. V-08, V-10 (frontend/token storage + CORS).

@@ -2,8 +2,9 @@
 
 Checklist of security hardening completed against the findings and observations in
 [`vulnerability-assessment.md`](./vulnerability-assessment.md).
-Only the "Google OAuth", "Form validation", and "V-01 admin credentials" work items
-described below were done; no existing authentication logic for email/password was modified.
+Only the "Google OAuth", "Form validation", "V-01 admin credentials", and "V-02 role
+self-assignment" work items described below were done; no existing authentication logic
+for email/password was modified.
 
 ---
 
@@ -93,6 +94,29 @@ described below were done; no existing authentication logic for email/password w
 
 ---
 
+## 3b. V-02 — Prevent Admin Self-Assignment on Registration (Critical)
+
+### Backend — `backend/user-service/src/controllers/authController.ts`
+
+- [x] **Server-side role whitelist** — registration now only accepts the non-elevated roles
+      customers can pick for themselves:
+      `user`, `restaurant_owner`, `delivery_man`.
+- [x] **Admin can no longer be self-assigned** — any request sending `role: "admin"` (or any other
+      unlisted/unknown role) is silently downgraded to the default `user` role server-side.
+- [x] **Minimal-change approach** — the field is still read from `req.body` and passed to the model,
+      but the value is sanitized through `PUBLIC_REGISTRATION_ROLES` first, so the existing
+      self-registration flow for customers, restaurant owners, and delivery persons keeps working
+      exactly as before. Only the privileged path is closed.
+- [x] **Mongoose enum validator already present** — no change needed; the schema still validates
+      roles against `Object.values(UserRole)` on the model (a second line of defense).
+
+> **Relationship to `vulnerability-assessment.md`:** directly closes **V-02** (Critical, A01).
+> Admin accounts can now only be provisioned through the admin-only flow (`seed-admin.js`) or a
+> future admin-only provisioning endpoint — never via public registration. Frontend unchanged
+> (it already only offers the three public roles).
+
+---
+
 ## 4. General status vs. the assessment
 
 | Fix | Scope | Backend | Frontend | Status |
@@ -100,6 +124,7 @@ described below were done; no existing authentication logic for email/password w
 | Google OAuth (OIDC) sign-in | Additive new login path, same JWT handling | ✅ verified server-side tokens | ✅ same post-login logic | **Done** |
 | Form validation | Input validation & hardening on login + register | Not required (defense-in-depth) | ✅ | **Done** |
 | V-01 admin credentials | Seed script uses env/generated password | ✅ | — | **Done** |
+| V-02 role self-assignment | Register whitelist: user, restaurant_owner, delivery_man; admin downgraded | ✅ | — | **Done** |
 | V-09 error leakage (googleAuth only) | Generic 401, server-side-only logging | ✅ | — | **Done (new endpoint)** |
 | V-08 JWT storage (httpOnly cookie) | Out of scope for these fixes | — | — | Not changed (kept consistent with existing flow) |
 

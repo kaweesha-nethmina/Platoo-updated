@@ -12,16 +12,32 @@ const generateToken = (id: string, role: string): string => {
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
+// Roles an unauthenticated person may self-assign at registration. Elevated
+// roles (admin) can only be provisioned through the admin-only flows
+// (e.g. seed-admin.js) — never via public registration.
+const PUBLIC_REGISTRATION_ROLES = [
+  UserRole.USER,
+  UserRole.RESTAURANT_OWNER,
+  UserRole.DELIVERY_MAN,
+];
+
 // Register user
 export const register = async (req: Request, res: Response): Promise<void> => {
   const { name, email, password, role, phone, address, restaurantName, vehicleNumber } = req.body;
   const hashedPassword = await bcrypt.hash(password, 10);
 
+  // Server-side guard (V-02): ignore any privileged/unknown role sent by the
+  // client. Customer, restaurant owner, and delivery person may pick their own
+  // role; anything else (e.g. "admin") is downgraded to the default "user".
+  const safeRole = PUBLIC_REGISTRATION_ROLES.includes(role)
+    ? role
+    : UserRole.USER;
+
   const user = new User({
     name,
     email,
     password: hashedPassword,
-    role,
+    role: safeRole,
     phone,
     address,
     restaurantName,
