@@ -1,5 +1,5 @@
 import express, { Request, Response } from 'express';
-import { createOrder, getAllOrders, getOrderById, updateOrder, deleteOrder, getOrdersByUserId, updateOrderStatus } from '../controllers/orderController';
+import { createOrder, getAllOrders, getOrderById, updateOrder, deleteOrder, getOrdersByUserId, updateOrderStatus, confirmPaymentHandler } from '../controllers/orderController';
 
 const router = express.Router();
 
@@ -92,6 +92,18 @@ router.patch('/orders/:orderId/status', async (req: Request, res: Response) => {
   } catch (error: unknown) {
     if (error instanceof Error) {
       res.status(500).json({ message: 'Error updating order status', error: error.message });
+    } else {
+      res.status(500).json({ message: 'Unknown error occurred' });
+    }
+  }
+});
+// Confirm an order's payment after server-side Stripe verification
+router.patch('/orders/:orderId/payment', async (req: Request, res: Response) => {
+  try {
+    await confirmPaymentHandler(req, res);
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      res.status(500).json({ message: 'Error confirming payment', error: error.message });
     } else {
       res.status(500).json({ message: 'Unknown error occurred' });
     }

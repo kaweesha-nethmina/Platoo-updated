@@ -2,9 +2,10 @@
 
 Checklist of security hardening completed against the findings and observations in
 [`vulnerability-assessment.md`](./vulnerability-assessment.md).
-Only the "Google OAuth", "Form validation", "V-01 admin credentials", and "V-02 role
-self-assignment" work items described below were done; no existing authentication logic
-for email/password was modified.
+Only the "Google OAuth", "Form validation", "V-01 admin credentials", "V-02 role
+self-assignment", "V-03 server-side payment amount", "V-07 server-side order pricing", and
+"V-05 payment verification" work items described below were done;
+no existing authentication logic for email/password was modified.
 
 ---
 
@@ -117,6 +118,128 @@ for email/password was modified.
 
 ---
 
+## 3c. V-03 — Recompute Payment Amount Server-Side (Critical)
+
+### Backend — `backend/payment-service`
+
+- [x] **Client amount no longer trusted** — `ProductRequest` no longer carries an `amount` field;
+      it carries only an `orderId` reference. There is no code path left that can turn a
+      client-supplied monetary value into a Stripe charge.
+- [x] **`.setUnitAmount()` derived from the persisted order** — `StripeService.checkoutProducts()`
+      fetches the stored order from the order-service (`GET /api/orders/{id}`) and recomputes the
+      payable total as `sum(item.price * item.quantity) + delivery_fee`, then rounds it to the
+      currency's smallest unit. The client never provides the price.
+- [x] **Server-to-server call, no new dependencies** — uses the JDK `java.net.http.HttpClient`
+      against the configurable `order.service.url` (`ORDER_SERVICE_URL` env, default
+      `http://localhost:3008`) with a 5s timeout.
+- [x] **Missing / invalid references rejected** — blank `orderId`, order not found (404), or a
+      non-positive recomputed total all return `400`/`404` client errors instead of creating a
+      session.
+- [x] **Failure behaviour follows the V-09 pattern** — order-service unreachable or a
+      `StripeException` returns a generic 500 message; the underlying exception is only logged
+      server-side and never relayed to the client.
+- [x] **Session correlates to the order** — the order id is stored in Stripe session metadata
+      (`order_id`), which `PaymentVerificationController` already reads on verification.
+- [x] **Cancel URL corrected** — points to the real checkout page (`http://localhost:3000/checkout`)
+      instead of the stale `:8080` stub.
+
+### Frontend — `frontend/platoo-client`
+
+- [x] **Order persisted before payment** — the checkout page now creates the order (POST
+      `/api/orders`) first and keeps its id — that id is the V-03 "order reference".
+- [x] **Checkout payload is a reference, not a price** — checkout sends `{ orderId, currency }` to
+      `/product/v1/checkout`; the client `amount`/`quantity` payload is gone.
+- [x] **Success page no longer re-creates the order** — `payment-success` just cleans up
+      `pending_order` and navigates, removing the previous double-creation risk.
+
+> **Relationship to `vulnerability-assessment.md`:** directly closes **V-03** (Critical, A07).
+> The Stripe amount now comes from the persisted order record instead of the client. It is
+> **complete** because the order record itself is now trusted: **V-07** makes the order-service
+> price items from the server-side catalog, and **V-05** verifies the Stripe session server-side
+> before the order is confirmed/paid (both documented below). Note: the checkout page displays an
+> 8% tax line, but the order-service never modelled tax, so the persisted/charged amount is
+> `sum(item.price * quantity) + delivery_fee` (tax excluded); the confirmation/invoice and the
+> Stripe charge are now exactly consistent with each other.
+
+---
+
+## 3d. V-07 — Server-Side Prices for Order Totals (High)
+
+### Backend — `backend/menu-service` (new quote endpoint)
+
+- [x] **Trusted price source exposed** — new `POST /api/menu-items/quote`
+      (`src/services/menuItem.service.ts` → `quoteMenuItems`, controller
+      `quoteMenuItemsHandler`, route `router.post('/quote', ...)`):
+      accepts `{ items: [{ menu_item_id, quantity }] }`, looks the ids up in the DB, and returns
+      `{ valid: [{ menu_item_id, name, price, quantity }], invalid: [id...] }`.
+- [x] **Input hardened** — non-ObjectId, missing, or non-positive quantities are moved to
+      `invalid`; only real catalog documents produce a price.
+
+### Backend — `backend/order-service`
+
+- [x] **Client prices are never used** — `OrderService.resolveTrustedItems()` calls the quote
+      endpoint and builds `items` from the server-returned `price`/`name`; the client-supplied
+      `price`/`name` on the request body are ignored.
+- [x] **Order rejected on any invalid item** — if any requested item is missing/invalid (or the
+      menu-service is unreachable), `createOrder`/`updateOrder` fail closed and no order is saved.
+- [x] **Totals recomputed server-side** — `total_amount = sum(price * quantity) + delivery_fee`
+      is always derived from the trusted prices (`orderService.ts`, create + update paths).
+- [x] **Config documented** — `MENU_SERVICE_URL` (already present in `order-service/.env`) and
+      `PAYMENT_SERVICE_URL` are documented in the new `backend/order-service/.env.example`.
+
+> **Relationship to `vulnerability-assessment.md`:** directly closes **V-07** (High, A04).
+> Combined with V-03, this means the payment-service's "recomputed" total is based on genuinely
+> server-owned prices, so the whole `client → order → Stripe` price chain is trusted.
+
+---
+
+## 3e. V-05 — Verify Stripe Payment Server-Side Before Confirming (High)
+
+Because V-03 requires the order record to exist *before* the Stripe session is created, the
+original "create the order only after payment" step became an order *confirmation* step: the order
+is only marked `paid` (and the confirmation email is sent) after the session is verified.
+
+### Backend — `backend/order-service`
+
+- [x] **New `payment_status` field** — order model gains `payment_status`
+      (`enum ['unpaid','paid']`, default `unpaid`) and `paid_at`; existing orders default to
+      `unpaid`. The existing `status` (pending/preparing/ready/delivered/cancelled) semantics are
+      untouched, so the restaurant dashboard flow is unaffected.
+- [x] **Confirmation email moved** — removed from `createOrder`; it is now sent only once the
+      payment is verified (`confirmPayment`), so abandoned checkouts never trigger emails.
+- [x] **`PATCH /api/orders/:orderId/payment`** — `OrderService.confirmPayment(orderId, sessionId)`
+      (new controller `confirmPaymentHandler` + route) does all verification server-side:
+      1. loads the order (by `_id` or `ORDER###`);
+      2. calls payment-service `GET /api/verify-payment/{sessionId}` (which verifies with Stripe);
+      3. accepts only `status === "success"` **and** the Stripe metadata `order_id` matching this
+         order's `_id` (an attacker cannot pin their paid session to someone else's order);
+      4. marks `payment_status = "paid"`, records `paid_at`, then sends the confirmation email
+         (email failure is logged, never fatal).
+  - **Idempotent** — a repeated call (e.g. page refresh after a successful redirect) returns the
+    already-paid order without re-sending the email.
+  - Verification failures return a generic `403`.
+
+### Backend — `backend/payment-service`
+
+- [x] **`PaymentVerificationController` fixed + hardened** — the Stripe API key is now set inside
+      the handler (previously set in the constructor, where the injected `@Value` field was still
+      `null`, so verification could never authenticate). Also returns generic error messages
+      (V-09 pattern, no `StripeException` leakage) and rejects sessions whose metadata has no
+      `order_id`.
+
+### Frontend — `frontend/platoo-client/app/payment-success/page.tsx`
+
+- [x] **Session verified server-side before confirmation** — parses `session_id` from the URL and
+      calls `PATCH /api/orders/{order_id}/payment`. Only a verified, matched, paid session leads to
+      the confirmation page; anything else (missing session id, verification failure) redirects
+      back to `/checkout`. `localStorage` alone is never trusted.
+
+> **Relationship to `vulnerability-assessment.md`:** directly closes **V-05** (High).
+> The success path can no longer be simulated from client state, confirmation emails only fire for
+> verified payments, and abandoned checkouts leave an `unpaid` order with no email.
+
+---
+
 ## 4. General status vs. the assessment
 
 | Fix | Scope | Backend | Frontend | Status |
@@ -125,9 +248,16 @@ for email/password was modified.
 | Form validation | Input validation & hardening on login + register | Not required (defense-in-depth) | ✅ | **Done** |
 | V-01 admin credentials | Seed script uses env/generated password | ✅ | — | **Done** |
 | V-02 role self-assignment | Register whitelist: user, restaurant_owner, delivery_man; admin downgraded | ✅ | — | **Done** |
+| V-03 payment amount server-side | Checkout takes an order reference; Stripe amount recomputed from the persisted order (never the client's amount) | ✅ (fetch + recompute) | ✅ (create order first, send orderId) | **Done** |
+| V-07 server-side order pricing | Order totals priced from the menu-service catalog; client prices ignored | ✅ (quote endpoint + trusted resolve) | — | **Done** |
+| V-05 payment verification | Session verified server-side (Stripe) before the order is confirmed/paid; email only after verification | ✅ (order-service confirm + payment-service verify) | ✅ (success page verifies) | **Done** |
 | V-09 error leakage (googleAuth only) | Generic 401, server-side-only logging | ✅ | — | **Done (new endpoint)** |
 | V-08 JWT storage (httpOnly cookie) | Out of scope for these fixes | — | — | Not changed (kept consistent with existing flow) |
 
 Verification performed on both fixes: `npm run build` / `npx tsc --noEmit` passes for all changed
 files (login page, register page, user model, auth controller, auth routes); existing
 email/password register, login, and JWT issuance behave exactly as before.
+For the payment/order chain: `mvn -o compile` is clean for payment-service, and `npx tsc --noEmit`
+is clean for order-service and menu-service and reports no new errors in the changed frontend
+files (`app/checkout/page.tsx`, `app/payment-success/page.tsx`; only the pre-existing dashboard
+errors remain). No authentication logic was touched.

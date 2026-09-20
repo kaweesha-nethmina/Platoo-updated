@@ -173,3 +173,28 @@ export const getOrdersByUserId = async (req: Request, res: Response): Promise<Re
     }
   }
 };
+
+// Confirm an order's payment after server-side Stripe verification
+export const confirmPaymentHandler = async (req: Request, res: Response): Promise<Response> => {
+  try {
+    const { orderId } = req.params;
+    const { sessionId } = req.body ?? {};
+
+    if (!orderId || !sessionId) {
+      return res.status(400).json({ message: 'Order ID and session ID are required' });
+    }
+
+    const order = await OrderService.confirmPayment(orderId, sessionId);
+    return res.status(200).json({ message: 'Payment confirmed', order });
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      if (error.message === 'Order not found') {
+        return res.status(404).json({ message: 'Order not found' });
+      }
+      // Any verification failure is intentionally surfaced as a generic error
+      // so the success-page decision is never based on forged client state.
+      return res.status(403).json({ message: 'Payment could not be verified' });
+    }
+    return res.status(500).json({ message: 'Unknown error' });
+  }
+};

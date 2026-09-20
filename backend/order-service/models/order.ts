@@ -18,6 +18,8 @@ export interface IOrder extends Document {
   phone: string; // Added phone field
   email: string; // Added email field
   location: { lat: number; lng: number };
+  payment_status: string;
+  paid_at?: Date;
 }
 
 const orderSchema: Schema = new Schema(
@@ -39,6 +41,8 @@ const orderSchema: Schema = new Schema(
     delivery_address: { type: String, required: true }, // Delivery address
     phone: { type: String, required: true }, // Phone number
     email: { type: String, required: true }, // Email address
+    payment_status: { type: String, enum: ['unpaid', 'paid'], default: 'unpaid' },
+    paid_at: { type: Date },
     location: {
       type: {
         lat: { type: Number, required: true },

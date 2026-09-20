@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 ###############################################################################
 # Platoo - local dev launcher (no Docker)
-# Runs: Redis + 10 backend services + Next.js frontend
+# Runs: Redis + 11 backend services + Next.js frontend
 # Usage: ./start-all.sh
 # Stop:  press Ctrl-C
 ###############################################################################
@@ -69,13 +69,35 @@ echo "[frontend] starting on http://localhost:3000 ..."
 (cd "$FRONTEND" && npm run dev) >> "$LOGS/frontend.log" 2>&1 &
 PIDS+=("$!")
 
+# ----------------------------------------------------------------------------
+# 4. payment-service (Spring Boot on port 8081)
+#    Note: Spring Boot does NOT auto-load .env, so export it from payment-service/.env
+# ----------------------------------------------------------------------------
+PAYMENT="$BACKEND/payment-service"
+echo "[payment-service] starting on 8081..."
+(
+  cd "$PAYMENT" || exit 1
+  if [ -f .env ]; then
+    set -a
+    . ./.env
+    set +a
+  fi
+  if command -v mvn >/dev/null 2>&1; then
+    mvn -o spring-boot:run
+  else
+    echo "[payment-service] ERROR: mvn not found on PATH" >&2
+    exit 1
+  fi
+) >> "$LOGS/payment-service.log" 2>&1 &
+PIDS+=("$!")
+
 echo ""
 echo "==========================================================================="
 echo " Platoo is starting..."
 echo " Frontend : http://localhost:3000"
 echo " Backend  : user 4000 | menu 3001 | search 3002 | delivery 3003 | cart 3005"
-echo "            geo-location 3007 | order 3008 | ratings 5000 | admin 4005"
-echo "            notification 4006"
+echo "            geo-location 3007 | order 3008 | payment 8081 | ratings 5000"
+echo "            admin 4005 | notification 4006"
 echo " Logs     : $LOGS  (tail -f logs/<service>.log)"
 echo " Stop     : press Ctrl-C"
 echo "==========================================================================="

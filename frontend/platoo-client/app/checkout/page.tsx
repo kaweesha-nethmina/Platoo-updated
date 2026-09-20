@@ -609,13 +609,32 @@ export default function CheckoutPage() {
 
       localStorage.setItem("pending_order", JSON.stringify(orderPayload));
 
+      // Persist the order first so the payment amount can be recomputed
+      // server-side from the stored order (never trust the client's amount).
+      const orderResponse = await fetch("http://localhost:3008/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(orderPayload),
+      });
+
+      if (!orderResponse.ok) {
+        console.error("Failed to create order.");
+        setIsProcessing(false);
+        return;
+      }
+
+      const orderResult = await orderResponse.json();
+      if (!orderResult?.order?._id) {
+        console.error("No order id returned.");
+        setIsProcessing(false);
+        return;
+      }
+
+      localStorage.setItem("order_id", orderResult.order.order_id);
+
       const paymentData = {
-        amount: orderTotal.toFixed(2),
-        quantity: itemsToSend.reduce((acc, item) => acc + item.quantity, 0),
-        name: "Food Order",
+        orderId: orderResult.order._id,
         currency: "USD",
-        successUrl: "http://localhost:3000/payment-success",
-        cancelUrl: "http://localhost:3000/checkout",
       };
 
       const response = await fetch("http://localhost:8081/product/v1/checkout", {

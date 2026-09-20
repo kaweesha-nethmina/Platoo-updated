@@ -8,36 +8,47 @@ export default function PaymentSuccessPage() {
 
   useEffect(() => {
     const placeConfirmedOrder = async () => {
-      const orderData = localStorage.getItem("pending_order");
-      if (!orderData) {
+      const orderId = localStorage.getItem("order_id");
+      if (!orderId) {
         console.error("No pending order found.");
         router.push("/checkout");
         return;
       }
-    
+
+      const params = new URLSearchParams(window.location.search);
+      const sessionId = params.get("session_id");
+      if (!sessionId) {
+        console.error("No Stripe session id in the URL.");
+        router.push("/checkout");
+        return;
+      }
+
+      // PATCH the order through the order service, which verifies the Stripe
+      // session server-side (order-service -> payment-service -> Stripe) and
+      // marks the order paid before we show the confirmation page. We never
+      // trust localStorage alone.
       try {
-        const response = await fetch("http://localhost:3008/api/orders", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: orderData,
-        });
-    
+        const response = await fetch(
+          `http://localhost:3008/api/orders/${orderId}/payment`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sessionId }),
+          }
+        );
+
         if (!response.ok) {
-          console.error("Error placing order:", response.statusText);
+          console.error("Payment could not be verified:", response.statusText);
+          router.push("/checkout");
           return;
         }
-    
-        const orderConfirmation = await response.json();
-        if (orderConfirmation?.order?.order_id) {
-          localStorage.setItem("order_id", orderConfirmation.order.order_id);
-          localStorage.removeItem("pending_order"); // ✅ cleanup
-          router.push("/order-confirmation");
-        } else {
-          console.error("Order ID not returned.");
-          router.push("/checkout");
-        }
+
+        // The order is already persisted (it was created during checkout);
+        // just clean up and show the confirmation.
+        localStorage.removeItem("pending_order");
+        router.push("/order-confirmation");
       } catch (error) {
-        console.error("Error placing order after payment:", error);
+        console.error("Error verifying payment:", error);
         router.push("/checkout");
       }
     };

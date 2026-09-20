@@ -1,10 +1,62 @@
 import mongoose from 'mongoose';
+import axios from 'axios';
 import Order, { IOrderItem } from '../models/order';
 import OrderCounter from '../models/OrderCounter';
 import { v4 as uuidv4 } from 'uuid';
-import { sendEmail } from '../utils/mailer'; 
+import { sendEmail } from '../utils/mailer';
 
 export class OrderService {
+  // Base URLs of the sibling services, overridable via env.
+  private static getMenuServiceUrl(): string {
+    return process.env.MENU_SERVICE_URL || 'http://localhost:3001';
+  }
+
+  private static getPaymentServiceUrl(): string {
+    return process.env.PAYMENT_SERVICE_URL || 'http://localhost:8081';
+  }
+
+  // Resolve the items against the menu service so prices (and names) always
+  // come from the server-side catalog, never from the client. Throws if any
+  // item is missing or invalid so the whole order is rejected.
+  static async resolveTrustedItems(items: IOrderItem[]): Promise<IOrderItem[]> {
+    const quotes = items.map((item) => ({
+      menu_item_id: String(item.menu_item_id),
+      quantity: item.quantity,
+    }));
+
+    let response;
+    try {
+      response = await axios.post<{ valid: unknown[]; invalid: unknown[] }>(
+        `${this.getMenuServiceUrl()}/api/menu-items/quote`,
+        { items: quotes },
+        { timeout: 5000 }
+      );
+    } catch (error) {
+      console.error('Menu service price lookup failed:', error);
+      throw new Error('Price lookup failed');
+    }
+
+    const body = response.data ?? {};
+    const valid: unknown[] = Array.isArray(body.valid) ? body.valid : [];
+    const invalid: unknown[] = Array.isArray(body.invalid) ? body.invalid : [];
+
+    if (invalid.length > 0) {
+      console.error('Invalid menu items in order:', invalid);
+      throw new Error('Invalid menu items in order');
+    }
+
+    if (valid.length !== items.length) {
+      throw new Error('Invalid menu items in order');
+    }
+
+    return valid.map((entry: any) => ({
+      menu_item_id: entry.menu_item_id,
+      name: entry.name,
+      quantity: entry.quantity,
+      price: entry.price,
+    }));
+  }
+
   // Create a new order
   static async createOrder(
     user_id: string,
@@ -19,13 +71,16 @@ export class OrderService {
     const session = await mongoose.startSession();
     session.startTransaction();
     try {
-      const totalAmount = items.reduce((acc: number, item) => acc + item.price * item.quantity, 0);
+      // V-07: prices come from the server-side catalog, never from the client.
+      const trustedItems = await this.resolveTrustedItems(items);
+
+      const totalAmount = trustedItems.reduce((acc: number, item) => acc + item.price * item.quantity, 0);
       const totalAmountWithDeliveryFee = totalAmount + delivery_fee;
-    
+
       if (totalAmount === 0) {
         throw new Error("No valid menu items found for the order.");
       }
-    
+
       let orderCounter = await OrderCounter.findOne({ name: 'orderId' });
       if (!orderCounter) {
         const newCounter = new OrderCounter({ name: 'orderId', count: 1 });
@@ -34,13 +89,13 @@ export class OrderService {
         orderCounter.count += 1;
         orderCounter = await orderCounter.save();
       }
-    
+
       const orderId = `ORD${orderCounter.count.toString().padStart(3, '0')}`;
       const order = new Order({
         order_id: orderId,
         user_id,
         total_amount: totalAmountWithDeliveryFee,
-        items: items,
+        items: trustedItems,
         status: 'pending',
         restaurant_id: restaurant_id,
         delivery_fee: delivery_fee,
@@ -49,18 +104,15 @@ export class OrderService {
         email: email,
         location: location, // Include the location field
       });
-    
+
       await order.save({ session });
       await session.commitTransaction();
       session.endSession();
-  
-      // Send an email after the order is created
-      const subject = 'Order Confirmation';
-      const text = `Your order with ID: ${orderId} has been placed successfully. We will notify you once it's ready.`;
-      const html = `<h3>Order Confirmation</h3><p>Your order with ID: <strong>${orderId}</strong> has been placed successfully. We will notify you once it's ready.</p>`;
-  
-      await sendEmail(email, subject, text, html); // Send email
-  
+
+      // NOTE: the confirmation email is sent when the payment is verified
+      // (see confirmPayment), not when the order record is created, so we
+      // never email customers whose checkout is abandoned before payment.
+
       return order;
     } catch (error: unknown) {
       await session.abortTransaction();
@@ -115,19 +167,25 @@ export class OrderService {
         throw new Error('Order not found');
       }
 
+      // V-07: prices come from the server-side catalog, never from the client.
+      const trustedItems = await this.resolveTrustedItems(items);
+
       order.user_id = user_id;
-      order.items = items;
+      order.items = trustedItems;
       order.status = status;
       order.restaurant_id = restaurant_id;
 
       // Recalculate total_amount including delivery fee
-      const totalAmount = items.reduce((acc: number, item) => acc + item.price * item.quantity, 0);
+      const totalAmount = trustedItems.reduce((acc: number, item) => acc + item.price * item.quantity, 0);
       order.total_amount = totalAmount + delivery_fee; // Add delivery fee to the total amount
       order.delivery_fee = delivery_fee; // Update delivery fee
 
       await order.save();
       return order;
     } catch (error) {
+      if (error instanceof Error) {
+        throw new Error(`Error updating order with ID: ${orderId}`);
+      }
       throw new Error(`Error updating order with ID: ${orderId}`);
     }
   }
@@ -202,5 +260,72 @@ export class OrderService {
     } catch (error) {
       throw new Error(`Error updating status of order with ID: ${orderId}`);
     }
+  }
+
+  // Confirm an order's payment. The Stripe session is verified server-side
+  // through the payment service; only a genuinely paid session whose metadata
+  // order_id matches this order is accepted. Idempotent: a second call with an
+  // already-paid order returns without re-sending the email.
+  static async confirmPayment(orderId: string, sessionId: string) {
+    if (!sessionId) {
+      throw new Error('Payment not verified');
+    }
+
+    // Load the order first (by Mongo ObjectId or custom order_id)
+    let order;
+    try {
+      order = mongoose.Types.ObjectId.isValid(orderId)
+        ? await Order.findById(orderId)
+        : await Order.findOne({ order_id: orderId });
+    } catch (error) {
+      throw new Error('Order not found');
+    }
+
+    if (!order) {
+      throw new Error('Order not found');
+    }
+
+    // Server-side verification against the payment service, which itself
+    // verifies the session with Stripe.
+    let verifyResponse;
+    try {
+      verifyResponse = await axios.get<{ status?: string; orderId?: string }>(
+        `${this.getPaymentServiceUrl()}/api/verify-payment/${encodeURIComponent(sessionId)}`,
+        { timeout: 5000 }
+      );
+    } catch (error) {
+      console.error('Payment verification failed:', error);
+      throw new Error('Payment not verified');
+    }
+
+    const body = verifyResponse.data ?? {};
+    if (body.status !== 'success' || String(body.orderId) !== String(order._id)) {
+      console.error('Payment verification mismatch', {
+        sessionStatus: body.status,
+        sessionOrderId: body.orderId,
+      });
+      throw new Error('Payment not verified');
+    }
+
+    if (order.payment_status === 'paid') {
+      return order;
+    }
+
+    order.payment_status = 'paid';
+    order.paid_at = new Date();
+    await order.save();
+
+    // Send the confirmation email now that the payment is verified. Failures
+    // are logged but never block the (successful, verified) confirmation.
+    try {
+      const subject = 'Order Confirmation';
+      const text = `Your order with ID: ${order.order_id} has been placed and paid successfully. We will notify you once it's ready.`;
+      const html = `<h3>Order Confirmation</h3><p>Your order with ID: <strong>${order.order_id}</strong> has been placed and paid successfully. We will notify you once it's ready.</p>`;
+      await sendEmail(order.email, subject, text, html);
+    } catch (emailError) {
+      console.error('Confirmation email failed:', emailError);
+    }
+
+    return order;
   }
 }
