@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import axios from 'axios';
 import RestaurantModel from '../models/restaurant.model';
 import { searchMenuItems } from '../services/search.service';
-import { sanitizeSearchParam, sanitizePlainText } from '../utils/sanitize';
+import { sanitizeSearchParam, sanitizePlainText, sanitizePagination } from '../utils/sanitize';
 
 // Base URL of the Menu Service
 const MENU_SERVICE_URL = 'http://localhost:3001';
@@ -10,12 +10,16 @@ const MENU_SERVICE_URL = 'http://localhost:3001';
 // Handle Restaurant Search
 export const handleRestaurantSearch = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { query, location, cuisine } = req.query;
+    const { query, location, cuisine, page, limit } = req.query;
 
     // SRCH-01: reject non-string/operator-object values before they reach MongoDB.
     const safeQuery = sanitizeSearchParam(query);
     const safeLocation = sanitizeSearchParam(location);
     const safeCuisine = sanitizeSearchParam(cuisine);
+
+    // SRCH-03: page/limit are clamped (limit max 100) so a request can never
+    // materialise an unbounded result set; the query also gets a time cap.
+    const pageInfo = sanitizePagination({ page, limit });
 
     // Validate query parameters
     if (!safeQuery && !safeLocation && !safeCuisine) {
@@ -40,7 +44,10 @@ export const handleRestaurantSearch = async (req: Request, res: Response): Promi
     }
 
     // Fetch restaurants with applied filters
-    const restaurants = await RestaurantModel.find(searchQuery);
+    const restaurants = await RestaurantModel.find(searchQuery)
+      .skip((pageInfo.page - 1) * pageInfo.limit)
+      .limit(pageInfo.limit)
+      .maxTimeMS(2000);
 
     // If no restaurants found, return empty array
     if (restaurants.length === 0) {
