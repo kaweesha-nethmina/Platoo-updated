@@ -13,9 +13,15 @@ import { createTransport } from './transport';
  * the injectable factory (no hard-coded Gmail credentials in this file).
  */
 
-const transporter = createTransport();
+const SENDER = process.env.EMAIL_USER || 'dummy.sender@platoo.local';
 
-export const SENDER = process.env.EMAIL_USER || 'dummy.sender@platoo.local';
+// Created lazily so dotenv.config() has already run when the first email is
+// dispatched (ESM imports evaluate before the app.ts dotenv statement).
+let transporter: ReturnType<typeof createTransport> | null = null;
+const getTransporter = (): ReturnType<typeof createTransport> => {
+  transporter ??= createTransport();
+  return transporter;
+};
 
 export interface EmailMessage {
   from: string;
@@ -48,5 +54,5 @@ export const sendEmail = async (to: string, subject: string, text: string): Prom
     subject,
     text,
   };
-  return transporter.sendMail(mailOptions);
+  return getTransporter().sendMail(mailOptions);
 };
