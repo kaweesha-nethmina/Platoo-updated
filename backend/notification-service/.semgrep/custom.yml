@@ -1,18 +1,31 @@
 rules:
   - id: nosql-unsafe-regex-input
-    patterns:
-      - pattern: "{ $regex: $X, $options: 'i' }"
-      - metavariable-pattern:
-          metavariable: $X
-          patterns:
-            - pattern-not: escapeStringRegexp($E)
+    mode: taint
     message: >-
-      User-controlled input is placed directly into a MongoDB $regex without escaping
-      (CWE-943 / CWE-1333). An attacker can pass Mongo operator objects (resulting in
-      500s / request DoS) or regex metacharacters (ReDoS). Validate as string and
-      escape with escape-string-regexp.
+      User-controlled input flows into a MongoDB $regex without being escaped
+      (CWE-943 / CWE-1333). An attacker can pass Mongo operator objects (request
+      DoS / 500s) or regex metacharacters (ReDoS). Escape with
+      escape-string-regexp (services route it through sanitizeSearchParam /
+      sanitizePlainText / sanitizePagination).
     severity: ERROR
     languages: [typescript, javascript]
+    pattern-sources:
+      - patterns:
+          - pattern-either:
+              - pattern: req.query.$PARAM
+              - pattern: req.body.$PARAM
+              - pattern: req.params.$PARAM
+              - pattern: req.headers.$PARAM
+    pattern-sanitizers:
+      - pattern-either:
+          - pattern: sanitizeSearchParam($X)
+          - pattern: sanitizePlainText($X)
+          - pattern: sanitizePagination($X)
+          - pattern: escapeStringRegexp($X)
+    pattern-sinks:
+      - patterns:
+          - pattern: "{ $regex: $X, $options: 'i' }"
+          - pattern-not: "escapeStringRegexp($X)"
 
   - id: jwts-verify-no-algorithm
     pattern: jwt.verify($TOKEN, $SECRET)
@@ -23,11 +36,20 @@ rules:
     languages: [typescript, javascript]
 
   - id: res-500-with-internals
-    pattern-either:
-      - pattern: "res.status(500).json({ ..., error: $X })"
-      - pattern: "res.status(500).json({ ..., error: $X, ... })"
+    mode: taint
     message: >-
-      The 500 response embeds an error field that may leak upstream response data or
-      error.message (CWE-209).
+      Internal exception data (error.message / error.response / stack) flows
+      into a res.status(500) response body (CWE-209 / CWE-200). Send a static
+      error string; log full details server-side only.
     severity: WARNING
     languages: [typescript, javascript]
+    pattern-sources:
+      - pattern-either:
+          - pattern: error.message
+          - pattern: error.response
+          - pattern: err.message
+          - pattern: err.response
+    pattern-sinks:
+      - pattern-either:
+          - pattern: res.status(500).json(...)
+          - pattern: res.status(500).send(...)
