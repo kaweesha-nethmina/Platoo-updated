@@ -48,6 +48,13 @@ if (!mongoUri) {
   process.exit(1);
 }
 
+// NOTIF-01: fail fast instead of running with an empty JWT secret (which would
+// make every token invalid and silently break the endpoint).
+if (!process.env.JWT_SECRET) {
+  console.error('FATAL: JWT_SECRET is not configured. Exiting.');
+  process.exit(1);
+}
+
 mongoose
   .connect(mongoUri, { serverSelectionTimeoutMS: 5000 })
   .then(() => {
