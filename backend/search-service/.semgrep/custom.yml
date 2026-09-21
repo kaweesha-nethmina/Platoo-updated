@@ -1,0 +1,33 @@
+rules:
+  - id: nosql-unsafe-regex-input
+    patterns:
+      - pattern: "{ $regex: $X, $options: 'i' }"
+      - metavariable-pattern:
+          metavariable: $X
+          patterns:
+            - pattern-not: escapeStringRegexp($E)
+    message: >-
+      User-controlled input is placed directly into a MongoDB $regex without escaping
+      (CWE-943 / CWE-1333). An attacker can pass Mongo operator objects (resulting in
+      500s / request DoS) or regex metacharacters (ReDoS). Validate as string and
+      escape with escape-string-regexp.
+    severity: ERROR
+    languages: [typescript, javascript]
+
+  - id: jwts-verify-no-algorithm
+    pattern: jwt.verify($TOKEN, $SECRET)
+    message: >-
+      jwt.verify() called without pinning algorithms (algorithms: ['HS256']).
+      ASVS 3.5.2 (CWE-345).
+    severity: WARNING
+    languages: [typescript, javascript]
+
+  - id: res-500-with-internals
+    pattern-either:
+      - pattern: "res.status(500).json({ ..., error: $X })"
+      - pattern: "res.status(500).json({ ..., error: $X, ... })"
+    message: >-
+      The 500 response embeds an error field that may leak upstream response data or
+      error.message (CWE-209).
+    severity: WARNING
+    languages: [typescript, javascript]
