@@ -31,7 +31,9 @@ app.use(
     methods: ['GET', 'POST', 'OPTIONS'],
   })
 );
-app.use(express.json());
+// SRCH-05: bounded body so an oversized payload yields a clean 413 JSON
+// instead of Express's HTML stack trace (which leaked absolute FS paths).
+app.use(express.json({ limit: '100kb' }));
 
 // SRCH-04: the public search API was unauthenticated and unthrottled; 50 quick
 // requests dropped throughput to 1.7 req/s. Throttle per IP. Configurable so
@@ -54,8 +56,18 @@ app.use((_req: Request, res: Response) => {
   res.status(404).json({ error: 'Not Found' });
 });
 
-// Keep 500 responses JSON (stack traces are never sent to the client).
+// SRCH-05: single centralised error handler - client never receives stack
+// traces, FS paths or library internals; they are logged server-side only.
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  const bodyError = (err as { type?: string })?.type;
+  if (bodyError === 'entity.too.large') {
+    res.status(413).json({ error: 'Request body too large' });
+    return;
+  }
+  if (bodyError === 'entity.parse.failed') {
+    res.status(400).json({ error: 'Malformed JSON body' });
+    return;
+  }
   if (err) console.error('[search-service] unhandled error:', err);
   res.status(500).json({ error: 'Internal Server Error' });
 });
