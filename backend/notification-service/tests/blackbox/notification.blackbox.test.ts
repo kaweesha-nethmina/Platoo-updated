@@ -163,11 +163,13 @@ describe('notification-service black box', () => {
 
     test('helmet security headers present', async () => {
       const res = await request(BASE).get('/');
-      const hasSecurityHeader = (['content-security-policy', 'x-content-type-options', 'x-frame-options', 'referrer-policy', 'strict-transport-security'] as string[]).some(
-        (h: string) => res.headers[h] !== undefined
-      );
-      expect(hasSecurityHeader).toBe(true);
-      expect(res.headers['x-content-type-options']).toBe('nosniff');
+      const csp = res.headers['content-security-policy'];
+      const contentType = res.headers['x-content-type-options'];
+      const frame = res.headers['x-frame-options'];
+      const referrer = res.headers['referrer-policy'];
+      const hsts = res.headers['strict-transport-security'];
+      expect([csp, contentType, frame, referrer, hsts].some((h) => h !== undefined)).toBe(true);
+      expect(contentType).toBe('nosniff');
     });
 
     test('CORS rejects disallowed origins cleanly (no 500)', async () => {

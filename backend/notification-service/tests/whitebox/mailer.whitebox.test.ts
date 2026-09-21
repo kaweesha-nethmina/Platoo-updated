@@ -32,7 +32,6 @@ describe('transport factory (CWE-798 fix: no hard-coded SMTP credentials)', () =
 
 describe('buildEmailMessage (header-injection resistance, CWE-803/CWE-93)', () => {
   test('sanitised customer text lands inside the body, never in headers', () => {
-    const dirty = 'Alice\r\nBcc: attacker@evil.example\r\nTo: victim@evil.example';
     const { subject, text } = buildEmailMessage('o1', sanitizeEmailField('Alice\r\nBcc: attacker@evil.example'), 'Some Address', 10);
     expect(subject).toBe('New Delivery Order');
     expect(subject).not.toMatch(/\r|\n/);

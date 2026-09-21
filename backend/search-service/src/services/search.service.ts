@@ -13,7 +13,7 @@ export const searchMenuItems = async (query: string) => {
     return response.data.filter((menuItem: { name: string }) =>
       menuItem.name.toLowerCase() === query.toLowerCase() // Exact match filtering
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching menu items:', error);
     throw error;
   }

@@ -57,7 +57,7 @@ export const handleRestaurantSearch = async (req: Request, res: Response): Promi
 
     // Send the response
     res.status(200).json(restaurants);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching restaurants:", error);
     res.status(500).json({ message: 'Internal Server Error' });
   }
@@ -84,7 +84,7 @@ export const handleMenuItemSearch = async (req: Request, res: Response): Promise
       res.status(404).json({ message: 'No menu items found' });
     }
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(error);
     res.status(500).json({ message: 'Internal Server Error' });
   }
@@ -109,7 +109,7 @@ export const handleCategorySearch = async (req: Request, res: Response): Promise
       const categories = response.data;
 
       // Filter categories based on the query name (case-insensitive)
-      const filteredCategories = categories.filter((category: any) =>
+      const filteredCategories = categories.filter((category: { name: string }) =>
         category.name.toLowerCase() === safeQuery.toLowerCase()
       );
 
@@ -118,12 +118,13 @@ export const handleCategorySearch = async (req: Request, res: Response): Promise
       } else {
         res.status(404).json({ message: 'Category not found' });
       }
-    } catch (error: any) {
-      console.error('Error fetching category details:', error.response?.data || error.message);
+    } catch (error: unknown) {
+      const detail = axios.isAxiosError(error) ? error.response?.data || error.message : 'unknown error';
+      console.error('Error fetching category details:', detail);
       res.status(500).json({ message: 'Error fetching category details' });
     }
-  } catch (error: any) {
-    console.error('Unknown error during category search:', error.message);
+  } catch (error: unknown) {
+    console.error('Unknown error during category search:', error instanceof Error ? error.message : error);
     res.status(500).json({ message: 'Internal Server Error' });
   }
 };

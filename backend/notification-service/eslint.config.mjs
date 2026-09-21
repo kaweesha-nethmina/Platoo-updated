@@ -25,6 +25,14 @@ export default tseslint.config(
   {
     files: ['src/**/*.ts', 'tests/**/*.ts'],
     rules: {
+      // Express error handlers must declare the 4th arg (reserved `_next`).
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+    },
+  },
+  {
+    files: ['src/**/*.ts', 'tests/**/*.ts'],
+    plugins: { security },
+    rules: {
       ...security.configs.recommended.rules,
       'security/detect-non-literal-fs-filename': 'off',
     },

@@ -6,7 +6,7 @@
  * fix (src/utils/validation.ts, src/utils/transport.ts, express-rate-limit).
  * Before the fix the suite is red -> that is documented as evidence.
  */
-import type { Request, Response, NextFunction } from 'express';
+import type { Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { protect, AuthRequest } from '../../src/middleware/auth';
 import { validateOrderDetails } from '../../src/utils/validation';
