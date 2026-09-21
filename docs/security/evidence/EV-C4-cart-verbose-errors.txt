@@ -1,0 +1,11 @@
+================================================================
+EV-C4 : Verbose error handling - full Mongoose validation error echoed to client  [2026-09-21 15:31:01]
+Target: http://localhost:3105  (temporary scan instance, dedicated scan DB)
+================================================================
+
+---- REQUEST ----
+POST http://localhost:3105/api/cart/add body {userId:'err-user',...,quantity:0}
+---- RESPONSE ----
+{"message":"Error adding item to cart","error":{"errors":{"items.0.quantity":{"name":"ValidatorError","message":"Path `quantity` (0) is less than minimum allowed value (1).","properties":{"message":"Path `quantity` (0) is less than minimum allowed value (1).","type":"min","min":1,"path":"quantity","value":0},"kind":"min","path":"quantity","value":0}},"_message":"Cart validation failed","name":"ValidationError","message":"Cart validation failed: items.0.quantity: Path `quantity` (0) is less than minimum allowed value (1)."}}
+--- empty body ---
+{"message":"Error adding item to cart","error":{"errors":{"userId":{"name":"ValidatorError","message":"Path `userId` is required.","properties":{"message":"Path `userId` is required.","type":"required","path":"userId"},"kind":"required","path":"userId"},"items.0.productId":{"name":"ValidatorError","message":"Path `productId` is required.","properties":{"message":"Path `productId` is required.","type":"required","path":"productId"},"kind":"required","path":"productId"},"items.0.name":{"name":"ValidatorError","message":"Path `name` is required.","properties":{"message":"Path `name` is required.","type":"required","path":"name"},"kind":"required","path":"name"},"items.0.price":{"name":"ValidatorError","message":"Path `price` is required.","properties":{"message":"Path `price` is required.","type":"required","path":"price"},"kind":"required","path":"price"},"items.0.quantity":{"name":"ValidatorError","message":"Path `quantity` is required.","properties":{"message":"Path `quantity` is required.","type":"required","path":"quantity"},"kind":"required","path":"quantity"}},"_message":"Cart validation failed","name":"ValidationError","message":"Cart validation failed: userId: Path `userId` is required., items.0.productId: Path `productId` is required., items.0.name: Path `name` is required., items.0.price: Path `price` is required., items.0.quantity: Path `quantity` is required."}}

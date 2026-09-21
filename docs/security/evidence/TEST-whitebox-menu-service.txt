@@ -1,0 +1,127 @@
+
+> menu-service@1.0.0 test:whitebox
+> jest tests/whitebox --runInBand
+
+  console.log
+    [WB-053] malformed JSON -> 400 {"error":"Unterminated string in JSON at position 13 (line 1 column 14)"}
+
+      at tests/whitebox/upload.whitebox.test.ts:78:13
+
+node.exe : PASS tests/whitebox/upload.whitebox.test.ts
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (PASS tests/whit...hitebox.test.ts:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  WHITE-BOX /api/upload (multer)
+    ΓêÜ WB-047 valid upload passes fileFilter & diskStorage -> 201 (102 ms)
+    ΓêÜ WB-048 fileFilter rejects disallowed extension (multipart error -> global handler 400) (22 ms)
+    ΓêÜ WB-049 fileFilter checks extension only, not magic bytes or MIME (17 ms)
+    ΓêÜ WB-050 fileSize limit 2MB enforced (multer LIMIT_FILE_SIZE -> 400) (39 ms)
+    ΓêÜ WB-051 no file -> "No file uploaded" branch (9 ms)
+    ΓêÜ WB-052 upload directory is created lazily if missing
+  WHITE-BOX global error handler
+    ΓêÜ WB-053 handler returns err.message as 400 (verbose leak for other error types) (47 ms)
+
+PASS tests/whitebox/menuItem.category.service.whitebox.test.ts
+  WHITE-BOX menuItem.service
+    ΓêÜ WB-014 createMenuItem persists document (6 ms)
+    ΓêÜ WB-015 getMenuItemsByCategory returns available items only (27 ms)
+    ΓêÜ WB-016 updateMenuItem applies $set and returns new doc (16 ms)
+    ΓêÜ WB-017 deleteMenuItem removes doc (8 ms)
+    ΓêÜ WB-018 getMenuItemsByRestaurant joins via category ids (8 ms)
+    ΓêÜ WB-019 getAllMenuItems populates category_id (12 ms)
+    ΓêÜ WB-020 getMenuItemImage returns { image_url } only (9 ms)
+    ΓêÜ WB-021 getMenuItemImage null for missing doc (6 ms)
+    ΓêÜ WB-022 DB failure branch: createMenuItem propagates (15 ms)
+    ΓêÜ WB-023 DB failure branch: getMenuItemImage propagates (2 ms)
+    ΓêÜ WB-024 empty category list -> getMenuItemsByRestaurant returns [] (8 ms)
+  WHITE-BOX category.service
+    ΓêÜ WB-025 createCategory persists (3 ms)
+    ΓêÜ WB-026 getCategoriesByRestaurant returns active categories (11 ms)
+    ΓêÜ WB-027 updateCategory applies $set (5 ms)
+    ΓêÜ WB-028 deleteCategory removes doc (4 ms)
+    ΓêÜ WB-029 populate on getAllCategories (restaurant_id populated) (7 ms)
+    ΓêÜ WB-030 DB failure branch: getCategoriesByRestaurant propagates (1 ms)
+    ΓêÜ WB-031 DB failure branch: updateCategory propagates
+
+PASS tests/whitebox/restaurant.service.whitebox.test.ts
+  WHITE-BOX restaurant.service
+    ΓêÜ WB-001 createRestaurant persists a document (100 ms)
+    ΓêÜ WB-002 getRestaurants returns only active restaurants (13 ms)
+    ΓêÜ WB-003 updateRestaurant uses $set with provided data (8 ms)
+    ΓêÜ WB-004 deleteRestaurant removes the document (11 ms)
+    ΓêÜ WB-005 getRestaurantById resolves document (7 ms)
+    ΓêÜ WB-006 getRestaurantById throws CastError for invalid ObjectId (4 ms)
+    ΓêÜ WB-007 getRestaurantById(null) resolves null (3 ms)
+    ΓêÜ WB-008 getRestaurantWithCategoriesAndMenuItems returns {categories, menuItems} (15 ms)
+    ΓêÜ WB-009 getRestaurantsByOwnerId filters by owner_id (11 ms)
+    ΓêÜ WB-010 DB failure branch: createRestaurant propagates error (11 ms)
+    ΓêÜ WB-011 DB failure branch: getRestaurants propagates error (1 ms)
+    ΓêÜ WB-012 DB failure branch: updateRestaurant propagates error (1 ms)
+    ΓêÜ WB-013 DB failure branch: getRestaurantsByOwnerId propagates error (1 ms)
+
+  console.log
+    [WB-044] handler attempted status codes: [404,200]
+
+      at tests/whitebox/controllers.whitebox.test.ts:147:13
+
+  console.log
+    [WB-045] handler attempted status codes: [404,200]
+
+      at tests/whitebox/controllers.whitebox.test.ts:162:13
+
+PASS tests/whitebox/controllers.whitebox.test.ts
+  WHITE-BOX restaurant.controller error branches
+    ΓêÜ WB-032 createRestaurant catch branch (DB failure) -> 500 with message (19 ms)
+    ΓêÜ WB-033 createRestaurant catch branch (non-Error thrown) -> 500 generic (5 ms)
+    ΓêÜ WB-034 updateRestaurant catch branch -> 500 (9 ms)
+    ΓêÜ WB-035 getRestaurantWithCategoriesAndMenuItems catch branch -> 500 (6 ms)
+    ΓêÜ WB-036 getRestaurantsByOwnerId catch returns generic 500 (no message leak) (6 ms)
+  WHITE-BOX menuItem.controller error branches
+    ΓêÜ WB-037 createMenuItem parseFloat coercion converts string price (69 ms)
+    ΓêÜ WB-038 createMenuItem catch branch -> 500 (6 ms)
+    ΓêÜ WB-039 updateMenuItem catch branch -> 500 (6 ms)
+    ΓêÜ WB-040 deleteMenuItem catch branch -> 500 (5 ms)
+    ΓêÜ WB-041 getMenuItemImage not-found branch -> 404 (5 ms)
+    ΓêÜ WB-042 getMenuItemImage catch branch -> 500 (6 ms)
+  WHITE-BOX category.controller branches (incl. double-response defect)
+    ΓêÜ WB-043 createCategory catch branch -> 500 (9 ms)
+    ΓêÜ WB-044 updateCategory when NOT found -> double response bug (404 then 200 attempted) (9 ms)
+    ΓêÜ WB-045 deleteCategory when NOT found -> double response bug (404 then 200 attempted) (2 ms)
+    ΓêÜ WB-046 deleteCategory catch branch -> 500 (6 ms)
+
+  console.log
+    [SEC-001] headers: {"x-powered-by":"Express","access-control-allow-origin":"*","content-type":"application/json; charset=utf-8","content-length":"2","etag":"W/\"2-l9Fw4VUO7kr8CvBlt4zaMCqXZ0w\"","date":"Mon, 21 Sep 2026 10:19:40 GMT","connection":"close"}
+
+      at tests/whitebox/security.observation.whitebox.test.ts:22:13
+
+  console.log
+    [SEC-002] access-control-allow-origin: *
+
+      at tests/whitebox/security.observation.whitebox.test.ts:31:13
+
+  console.log
+    [SEC-004] app.ts line 11 uses express.json() with default settings
+
+      at tests/whitebox/security.observation.whitebox.test.ts:43:13
+
+  console.log
+    [SEC-005] uploads response headers: {"x-powered-by":"Express","access-control-allow-origin":"*","content-security-policy":"default-src 'none'","x-content-type-options":"nosniff","content-type":"text/html; charset=utf-8","content-length":"159","date":"Mon, 21 Sep 2026 10:19:40 GMT","connection":"close"}
+
+      at tests/whitebox/security.observation.whitebox.test.ts:49:13
+
+PASS tests/whitebox/security.observation.whitebox.test.ts
+  SECURITY OBSERVATIONS - menu-service configuration
+    ΓêÜ SEC-001 no security headers sent (no helmet): X-Content-Type-Options etc. absent (23 ms)
+    ΓêÜ SEC-002 CORS reflects ANY origin (permissive cors()) (10 ms)
+    ΓêÜ SEC-003 no rate-limit headers present (no express-rate-limit) (6 ms)
+    ΓêÜ SEC-004 express.json uses default 100kb limit (no explicit cap) (3 ms)
+    ΓêÜ SEC-005 static /uploads served without CSP/nosniff (content sniffing risk) (10 ms)
+
+Test Suites: 5 passed, 5 total
+Tests:       58 passed, 58 total
+Snapshots:   0 total
+Time:        6.719 s, estimated 15 s
+Ran all test suites matching /tests\\whitebox/i.

@@ -1,0 +1,11 @@
+================================================================
+EV-M3 : Verbose error handling - CastError + Mongoose validation details leaked  [2026-09-21 15:30:07]
+Target: http://localhost:3101  (temporary scan instance, dedicated scan DB)
+================================================================
+
+---- REQUEST ----
+curl.exe -s http://localhost:3101/api/restaurants/not-an-objectid
+---- RESPONSE ----
+{"error":"Cast to ObjectId failed for value \"not-an-objectid\" (type string) at path \"_id\" for model \"Restaurant\""}
+--- missing-required-field validation leak (menu-item) ---
+{"error":"MenuItem validation failed: image_url: Path `image_url` is required., price: Path `price` is required., description: Path `description` is required., name: Path `name` is required., category_id: Path `category_id` is required."}

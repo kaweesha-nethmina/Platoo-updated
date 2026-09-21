@@ -1,0 +1,14 @@
+================================================================
+EV-C2 : Client-controlled price & negative quantity stored (price tampering)  [2026-09-21 15:31:01]
+Target: http://localhost:3105  (temporary scan instance, dedicated scan DB)
+================================================================
+
+---- REQUEST ----
+POST http://localhost:3105/api/cart/add with price:1 and price:-500
+---- RESPONSE ----
+--- price:1 accepted and stored ---
+{"userId":"tamper-user","items":[{"productId":"t1","name":"Milkshake","price":1,"quantity":1,"_id":"6ab1005ea8bc9acb135d9eb4"}],"_id":"6ab1005ea8bc9acb135d9eb3","createdAt":"2026-09-21T10:01:02.646Z","updatedAt":"2026-09-21T10:01:02.646Z","__v":0}
+--- negative price -500 accepted and stored ---
+{"_id":"6ab1005ea8bc9acb135d9eb3","userId":"tamper-user","items":[{"productId":"t1","name":"Milkshake","price":1,"quantity":1,"_id":"6ab1005ea8bc9acb135d9eb4"},{"productId":"t2","name":"NEG","price":-500,"quantity":1,"_id":"6ab1005ea8bc9acb135d9eb8"}],"createdAt":"2026-09-21T10:01:02.646Z","updatedAt":"2026-09-21T10:01:02.712Z","__v":1}
+--- quantity:0 (should be rejected by schema min:1) ---
+{"message":"Error adding item to cart","error":{"errors":{"items.2.quantity":{"name":"ValidatorError","message":"Path `quantity` (0) is less than minimum allowed value (1).","properties":{"message":"Path `quantity` (0) is less than minimum allowed value (1).","type":"min","min":1,"path":"quantity","value":0},"kind":"min","path":"quantity","value":0}},"_message":"Cart validation failed","name":"ValidationError","message":"Cart validation failed: items.2.quantity: Path `quantity` (0) is less than minimum allowed value (1)."}}

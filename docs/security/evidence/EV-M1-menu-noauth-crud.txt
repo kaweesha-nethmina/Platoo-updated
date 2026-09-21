@@ -1,0 +1,27 @@
+================================================================
+EV-M1 : menu-service CRUD runs with NO/INVALID JWT (missing authentication)  [2026-09-21 15:30:07]
+Target: http://localhost:3101  (temporary scan instance, dedicated scan DB)
+================================================================
+
+---- REQUEST ----
+POST http://localhost:3101/api/restaurants with garbage JWT and with no Authorization header
+---- RESPONSE ----
+--- 1. POST /api/restaurants with a GARBAGE JWT (expired alg-none) ---
+{"name":"VulnSpot","image":"i.png","rating":3,"deliveryTime":"30m","deliveryFee":"Rs100","minOrder":"Rs300","distance":"1km","cuisines":["x"],"priceLevel":1,"is_active":true,"location":{"type":"Point","coordinates":[79.86,6.92],"tag":"a"},"open_time":"08:00 AM","closed_time":"10:00 PM","owner_id":"owner-vuln","_id":"6ab10027c8e0b39c95d1e38a","createdAt":"2026-09-21T10:00:07.457Z","updatedAt":"2026-09-21T10:00:07.457Z","__v":0}
+--- 2. POST /api/restaurants with NO Authorization header at all ---
+{"name":"VulnSpot","image":"i.png","rating":3,"deliveryTime":"30m","deliveryFee":"Rs100","minOrder":"Rs300","distance":"1km","cuisines":["x"],"priceLevel":1,"is_active":true,"location":{"type":"Point","coordinates":[79.86,6.92],"tag":"a"},"open_time":"08:00 AM","closed_time":"10:00 PM","owner_id":"owner-vuln","_id":"6ab10027c8e0b39c95d1e38c","createdAt":"2026-09-21T10:00:07.501Z","updatedAt":"2026-09-21T10:00:07.501Z","__v":0}
+--- 3. DELETE a restaurant with no auth (id taken from response of step 2) ---
+DELETE HTTP 200`n
+--- 4. PATCH modifies someone else's record (owner_id overwritten) ---
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Error</title>
+</head>
+<body>
+<pre>Cannot PATCH /api/restaurants/6ab10027c8e0b39c95d1e38e</pre>
+</body>
+</html>
+--- 5. GET /api/restaurants (first 200 chars) ---
+[{"location":{"type":"Point","coordinates":[79.86,6.92],"tag":"a"},"_id":"6ab10027c8e0b39c95d1e38a","name":"VulnSpot","image":"i.png","rating":3,"deliveryTime":"30m","deliveryFee":"Rs100","minOrder":"

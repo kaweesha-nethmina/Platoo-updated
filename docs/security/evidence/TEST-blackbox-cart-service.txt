@@ -1,0 +1,437 @@
+
+> cart-service@1.0.0 test:blackbox
+> jest tests/blackbox --runInBand
+
+  console.log
+    MongoDB connected
+
+      at src/utils/db.ts:9:13
+
+  console.log
+    [BB-057] stored client price: 0.01
+
+      at tests/blackbox/cart.blackbox.test.ts:50:15
+
+  console.log
+    [BB-058] negative price returned: 200 [{"productId":"prod-neg","name":"Margherita Pizza","price":-100,"quantity":2,"image":"http://localhost:3001/uploads/margherita.png","_id":"6ab105108fb2aa2fdfb99a23"}]
+
+      at tests/blackbox/cart.blackbox.test.ts:55:15
+
+  console.error
+    Error: Cart validation failed: items.3.quantity: Path `quantity` (0) is less than minimum allowed value (1).
+        at ValidationError.inspect (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\mongoose\lib\error\validation.js:52:26)
+        at formatValue (node:internal/util/inspect:877:19)
+        at inspect (node:internal/util/inspect:404:10)
+        at formatWithOptionsInternal (node:internal/util/inspect:2407:40)
+        at format (node:internal/util/inspect:2264:10)
+        at console.error (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\@jest\console\build\CustomConsole.js:112:48)
+        at D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\src\controllers\cartController.ts:28:13
+        at Generator.throw (<anonymous>)
+        at rejected (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\src\controllers\cartController.ts:6:65)
+        at processTicksAndRejections (node:internal/process/task_queues:105:5) {
+      errors: {
+        'items.3.quantity': ValidatorError: Path `quantity` (0) is less than minimum allowed value (1).
+            at validate (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\mongoose\lib\schemaType.js:1404:13)
+            at SchemaNumber.Object.<anonymous>.SchemaType.doValidate (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\mongoose\lib\schemaType.js:1388:7)
+            at D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\mongoose\lib\document.js:3082:18
+            at processTicksAndRejections (node:internal/process/task_queues:85:11) {
+          properties: [Object],
+          kind: 'min',
+          path: 'quantity',
+          value: 0,
+          reason: undefined,
+          [Symbol(mongoose#validatorError)]: true
+        }
+      },
+      _message: 'Cart validation failed'
+    }
+
+    [0m [90m 26 |[39m     res[33m.[39mstatus([35m200[39m)[33m.[39mjson(cart)[33m;[39m
+     [90m 27 |[39m   } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 28 |[39m     console[33m.[39merror(error)[33m;[39m
+     [90m    |[39m             [31m[1m^[22m[39m
+     [90m 29 |[39m     res[33m.[39mstatus([35m500[39m)[33m.[39mjson({ message[33m:[39m [32m'Error adding item to cart'[39m[33m,[39m error })[33m;[39m
+     [90m 30 |[39m   }
+     [90m 31 |[39m }[33m;[39m[0m
+
+      at src/controllers/cartController.ts:28:13
+          at Generator.throw (<anonymous>)
+      at rejected (src/controllers/cartController.ts:6:65)
+
+  console.log
+    [BB-059] quantity 0 returned: 500 {"message":"Error adding item to cart","error":{"errors":{"items.3.quantity":{"name":"ValidatorError","message":"Path `quantity` (0) is less than minimum allowed value (1).","properties":{"message":"Path `quantity` (0) is less than minimum allowed va
+
+      at tests/blackbox/cart.blackbox.test.ts:61:15
+
+  console.log
+    [BB-060] string quantity returned: 200 {"_id":"6ab105108fb2aa2fdfb99a16","userId":"user-A","items":[{"productId":"prod-1","name":"Margherita Pizza","price":1200,"quantity":4,"image":"http://localhost:3001/uploads/margherita.png","_id":"6ab105108fb2aa2fdfb99a17"},{"productId":"prod-cheap",
+
+      at tests/blackbox/cart.blackbox.test.ts:67:15
+
+  console.log
+    [BB-061] missing name returned: 200 {"_id":"6ab105108fb2aa2fdfb99a16","userId":"user-A","items":[{"productId":"prod-1","name":"Margherita Pizza","price":1200,"quantity":6,"image":"http://localhost:3001/uploads/margherita.png","_id":"6ab105108fb2aa2fdfb99a17"},{"productId":"prod-cheap",
+
+      at tests/blackbox/cart.blackbox.test.ts:74:15
+
+  console.error
+    Error: Cart validation failed: userId: Path `userId` is required., items.0.productId: Path `productId` is required., items.0.name: Path `name` is required., items.0.price: Path `price` is required., items.0.quantity: Path `quantity` is required.
+        at ValidationError.inspect (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\mongoose\lib\error\validation.js:52:26)
+        at formatValue (node:internal/util/inspect:877:19)
+        at inspect (node:internal/util/inspect:404:10)
+        at formatWithOptionsInternal (node:internal/util/inspect:2407:40)
+        at format (node:internal/util/inspect:2264:10)
+        at console.error (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\@jest\console\build\CustomConsole.js:112:48)
+        at D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\src\controllers\cartController.ts:28:13
+        at Generator.throw (<anonymous>)
+        at rejected (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\src\controllers\cartController.ts:6:65)
+        at processTicksAndRejections (node:internal/process/task_queues:105:5) {
+      errors: {
+        userId: ValidatorError: Path `userId` is required.
+            at validate (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\mongoose\lib\schemaType.js:1404:13)
+            at SchemaString.Object.<anonymous>.SchemaType.doValidate (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\mongoose\lib\schemaType.js:1388:7)
+            at D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\mongoose\lib\document.js:3082:18
+            at processTicksAndRejections (node:internal/process/task_queues:85:11) {
+          properties: [Object],
+          kind: 'required',
+          path: 'userId',
+          value: undefined,
+          reason: undefined,
+          [Symbol(mongoose#validatorError)]: true
+        },
+        'items.0.productId': ValidatorError: Path `productId` is required.
+            at validate (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\mongoose\lib\schemaType.js:1404:13)
+            at SchemaString.Object.<anonymous>.SchemaType.doValidate (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\mongoose\lib\schemaType.js:1388:7)
+            at D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\mongoose\lib\document.js:3082:18
+            at processTicksAndRejections (node:internal/process/task_queues:85:11) {
+          properties: [Object],
+          kind: 'required',
+          path: 'productId',
+          value: undefined,
+          reason: undefined,
+          [Symbol(mongoose#validatorError)]: true
+        },
+        'items.0.name': ValidatorError: Path `name` is required.
+            at validate (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\mongoose\lib\schemaType.js:1404:13)
+            at SchemaString.Object.<anonymous>.SchemaType.doValidate (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\mongoose\lib\schemaType.js:1388:7)
+            at D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\mongoose\lib\document.js:3082:18
+            at processTicksAndRejections (node:internal/process/task_queues:85:11) {
+          properties: [Object],
+          kind: 'required',
+          path: 'name',
+          value: undefined,
+          reason: undefined,
+          [Symbol(mongoose#validatorError)]: true
+        },
+        'items.0.price': ValidatorError: Path `price` is required.
+            at validate (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\mongoose\lib\schemaType.js:1404:13)
+            at SchemaNumber.Object.<anonymous>.SchemaType.doValidate (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\mongoose\lib\schemaType.js:1388:7)
+            at D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\mongoose\lib\document.js:3082:18
+            at processTicksAndRejections (node:internal/process/task_queues:85:11) {
+          properties: [Object],
+          kind: 'required',
+          path: 'price',
+          value: undefined,
+          reason: undefined,
+          [Symbol(mongoose#validatorError)]: true
+        },
+        'items.0.quantity': ValidatorError: Path `quantity` is required.
+            at validate (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\mongoose\lib\schemaType.js:1404:13)
+            at SchemaNumber.Object.<anonymous>.SchemaType.doValidate (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\mongoose\lib\schemaType.js:1388:7)
+            at D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\mongoose\lib\document.js:3082:18
+            at processTicksAndRejections (node:internal/process/task_queues:85:11) {
+          properties: [Object],
+          kind: 'required',
+          path: 'quantity',
+          value: undefined,
+          reason: undefined,
+          [Symbol(mongoose#validatorError)]: true
+        }
+      },
+      _message: 'Cart validation failed'
+    }
+
+    [0m [90m 26 |[39m     res[33m.[39mstatus([35m200[39m)[33m.[39mjson(cart)[33m;[39m
+     [90m 27 |[39m   } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 28 |[39m     console[33m.[39merror(error)[33m;[39m
+     [90m    |[39m             [31m[1m^[22m[39m
+     [90m 29 |[39m     res[33m.[39mstatus([35m500[39m)[33m.[39mjson({ message[33m:[39m [32m'Error adding item to cart'[39m[33m,[39m error })[33m;[39m
+     [90m 30 |[39m   }
+     [90m 31 |[39m }[33m;[39m[0m
+
+      at src/controllers/cartController.ts:28:13
+          at Generator.throw (<anonymous>)
+      at rejected (src/controllers/cartController.ts:6:65)
+
+  console.log
+    [BB-062] empty body returned: 500 {"message":"Error adding item to cart","error":{"errors":{"userId":{"name":"ValidatorError","message":"Path `userId` is required.","properties":{"message":"Path `userId` is required.","type":"required","path":"userId"},"kind":"required","path":"userI
+
+      at tests/blackbox/cart.blackbox.test.ts:80:15
+
+  console.log
+    [BB-063] $ne userId returned: 200 {"_id":"6ab105108fb2aa2fdfb99a16","userId":"user-A","items":[{"productId":"prod-1","name":"Margherita Pizza","price":1200,"quantity":8,"image":"http://localhost:3001/uploads/margherita.png","_id":"6ab105108fb2aa2fdfb99a17"},{"productId":"prod-cheap","name":"Margherita Pizza","price":0.01,"quantity":
+
+      at tests/blackbox/cart.blackbox.test.ts:86:15
+
+  console.log
+    [BB-064] attacker poisoned victim cart: {"userId":"victim-user","items":[{"productId":"poison","name":"Margherita Pizza","price":1200,"quantity":2,"image":"http://localhost:3001/uploads/margherita.png","_id":"6ab105108fb2aa2fdfb99a41"}],"_id":"6ab105108fb2aa2fdfb99a40","createdAt":"2026-09
+
+      at tests/blackbox/cart.blackbox.test.ts:95:15
+
+  console.log
+    [BB-067] remove missing item returned: 200
+
+      at tests/blackbox/cart.blackbox.test.ts:115:15
+
+  console.log
+    [BB-069] unauthenticated read of victim cart: {"_id":"6ab105108fb2aa2fdfb99a40","userId":"victim-user","items":[{"productId":"poison","name":"Margherita Pizza","price":1200,"quantity":2,"image":"http://localhost:3001/uploads/margherita.png","_id":"6ab105108fb2aa2fdfb99a41"}],"createdAt":"2026-09-21T10:21:04.709Z","updatedAt":"2026-09-21T10:21:0
+
+      at tests/blackbox/cart.blackbox.test.ts:132:15
+
+  console.error
+    Error: Cart validation failed: items.5.quantity: Path `quantity` (0) is less than minimum allowed value (1).
+        at ValidationError.inspect (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\mongoose\lib\error\validation.js:52:26)
+        at formatValue (node:internal/util/inspect:877:19)
+        at inspect (node:internal/util/inspect:404:10)
+        at formatWithOptionsInternal (node:internal/util/inspect:2407:40)
+        at format (node:internal/util/inspect:2264:10)
+        at console.error (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\@jest\console\build\CustomConsole.js:112:48)
+        at D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\src\controllers\cartController.ts:107:13
+        at Generator.throw (<anonymous>)
+        at rejected (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\src\controllers\cartController.ts:6:65)
+        at processTicksAndRejections (node:internal/process/task_queues:105:5) {
+      errors: {
+        'items.5.quantity': ValidatorError: Path `quantity` (0) is less than minimum allowed value (1).
+            at validate (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\mongoose\lib\schemaType.js:1404:13)
+            at SchemaNumber.Object.<anonymous>.SchemaType.doValidate (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\mongoose\lib\schemaType.js:1388:7)
+            at D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\mongoose\lib\document.js:3082:18
+            at processTicksAndRejections (node:internal/process/task_queues:85:11) {
+          properties: [Object],
+          kind: 'min',
+          path: 'quantity',
+          value: 0,
+          reason: undefined,
+          [Symbol(mongoose#validatorError)]: true
+        }
+      },
+      _message: 'Cart validation failed'
+    }
+
+    [0m [90m 105 |[39m     [36mreturn[39m[33m;[39m
+     [90m 106 |[39m   } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 107 |[39m     console[33m.[39merror(error)[33m;[39m
+     [90m     |[39m             [31m[1m^[22m[39m
+     [90m 108 |[39m     res[33m.[39mstatus([35m500[39m)[33m.[39mjson({ message[33m:[39m [32m'Error updating cart item quantity'[39m[33m,[39m error })[33m;[39m
+     [90m 109 |[39m     [36mreturn[39m[33m;[39m
+     [90m 110 |[39m   }[0m
+
+      at src/controllers/cartController.ts:107:13
+          at Generator.throw (<anonymous>)
+      at rejected (src/controllers/cartController.ts:6:65)
+
+  console.log
+    [BB-074] quantity=0 update returned: 500 {"message":"Error updating cart item quantity","error":{"errors":{"items.5.quantity":{"name":"ValidatorError","message":"Path `quantity` (0) is less than minimum allowed value (1).","properties":{"message":"Path `quantity` (0) is less than minimum al
+
+      at tests/blackbox/cart.blackbox.test.ts:163:15
+
+  console.log
+    [BB-076] garbage token accepted: 200
+
+      at tests/blackbox/cart.blackbox.test.ts:182:15
+
+  console.log
+    [BB-077] no-alg expired token accepted: 200
+
+      at tests/blackbox/cart.blackbox.test.ts:191:15
+
+node.exe : FAIL tests/blackbox/cart.blackbox.test.ts
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (FAIL tests/blac...lackbox.test.ts:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  BLACK-BOX /api/cart
+    POST /add
+      ΓêÜ TC-BB-055 valid item -> 200 with cart + item (91 ms)
+      ΓêÜ TC-BB-056 same productId added again -> quantity increments (24 ms)
+      ΓêÜ TC-BB-057 CLIENT-CONTROLLED PRICE is stored verbatim (price tampering) (31 ms)
+      ΓêÜ TC-BB-058 NEGATIVE price accepted (18 ms)
+      ├ù TC-BB-059 quantity 0 or negative -> expect 400/422 (defect: mongoose min:1 -> 500) (47 ms)
+      ├ù TC-BB-060 quantity as string -> expect 400/422 (defect: CastError 500) (19 ms)
+      ├ù TC-BB-061 missing required field (name) -> expect 400 (defect: 500) (17 ms)
+      ├ù TC-BB-062 empty body -> expect 400 (defect: 500) (19 ms)
+      ├ù TC-BB-063 NoSQL operator in userId ($ne) -> expect rejection (cast to 500 or blocked) (14 ms)
+      ΓêÜ TC-BB-064 IDOR: adding an item to ANOTHER users cart succeeds with no auth (11 ms)
+    POST /remove
+      ΓêÜ TC-BB-065 remove existing item -> 200 (21 ms)
+      ΓêÜ TC-BB-066 remove from non-existent cart -> 404 (6 ms)
+      ΓêÜ TC-BB-067 remove non-existent product -> 200 (no error) (23 ms)
+    GET /:userId
+      ΓêÜ TC-BB-068 returns cart for valid user -> 200 (23 ms)
+      ΓêÜ TC-BB-069 IDOR: reading another users cart without auth -> 200 (data exposure) (13 ms)
+      ΓêÜ TC-BB-070 non-existent user -> 404 (11 ms)
+    POST /update
+      ΓêÜ TC-BB-071 update quantity -> 200 (28 ms)
+      ΓêÜ TC-BB-072 update non-existent cart -> 404 (7 ms)
+      ΓêÜ TC-BB-073 update non-existent product -> 404 (9 ms)
+      ├ù TC-BB-074 update quantity to 0 -> expect 4xx (defect: validation error -> 500) (37 ms)
+    Authentication / Broken Access Control
+      ΓêÜ TC-BB-075 all cart endpoints work with NO Authorization header at all (12 ms)
+      ΓêÜ TC-BB-076 garbage JWT accepted (never verified) (13 ms)
+      ΓêÜ TC-BB-077 expired/unsigned token accepted (10 ms)
+
+  ΓùÅ BLACK-BOX /api/cart ΓÇ║ POST /add ΓÇ║ TC-BB-059 quantity 0 or negative -> expect 400/422 (defect: mongoose min:1 
+-> 500)
+
+    expect(received).toContain(expected) // indexOf
+
+    Expected value: 500
+    Received array: [400, 422]
+
+    [0m [90m 60 |[39m       [36mconst[39m res [33m=[39m [36mawait[39m 
+api[33m.[39mpost([32m'/api/cart/add'[39m)[33m.[39msend({ [33m...[39mvalidPayload()[33m,[39m 
+productId[33m:[39m [32m'prod-q'[39m[33m,[39m quantity[33m:[39m [35m0[39m })[33m;[39m
+     [90m 61 |[39m       console[33m.[39mlog([32m'[BB-059] quantity 0 returned:'[39m[33m,[39m 
+res[33m.[39mstatus[33m,[39m 
+[33mJSON[39m[33m.[39mstringify(res[33m.[39mbody)[33m.[39mslice([35m0[39m[33m,[39m 
+[35m250[39m))[33m;[39m
+    [31m[1m>[22m[39m[90m 62 |[39m       expect([[35m400[39m[33m,[39m 
+[35m422[39m])[33m.[39mtoContain(res[33m.[39mstatus)[33m;[39m
+     [90m    |[39m                          [31m[1m^[22m[39m
+     [90m 63 |[39m     })[33m;[39m
+     [90m 64 |[39m
+     [90m 65 |[39m     it([32m'TC-BB-060 quantity as string -> expect 400/422 (defect: CastError 
+500)'[39m[33m,[39m [36masync[39m () [33m=>[39m {[0m
+
+      at tests/blackbox/cart.blackbox.test.ts:62:26
+      at fulfilled (tests/blackbox/cart.blackbox.test.ts:5:58)
+
+  ΓùÅ BLACK-BOX /api/cart ΓÇ║ POST /add ΓÇ║ TC-BB-060 quantity as string -> expect 400/422 (defect: CastError 500)
+
+    expect(received).toContain(expected) // indexOf
+
+    Expected value: 200
+    Received array: [400, 422]
+
+    [0m [90m 66 |[39m       [36mconst[39m res [33m=[39m [36mawait[39m 
+api[33m.[39mpost([32m'/api/cart/add'[39m)[33m.[39msend({ [33m...[39mvalidPayload()[33m,[39m 
+productId[33m:[39m [32m'prod-s'[39m[33m,[39m quantity[33m:[39m [32m'2'[39m })[33m;[39m
+     [90m 67 |[39m       console[33m.[39mlog([32m'[BB-060] string quantity returned:'[39m[33m,[39m 
+res[33m.[39mstatus[33m,[39m 
+[33mJSON[39m[33m.[39mstringify(res[33m.[39mbody)[33m.[39mslice([35m0[39m[33m,[39m 
+[35m250[39m))[33m;[39m
+    [31m[1m>[22m[39m[90m 68 |[39m       expect([[35m400[39m[33m,[39m 
+[35m422[39m])[33m.[39mtoContain(res[33m.[39mstatus)[33m;[39m
+     [90m    |[39m                          [31m[1m^[22m[39m
+     [90m 69 |[39m     })[33m;[39m
+     [90m 70 |[39m
+     [90m 71 |[39m     it([32m'TC-BB-061 missing required field (name) -> expect 400 (defect: 500)'[39m[33m,[39m 
+[36masync[39m () [33m=>[39m {[0m
+
+      at tests/blackbox/cart.blackbox.test.ts:68:26
+      at fulfilled (tests/blackbox/cart.blackbox.test.ts:5:58)
+
+  ΓùÅ BLACK-BOX /api/cart ΓÇ║ POST /add ΓÇ║ TC-BB-061 missing required field (name) -> expect 400 (defect: 500)
+
+    expect(received).toContain(expected) // indexOf
+
+    Expected value: 200
+    Received array: [400, 422]
+
+    [0m [90m 73 |[39m       [36mconst[39m res [33m=[39m [36mawait[39m 
+api[33m.[39mpost([32m'/api/cart/add'[39m)[33m.[39msend(payload)[33m;[39m
+     [90m 74 |[39m       console[33m.[39mlog([32m'[BB-061] missing name returned:'[39m[33m,[39m 
+res[33m.[39mstatus[33m,[39m 
+[33mJSON[39m[33m.[39mstringify(res[33m.[39mbody)[33m.[39mslice([35m0[39m[33m,[39m 
+[35m250[39m))[33m;[39m
+    [31m[1m>[22m[39m[90m 75 |[39m       expect([[35m400[39m[33m,[39m 
+[35m422[39m])[33m.[39mtoContain(res[33m.[39mstatus)[33m;[39m
+     [90m    |[39m                          [31m[1m^[22m[39m
+     [90m 76 |[39m     })[33m;[39m
+     [90m 77 |[39m
+     [90m 78 |[39m     it([32m'TC-BB-062 empty body -> expect 400 (defect: 500)'[39m[33m,[39m [36masync[39m () 
+[33m=>[39m {[0m
+
+      at tests/blackbox/cart.blackbox.test.ts:75:26
+      at fulfilled (tests/blackbox/cart.blackbox.test.ts:5:58)
+
+  ΓùÅ BLACK-BOX /api/cart ΓÇ║ POST /add ΓÇ║ TC-BB-062 empty body -> expect 400 (defect: 500)
+
+    expect(received).toContain(expected) // indexOf
+
+    Expected value: 500
+    Received array: [400, 422]
+
+    [0m [90m 79 |[39m       [36mconst[39m res [33m=[39m [36mawait[39m 
+api[33m.[39mpost([32m'/api/cart/add'[39m)[33m.[39msend({})[33m;[39m
+     [90m 80 |[39m       console[33m.[39mlog([32m'[BB-062] empty body returned:'[39m[33m,[39m 
+res[33m.[39mstatus[33m,[39m 
+[33mJSON[39m[33m.[39mstringify(res[33m.[39mbody)[33m.[39mslice([35m0[39m[33m,[39m 
+[35m250[39m))[33m;[39m
+    [31m[1m>[22m[39m[90m 81 |[39m       expect([[35m400[39m[33m,[39m 
+[35m422[39m])[33m.[39mtoContain(res[33m.[39mstatus)[33m;[39m
+     [90m    |[39m                          [31m[1m^[22m[39m
+     [90m 82 |[39m     })[33m;[39m
+     [90m 83 |[39m
+     [90m 84 |[39m     it([32m'TC-BB-063 NoSQL operator in userId ($ne) -> expect rejection (cast to 500 or 
+blocked)'[39m[33m,[39m [36masync[39m () [33m=>[39m {[0m
+
+      at tests/blackbox/cart.blackbox.test.ts:81:26
+      at fulfilled (tests/blackbox/cart.blackbox.test.ts:5:58)
+
+  ΓùÅ BLACK-BOX /api/cart ΓÇ║ POST /add ΓÇ║ TC-BB-063 NoSQL operator in userId ($ne) -> expect rejection (cast to 500 
+or blocked)
+
+    expect(received).toContain(expected) // indexOf
+
+    Expected value: 200
+    Received array: [400, 422, 500]
+
+    [0m [90m 85 |[39m       [36mconst[39m res [33m=[39m [36mawait[39m 
+api[33m.[39mpost([32m'/api/cart/add'[39m)[33m.[39msend({ [33m...[39mvalidPayload()[33m,[39m 
+userId[33m:[39m { $ne[33m:[39m [36mnull[39m } })[33m;[39m
+     [90m 86 |[39m       console[33m.[39mlog([32m'[BB-063] $ne userId returned:'[39m[33m,[39m 
+res[33m.[39mstatus[33m,[39m 
+[33mJSON[39m[33m.[39mstringify(res[33m.[39mbody)[33m.[39mslice([35m0[39m[33m,[39m 
+[35m300[39m))[33m;[39m
+    [31m[1m>[22m[39m[90m 87 |[39m       expect([[35m400[39m[33m,[39m [35m422[39m[33m,[39m 
+[35m500[39m])[33m.[39mtoContain(res[33m.[39mstatus)[33m;[39m
+     [90m    |[39m                               [31m[1m^[22m[39m
+     [90m 88 |[39m     })[33m;[39m
+     [90m 89 |[39m
+     [90m 90 |[39m     it([32m'TC-BB-064 IDOR: adding an item to ANOTHER users cart succeeds with no 
+auth'[39m[33m,[39m [36masync[39m () [33m=>[39m {[0m
+
+      at tests/blackbox/cart.blackbox.test.ts:87:31
+      at fulfilled (tests/blackbox/cart.blackbox.test.ts:5:58)
+
+  ΓùÅ BLACK-BOX /api/cart ΓÇ║ POST /update ΓÇ║ TC-BB-074 update quantity to 0 -> expect 4xx (defect: validation error 
+-> 500)
+
+    expect(received).toContain(expected) // indexOf
+
+    Expected value: 500
+    Received array: [400, 422]
+
+    [0m [90m 162 |[39m       [36mconst[39m res [33m=[39m [36mawait[39m 
+api[33m.[39mpost([32m'/api/cart/update'[39m)[33m.[39msend({ userId[33m:[39m [32m'user-A'[39m[33m,[39m 
+productId[33m:[39m [32m'zupd'[39m[33m,[39m quantity[33m:[39m [35m0[39m })[33m;[39m
+     [90m 163 |[39m       console[33m.[39mlog([32m'[BB-074] quantity=0 update returned:'[39m[33m,[39m 
+res[33m.[39mstatus[33m,[39m 
+[33mJSON[39m[33m.[39mstringify(res[33m.[39mbody)[33m.[39mslice([35m0[39m[33m,[39m 
+[35m250[39m))[33m;[39m
+    [31m[1m>[22m[39m[90m 164 |[39m       expect([[35m400[39m[33m,[39m 
+[35m422[39m])[33m.[39mtoContain(res[33m.[39mstatus)[33m;[39m
+     [90m     |[39m                          [31m[1m^[22m[39m
+     [90m 165 |[39m     })[33m;[39m
+     [90m 166 |[39m   })[33m;[39m
+     [90m 167 |[39m[0m
+
+      at tests/blackbox/cart.blackbox.test.ts:164:26
+      at fulfilled (tests/blackbox/cart.blackbox.test.ts:5:58)
+
+Test Suites: 1 failed, 1 total
+Tests:       6 failed, 17 passed, 23 total
+Snapshots:   0 total
+Time:        5.262 s
+Ran all test suites matching /tests\\blackbox/i.

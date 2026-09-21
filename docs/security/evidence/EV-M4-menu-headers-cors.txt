@@ -1,0 +1,18 @@
+================================================================
+EV-M4 : Missing security headers + permissive CORS  [2026-09-21 15:30:07]
+Target: http://localhost:3101  (temporary scan instance, dedicated scan DB)
+================================================================
+
+---- REQUEST ----
+curl.exe -s -D - -o NUL -H 'Origin: https://evil.example' http://localhost:3101/api/restaurants
+---- RESPONSE ----
+HTTP/1.1 200 OK
+X-Powered-By: Express
+Access-Control-Allow-Origin: *
+Content-Type: application/json; charset=utf-8
+Content-Length: 863
+ETag: W/"35f-BaNFpWTN93KJVn7d+tVK19iDwGk"
+Date: Mon, 21 Sep 2026 10:00:08 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
