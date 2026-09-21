@@ -17,7 +17,8 @@ const WINDOW_MS = Number(process.env.RATE_LIMIT_WINDOW_MS || 60_000);
 const MAX_REQUESTS = Number(process.env.RATE_LIMIT_MAX || 25);
 
 const keyGenerator = (req: Request): string => {
-  const ip = req.ip || 'unknown';
+  // ERR_ERL_KEY_GEN_IPV6 guard: req.ip may be an IPv4-mapped IPv6 address.
+  const ip = (req.ip || req.socket.remoteAddress || 'unknown').replace(/^::ffff:/, '');
   const header = req.headers.authorization;
   const token = header?.startsWith('Bearer ') ? header.slice(7) : '';
   if (token) {

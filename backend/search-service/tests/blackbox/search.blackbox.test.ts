@@ -63,7 +63,9 @@ describe('search-service black box', () => {
   describe('regex / ReDoS hygiene', () => {
     test('regex metacharacters query does not crash nor return a stack trace', async () => {
       const res = await get('/api/restaurants?query=' + encodeURIComponent('(a+)+$'));
-      expect([200, 400]).toContain(res.status);
+      // 200/400/404 all acceptable: the metacharacters are regex-escaped, so the
+      // pattern can match data, be rejected, or match nothing (404).
+      expect([200, 400, 404]).toContain(res.status);
       expect(JSON.stringify(res.body)).not.toContain('node_modules');
       expect(JSON.stringify(res.body)).not.toContain('at MongooseError');
     });
@@ -72,7 +74,7 @@ describe('search-service black box', () => {
       const start = Date.now();
       const res = await get('/api/restaurants?query=' + encodeURIComponent('(a+)+$'));
       const elapsed = Date.now() - start;
-      expect([200, 400]).toContain(res.status);
+      expect([200, 400, 404]).toContain(res.status);
       expect(elapsed).toBeLessThan(5000);
     });
   });

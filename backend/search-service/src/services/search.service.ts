@@ -1,7 +1,8 @@
 import axios from 'axios';
 
-// Base URL of the Menu Service
-const MENU_SERVICE_URL = 'http://localhost:3001';
+const MENU_SERVICE_URL = process.env.MENU_SERVICE_URL || 'http://localhost:3001';
+
+export const searchMenuItems = async (query: string) => {
   try {
     // Fetch menu items from the Menu Service
     const response = await axios.get(`${MENU_SERVICE_URL}/api/menu-items`, {
@@ -17,4 +18,3 @@ const MENU_SERVICE_URL = 'http://localhost:3001';
     throw error;
   }
 };
-

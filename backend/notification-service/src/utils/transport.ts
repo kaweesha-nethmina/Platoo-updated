@@ -1,5 +1,7 @@
 import nodemailer from 'nodemailer';
 
+type Transporter = ReturnType<typeof nodemailer.createTransport>;
+
 /**
  * NOTIFICATION-SERVICE mail transport factory.
  *
@@ -18,7 +20,7 @@ export interface SmtpOptions {
   verbose?: boolean;
 }
 
-export const createTransport = (opts: SmtpOptions = {}): nodemailer.Transporter => {
+export const createTransport = (opts: SmtpOptions = {}): Transporter => {
   // Sandbox/mock mode: Nodemailer's JSON transport records the message without
   // any network I/O. Enable it for tests/dev with SMTP_TRANSPORT=mock (or pass
   // verbose: true). Production must set real SMTP_* / EMAIL_* variables.
