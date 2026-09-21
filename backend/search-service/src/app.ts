@@ -1,9 +1,15 @@
 import express, { NextFunction, Request, Response } from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import searchRoutes from './routes/search.routes';
 
 const app = express();
+
+// SRCH-07: remove the X-Powered-By fingerprint and add standard security
+// headers (CSP, X-Content-Type-Options, X-Frame-Options, Referrer-Policy...).
+app.disable('x-powered-by');
+app.use(helmet());
 
 // SRCH-06: wildcard CORS (`Access-Control-Allow-Origin: *`) let any website
 // read responses. Allow-list origins (default localhost:3000); unknown origins
