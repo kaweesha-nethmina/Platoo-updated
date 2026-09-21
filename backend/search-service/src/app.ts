@@ -5,7 +5,26 @@ import searchRoutes from './routes/search.routes';
 
 const app = express();
 
-app.use(cors());
+// SRCH-06: wildcard CORS (`Access-Control-Allow-Origin: *`) let any website
+// read responses. Allow-list origins (default localhost:3000); unknown origins
+// get no ACAO header so browsers block the read.
+const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:3000')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(null, false);
+    },
+    methods: ['GET', 'POST', 'OPTIONS'],
+  })
+);
 app.use(express.json());
 
 // SRCH-04: the public search API was unauthenticated and unthrottled; 50 quick
