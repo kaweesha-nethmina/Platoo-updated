@@ -2,6 +2,7 @@ import express from 'express';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import cors from 'cors';
+import helmet from 'helmet';
 import notificationRoutes from './routes/notificationRoutes';
 import { rateLimiter } from './middleware/rateLimiter';
 
@@ -15,6 +16,7 @@ const ALLOWED_ORIGINS = (process.env.CLIENT_URL || 'http://localhost:3000')
   .filter(Boolean);
 
 app.disable('x-powered-by');
+app.use(helmet());
 app.use(express.json({ limit: '10kb' }));
 app.use(
   cors({
@@ -34,6 +36,12 @@ app.use('/api/notifications', rateLimiter, notificationRoutes);
 
 app.use(
   (err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    // NOTIF-04 (CWE-346): a disallowed Origin previously surfaced as a 500.
+    // Answer with a clean 403 (still without reflecting the offending origin).
+    if (err instanceof Error && err.message === 'Not allowed by CORS') {
+      res.status(403).json({ error: 'Origin not allowed' });
+      return;
+    }
     if (err && (err as { type?: string }).type) {
       res.status(400).json({ error: 'Malformed or oversized request body' });
       return;

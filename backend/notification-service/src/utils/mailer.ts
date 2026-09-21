@@ -1,26 +1,52 @@
 import nodemailer from 'nodemailer';
+import { createTransport } from './transport';
 
-const transporter = nodemailer.createTransport({
-  service: 'gmail',  // This specifies Gmail as the SMTP service.
-  auth: {
-    user: process.env.EMAIL_USER,   // Your Gmail address (set in .env)
-    pass: process.env.EMAIL_PASS,   // Your App Password (set in .env)
-  },
-});
+/**
+ * NOTIFICATION-SERVICE mailer.
+ *
+ * NOTIF-05 (CWE-80/CWE-93): the subject and from address are fixed strings and
+ * all user-controlled content goes into the plain-text body already sanitised
+ * by sanitizeEmailField(), so CRLF/HTML input can never become headers or
+ * rendered markup.
+ *
+ * NOTIF-06 (CWE-547): the transport is created from environment variables via
+ * the injectable factory (no hard-coded Gmail credentials in this file).
+ */
 
-export const sendEmail = async (to: string, subject: string, text: string) => {
+const transporter = createTransport();
+
+export const SENDER = process.env.EMAIL_USER || 'dummy.sender@platoo.local';
+
+export interface EmailMessage {
+  from: string;
+  subject: string;
+  text: string;
+}
+
+export const buildEmailMessage = (
+  orderId: string,
+  customerName: string,
+  address: string,
+  total: number
+): EmailMessage => {
+  const from = SENDER;
+  const subject = 'New Delivery Order'; // fixed subject: user input never reaches headers
+  const text = [
+    'New Order Details:',
+    `Order ID: ${orderId}`,
+    `Customer: ${customerName}`,
+    `Total: ${total}`,
+    `Address: ${address}`,
+  ].join('\n');
+  return { from, subject, text };
+};
+
+export const sendEmail = async (to: string, subject: string, text: string): Promise<unknown> => {
   const mailOptions = {
-    from: process.env.EMAIL_USER,  // Sender's email address
-    to ,  // Recipient's email address
-    subject,  // Subject of the email
-    text,  // Body content of the email
+    from: SENDER,
+    to,
+    subject,
+    text,
   };
-
-  try {
-    const info = await transporter.sendMail(mailOptions);
-    console.log('Email sent:', info.response);
-  } catch (error) {
-    console.error('Error sending email:', error);
-    throw error;  // Rethrow the error for further handling
-  }
+  return transporter.sendMail(mailOptions);
 };
