@@ -111,16 +111,6 @@ describe('search-service black box', () => {
       expect(res.headers['x-ratelimit-limit']).toBeDefined();
       expect(res.headers['x-ratelimit-remaining']).toBeDefined();
     });
-
-    test('excessive requests are throttled with 429', async () => {
-      // fire 30 quick requests; some must be throttled
-      const codes: number[] = [];
-      for (let i = 0; i < 30; i += 1) {
-        const r = await get('/api/restaurants?query=pizza');
-        codes.push(r.status);
-      }
-      expect(codes).toContain(429);
-    });
   });
 
   describe('security headers / hardening', () => {
@@ -164,6 +154,18 @@ describe('search-service black box', () => {
       expect(res.status).toBeGreaterThanOrEqual(400);
       expect(res.status).toBeLessThan(500);
       expect(JSON.stringify(res.body)).not.toContain('node_modules');
+    });
+  });
+
+  describe('abuse throttling (must run last: it spends the rate-limit budget)', () => {
+    test('excessive requests are throttled with 429', async () => {
+      // fire 30 quick requests; some must be throttled
+      const codes: number[] = [];
+      for (let i = 0; i < 30; i += 1) {
+        const r = await get('/api/restaurants?query=pizza');
+        codes.push(r.status);
+      }
+      expect(codes).toContain(429);
     });
   });
 });
