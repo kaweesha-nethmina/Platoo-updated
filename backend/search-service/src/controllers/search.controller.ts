@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import axios from 'axios';
 import RestaurantModel from '../models/restaurant.model';
 import { searchMenuItems } from '../services/search.service';
+import { sanitizeSearchParam, sanitizePlainText } from '../utils/sanitize';
 
 // Base URL of the Menu Service
 const MENU_SERVICE_URL = 'http://localhost:3001';
@@ -11,25 +12,31 @@ export const handleRestaurantSearch = async (req: Request, res: Response): Promi
   try {
     const { query, location, cuisine } = req.query;
 
+    // SRCH-01: reject non-string/operator-object values before they reach MongoDB.
+    const safeQuery = sanitizeSearchParam(query);
+    const safeLocation = sanitizeSearchParam(location);
+    const safeCuisine = sanitizeSearchParam(cuisine);
+
     // Validate query parameters
-    if (!query && !location && !cuisine) {
+    if (!safeQuery && !safeLocation && !safeCuisine) {
       res.status(400).json({ message: 'At least one search parameter is required' });
       return;
     }
 
     // Build the query object
-    const searchQuery: any = {};
+    const searchQuery: Record<string, { $regex: string; $options: string }> = {};
 
-    if (query) {
-      searchQuery.name = { $regex: query, $options: 'i' }; // Search by restaurant name (case-insensitive)
+    // SRCH-02: safeQuery is regex-escaped by sanitizeSearchParam.
+    if (safeQuery) {
+      searchQuery.name = { $regex: safeQuery, $options: 'i' }; // Search by restaurant name (case-insensitive)
     }
 
-    if (location) {
-      searchQuery['location.tag'] = { $regex: `^${location}$`, $options: 'i' }; // Exact match for location tag
+    if (safeLocation) {
+      searchQuery['location.tag'] = { $regex: `^${safeLocation}$`, $options: 'i' }; // Exact match for location tag
     }
 
-    if (cuisine) {
-      searchQuery.cuisines = { $regex: cuisine, $options: 'i' }; // Match cuisine
+    if (safeCuisine) {
+      searchQuery.cuisines = { $regex: safeCuisine, $options: 'i' }; // Match cuisine
     }
 
     // Fetch restaurants with applied filters
@@ -53,14 +60,16 @@ export const handleMenuItemSearch = async (req: Request, res: Response): Promise
   try {
     const { query } = req.query;
 
+    const safeQuery = sanitizeSearchParam(query);
+
     // Validate query parameter
-    if (!query) {
+    if (!safeQuery) {
       res.status(400).json({ message: 'Query parameter is required' });
       return; 
     }
 
     // Call the service to get the filtered menu items
-    const filteredMenuItems = await searchMenuItems(query.toString());
+    const filteredMenuItems = await searchMenuItems(safeQuery);
 
     if (filteredMenuItems.length > 0) {
       res.status(200).json(filteredMenuItems);
@@ -79,7 +88,9 @@ export const handleCategorySearch = async (req: Request, res: Response): Promise
   try {
     const { query } = req.query;
 
-    if (!query) {
+    const safeQuery = sanitizePlainText(query);
+
+    if (!safeQuery) {
       res.status(400).json({ message: 'Query parameter is required' });
       return;
     }
@@ -92,7 +103,7 @@ export const handleCategorySearch = async (req: Request, res: Response): Promise
 
       // Filter categories based on the query name (case-insensitive)
       const filteredCategories = categories.filter((category: any) =>
-        category.name.toLowerCase() === query.toString().toLowerCase()
+        category.name.toLowerCase() === safeQuery.toLowerCase()
       );
 
       if (filteredCategories.length > 0) {
@@ -102,11 +113,11 @@ export const handleCategorySearch = async (req: Request, res: Response): Promise
       }
     } catch (error: any) {
       console.error('Error fetching category details:', error.response?.data || error.message);
-      res.status(500).json({ message: 'Error fetching category details', error: error.response?.data || error.message });
+      res.status(500).json({ message: 'Error fetching category details' });
     }
   } catch (error: any) {
     console.error('Unknown error during category search:', error.message);
-    res.status(500).json({ message: 'Internal Server Error', error: error.message });
+    res.status(500).json({ message: 'Internal Server Error' });
   }
 };
 
