@@ -1,28 +1,62 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
+import cors from 'cors';
 import notificationRoutes from './routes/notificationRoutes';
+import { rateLimiter } from './middleware/rateLimiter';
 
-const cors = require('cors');
 const app = express();
 dotenv.config();
 const PORT = process.env.PORT || 4006;
 
-// Middleware
-app.use(express.json());
-app.use(cors());
+const ALLOWED_ORIGINS = (process.env.CLIENT_URL || 'http://localhost:3000')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
-// Routes
-app.use('/api/notifications', notificationRoutes);
+app.disable('x-powered-by');
+app.use(express.json({ limit: '10kb' }));
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error('Not allowed by CORS'));
+    },
+    methods: ['POST', 'GET', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  })
+);
 
-// Connect to MongoDB
-mongoose.connect(process.env.MONGO_URI || '')
+app.use('/api/notifications', rateLimiter, notificationRoutes);
+
+app.use(
+  (err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    if (err && (err as { type?: string }).type) {
+      res.status(400).json({ error: 'Malformed or oversized request body' });
+      return;
+    }
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+);
+
+const mongoUri = process.env.MONGO_URI;
+if (!mongoUri) {
+  console.error('FATAL: MONGO_URI is not configured. Exiting.');
+  process.exit(1);
+}
+
+mongoose
+  .connect(mongoUri, { serverSelectionTimeoutMS: 5000 })
   .then(() => {
     console.log('Connected to MongoDB');
     app.listen(PORT, () => {
-      console.log('Server running on port ${PORT}');
+      console.log(`Server running on port ${PORT}`);
     });
   })
   .catch((error) => {
-    console.error('MongoDB connection error:', error);
-  });
+    console.error('MongoDB connection error:', error);
+    process.exit(1);
+  });
