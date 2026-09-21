@@ -1,13 +1,17 @@
 ---
+# SECURITY (NOTIF-07, CWE-798): real MongoDB URI + Gmail app password were
+# committed here in plaintext base64. Never commit secrets. Populate this
+# Secret out-of-band (kubectl create secret / Helm / a secret manager) and
+# reference only names; rotate any credential that was ever committed.
 apiVersion: v1
 kind: Secret
 metadata:
   name: notification-service-secrets
 type: Opaque
-data:
-  mongo-uri: bW9uZ29kYitzcnY6Ly9rYXdlZXNoYW5ldGg6NUhPSldlOTR3TEtkT3JMNEBjbHVzdGVyMC44ZmR3dS5tb25nb2RiLm5ldC91c2VyLXNlcnZpY2UtZGI/cmV0cnlXcml0ZXM9dHJ1ZSZ3PW1ham9yaXR5  # Base64 encoded MONGO_URI (already created)
-  email-user: aDFydW5pY2hhbWF0aGthMjMwQGdtYWlsLmNvbQ==  # Base64 encoded EMAIL_USER
-  email-pass: Z3F2cCB5ZXFpIHZwZG4gZ3FpaQ==  # Base64 encoded EMAIL_PASS
+stringData:
+  mongo-uri: '<replace-with-rotated-mongo-uri>'
+  email-user: '<replace-with-mailbox-user>'
+  email-pass: '<replace-with-app-password>'
 ---
 apiVersion: apps/v1
 kind: Deployment
