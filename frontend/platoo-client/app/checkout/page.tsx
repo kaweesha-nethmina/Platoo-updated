@@ -491,6 +491,35 @@ export default function CheckoutPage() {
 
   const userId = typeof window !== "undefined" ? localStorage.getItem("userId") : null;
 
+  // Idempotency-Key: generated once per checkout attempt and reused on retries
+  // so a double-click/second attempt can never mint a duplicate order. Reset
+  // only after the checkout actually succeeds.
+  const idempotencyKeyRef = useRef<string | null>(null);
+  const getOrCreateIdempotencyKey = (): string => {
+    if (!idempotencyKeyRef.current) {
+      idempotencyKeyRef.current =
+        typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    }
+    return idempotencyKeyRef.current;
+  };
+
+  // The delivery fee shown to the customer is the same value the order-service
+  // resolves server-side (from the restaurant record). Parsing mirrors the
+  // backend so the displayed total always matches what gets charged.
+  const parseDeliveryFee = (raw?: string | number | null): number => {
+    if (typeof raw === "number" && Number.isFinite(raw) && raw >= 0) return raw;
+    if (typeof raw === "string") {
+      const m = raw.replace(/,/g, "").match(/\d+(\.\d+)?/);
+      if (m) {
+        const n = Number(m[0]);
+        if (Number.isFinite(n) && n >= 0) return n;
+      }
+    }
+    return 0;
+  };
+
   // Calculate totals
   useEffect(() => {
     const restaurantId = localStorage.getItem("restaurantId");
@@ -505,14 +534,6 @@ export default function CheckoutPage() {
     if (cart) {
       const items: CartItem[] = JSON.parse(cart);
       setCartItems(items);
-
-      const calcSubtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-      const calcTax = calcSubtotal * 0.08; // 8% tax
-      const calcTotal = calcSubtotal + deliveryFee + calcTax;
-
-      setSubtotal(calcSubtotal);
-      setTax(calcTax);
-      setTotal(calcTotal);
     } else {
       const item = localStorage.getItem("selectedItem");
       const quantity = localStorage.getItem("selectedQuantity") || "1";
@@ -521,15 +542,6 @@ export default function CheckoutPage() {
         const parsedItem = JSON.parse(item);
         setSelectedItem(parsedItem);
         setSelectedQuantity(parseInt(quantity));
-
-        // Calculate for single item
-        const selectedItemTotal = parsedItem.price * parseInt(quantity);
-        const selectedItemTax = selectedItemTotal * 0.08;
-        const selectedItemTotalWithTax = selectedItemTotal + deliveryFee + selectedItemTax;
-
-        setSubtotal(selectedItemTotal);
-        setTax(selectedItemTax);
-        setTotal(selectedItemTotalWithTax);
       }
     }
 
@@ -542,19 +554,33 @@ export default function CheckoutPage() {
     // eslint-disable-next-line
   }, []);
 
-  // Recalculate totals if single item quantity changes
+  // Use the restaurant's authoritative delivery fee when available.
   useEffect(() => {
-    if (selectedItem && cartItems.length === 0) {
+    if (restaurant) {
+      setDeliveryFee(parseDeliveryFee(restaurant.deliveryFee));
+    }
+  }, [restaurant]);
+
+  // Keep the money math in sync with the data it depends on.
+  useEffect(() => {
+    if (cartItems.length > 0) {
+      const calcSubtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      const calcTax = calcSubtotal * 0.08;
+      setSubtotal(calcSubtotal);
+      setTax(calcTax);
+      setTotal(calcSubtotal + deliveryFee + calcTax);
+      return;
+    }
+
+    if (selectedItem) {
       const selectedItemTotal = selectedItem.price * selectedQuantity;
       const selectedItemTax = selectedItemTotal * 0.08;
-      const selectedItemTotalWithTax = selectedItemTotal + deliveryFee + selectedItemTax;
-
       setSubtotal(selectedItemTotal);
       setTax(selectedItemTax);
-      setTotal(selectedItemTotalWithTax);
+      setTotal(selectedItemTotal + deliveryFee + selectedItemTax);
     }
     // eslint-disable-next-line
-  }, [selectedQuantity, selectedItem]);
+  }, [cartItems, selectedItem, selectedQuantity, deliveryFee]);
 
   if (!userId) {
     if (typeof window !== "undefined") {
@@ -727,6 +753,9 @@ export default function CheckoutPage() {
     setIsProcessing(true);
 
     try {
+      // Only identifiers + quantities are sent to the order-service. Prices,
+      // totals, delivery fee, status, and identity are derived server-side
+      // from the catalog and the verified JWT — never accepted from the client.
       const itemsToSend = cartItems.length > 0
           ? cartItems.map((item) => {
               // Cart items can carry the menu id under either name depending on
@@ -737,37 +766,26 @@ export default function CheckoutPage() {
               return {
                 menu_item_id,
                 quantity: Number(item.quantity),
-                price: item.price,
-                name: item.name,
               };
             })
           : [
               {
                 menu_item_id: selectedItem?._id ?? selectedItem?.productId ?? selectedItem?.menuItemId,
                 quantity: Number(selectedQuantity),
-                price: selectedItem!.price,
-                name: selectedItem!.name,
               },
             ];
 
-      // Always use the calculated total (which includes tax)
-      const orderTotal = total;
-
       const orderPayload = {
-        user_id: userId,
         restaurant_id: restaurant?._id,
         items: itemsToSend,
-        total_amount: orderTotal,
-        delivery_fee: deliveryFee,
-        status: "pending",
         delivery_address: deliveryAddress,
         location: { // Match your backend schema
           // The map/marker and auto-fill paths can produce string lat/lng
           // (e.g. "7.291418" or 6.9271); the order-service rejects anything
           // that is not typeof 'number'. Coerce explicitly at the payload
           // boundary so numeric coordinates always reach the server.
-          lat: Number(deliveryLocation.lat),
-          lng: Number(deliveryLocation.lng),
+          lat: Number(deliveryLocation!.lat),
+          lng: Number(deliveryLocation!.lng),
         },
         phone,
         email,
@@ -781,6 +799,7 @@ export default function CheckoutPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Idempotency-Key": getOrCreateIdempotencyKey(),
           Authorization: `Bearer ${localStorage.getItem("jwtToken") || localStorage.getItem("token")}`,
         },
         body: JSON.stringify(orderPayload),
@@ -818,6 +837,8 @@ export default function CheckoutPage() {
 
       const result = await response.json();
       if (response.ok && result.sessionUrl) {
+        // Checkout succeeded; a fresh key for any future order.
+        idempotencyKeyRef.current = null;
         window.location.href = result.sessionUrl;
       } else {
         console.error("Payment session failed.");

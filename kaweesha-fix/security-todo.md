@@ -30,6 +30,8 @@ Legend: Critical → do first · High → next · Medium → then · Observation
       Client-supplied monetary values are never used. See `kaweesha.md`.
       Made fully trustworthy by **V-07** (server-side order pricing) + **V-05**
       (server-side payment verification below).
+      **Extended (2026-09-22):** `StripeService.computeTrustedAmount` now adds `order.path("tax")`,
+      so the Stripe charge equals the stored payable `(subtotal + delivery_fee + tax)`.
 
 - [x] **V-04 — Add authentication to order-service** (all routes `orderRoutes.ts`, `app.ts:17`)
       **Done (this session, with V-12):** `order-service/middleware/authenticate.ts` provides
@@ -75,9 +77,12 @@ Legend: Critical → do first · High → next · Medium → then · Observation
       Done: menu-service exposes `POST /api/menu-items/quote` (server-side prices + invalid-id
       detection) and order-service `createOrder`/`updateOrder` build items/totals exclusively from
       those trusted prices, rejecting orders with any missing/invalid item.
-      Residual (tracked in audit): `delivery_fee` is still stored client-sent and feeds the
-      payment total (see `trust-boundary-audit.md`); the restaurant record already carries
-      `deliveryFee` server-side (`restaurant.model.ts:9`) — resolve it server-side.
+      Residual (tracked in audit): `delivery_fee` client-supplied (see
+      `trust-boundary-audit.md`) — **RESOLVED (2026-09-22)**: order-service now resolves the
+      payable fee server-side from the restaurant record via
+      `GET menu-service /api/restaurants/:id`; the client `delivery_fee` is kept only as a
+      display hint (`parseDeliveryFee`) and no longer feeds the totals. Client-supplied
+      `total_amount`/`tax`/`status`/`user_id` are stripped or rejected.
 
 - [x] **V-12 — Stop exposing all orders without auth** (`orderRoutes.ts:20-30`,
       `orders/page.tsx:39-47`)
@@ -103,9 +108,17 @@ Legend: Critical → do first · High → next · Medium → then · Observation
       `StripeException.getMessage()`.
       Partial: ✅ Google-auth endpoint and payment-service `verify-payment` already return
       generic errors (see `kaweesha.md`).
+      **Extended (2026-09-22):** order-service, user-service, and menu-service `app.ts` now have
+      central generic 404/500 handlers — no `error.message` / MongoDB strings reach clients
+      (order-service has a dedicated leaked-details test). Remaining gap: auth/user responses
+      (V-06/V-11) and payment-service non-verify endpoints.
 
 - [ ] **V-10 — Restrict CORS on user-service** (`app.ts:8`)
       `app.use(cors({ origin: 'http://localhost:3000', credentials: true }))` (allowlist for prod).
+      **DONE (2026-09-22):** CORS is restricted from an `CORS_ORIGINS` env allowlist
+      (`services/*/app.ts` + `.env.example`), defaulting to
+      `http://localhost:3000,http://127.0.0.1:3000` — so dev keeps working and a future prod
+      just points the env var at the real origins.
 
 - [ ] **V-11 — Don't return the password hash from updateUser** (`authController.ts:98`)
       Exclude password via `.select('-password')` on the response.
@@ -121,7 +134,8 @@ Legend: Critical → do first · High → next · Medium → then · Observation
       `GET /orders` listing (restaurant-owner/delivery dashboards still filter client-side —
       legit paths need owner/assignment mapping), and `delivery_fee` stored verbatim then fed into
       the payment total (the restaurant record already carries `deliveryFee` server-side — resolve
-      it instead of trusting the client).
+      it instead of trusting the client) — **resolved 2026-09-22: the payable fee, tax, and totals are
+      all recomputed in order-service (`computeTotals`) from the menu quote + restaurant record.**
 
 - [ ] **Committed third-party API key (frontend)** — `components/dashboards/delivery-dashboard.tsx:105`
       hardcodes an OpenRouteService direction API key as `Authorization`. An extra credential is now
@@ -132,8 +146,11 @@ Legend: Critical → do first · High → next · Medium → then · Observation
       enforce strength server-side (frontend does; mirror it on the server).
       Partial: ✅ frontend register enforces 8+ chars + complexity (see `kaweesha.md`).
 
-- [ ] **Login rate limiting / account lockout / CAPTCHA** — `/api/auth/login` has no
+- [x] **Login rate limiting / account lockout / CAPTCHA** — `/api/auth/login` has no
       throttling → brute force is practical. Add rate limiting, lockout, or CAPTCHA.
+      **Rate limiting DONE (2026-09-22):** user-service now enforces a global 500/15min limiter
+      plus a stricter auth limiter (20/10min on register/login), env-tunable via `RATE_LIMIT_*`.
+      Lockout/CAPTCHA still open (smaller residual).
 
 - [ ] **JWT hardening** — decide on shorter expiry and/or refresh-token mechanism;
       add token revocation/blacklist so logout actually invalidates tokens.
@@ -198,6 +215,39 @@ Legend: Critical → do first · High → next · Medium → then · Observation
 - **cart-service empty-cart 404** (fixed this session) — `GET /api/cart/:userId` returns
       `200 []` for a brand-new user's empty cart instead of 404 (the 404 was thrown as an
       `AxiosError` and treated as failure by the cart page).
+
+---
+
+## Order / checkout hardening — 2026-09-22 (see root `SECURITY.md`)
+
+This session hardened the order + checkout trust boundary end-to-end. Every item below is
+implemented **and** verified (security suite 12/12, `npx tsc --noEmit` for the three Node
+services, `mvn -o -q compile` for payment-service, live Stripe checkout session):
+
+- **Server-side money** — order-service `computeTotals` derives subtotal (menu quote), payable
+  fee (restaurant record), tax 8%, and total; client `total_amount`/`delivery_fee`/`tax`/
+  `status`/`user_id` are stripped (create) or rejected with a `failed[]` list (update).
+- **Joi validation** — `validators/order.schemas.ts`: ObjectId patterns (kills NoSQL/`$`/`.`/
+  quotes), quantities 1–99, ≤50 items/order, address/phone/email/lat-lng checked; server-owned
+  fields forbidden.
+- **Idempotency** — `Idempotency-Key` header → `201` first time, `200 { idempotent:true }` on
+  replay (same `_id`); partial unique index `{ user_id, idempotency_key }` + E11000 handling in
+  a transaction races safe. Frontend sends `crypto.randomUUID()` reused until success.
+- **Rate limiting** — global 500/15min + order-create 30/min (order-service); global + auth
+  20/10min (user-service). `RateLimit-Policy` header on order routes.
+- **Transport hardening** — `helmet`, CORS env allowlist, 32 KB body limits, central generic
+  404/500 handlers (order/user/menu).
+- **Ownership/role scoping** — controllers verify JWT subject vs `user_id`, status changes are
+  staff-only, restaurant owners only touch their restaurant's orders.
+- **Test suite** — `backend/order-service/tests/security/order-security.test.ts`
+  (`npm run test:security`, 12 cases incl. mass-assignment, IDOR, replay, rate limit).
+
+**Operational lesson (this session):** re-running `start-all.sh` leaves one `nodemon`/
+`ts-node-dev` watcher behind **per run**; several watchers then fight over the same port and
+serve stale code intermittently. Kill all matching processes
+(`pkill -f backend/order-service`, etc.) before starting a clean instance — and don't re-run the
+security suite twice inside one order-limiter window (the 30/min budget is shared per-IP), or
+restart user-service to refresh the auth budget.
 
 ---
 

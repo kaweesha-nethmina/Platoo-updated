@@ -88,7 +88,11 @@ public class StripeService {
 
     /**
      * Recomputes the payable amount from the persisted order.
-     * total = sum(item.price * item.quantity) + delivery_fee.
+     * total = sum(item.price * item.quantity) + delivery_fee + tax.
+     * The tax field is server-computed by the order service (8% of the item
+     * subtotal) and is included so the Stripe charge always matches the total
+     * the checkout UI displays. For legacy orders without a tax field it
+     * defaults to 0 so the billed amount stays correct.
      */
     private long computeTrustedAmount(String orderId) {
         JsonNode order = fetchOrder(orderId);
@@ -107,6 +111,7 @@ public class StripeService {
         }
 
         trustedTotal += order.path("delivery_fee").asDouble(0);
+        trustedTotal += order.path("tax").asDouble(0);
 
         long amountInSmallestUnit = Math.round(trustedTotal * 100);
         if (amountInSmallestUnit <= 0) {

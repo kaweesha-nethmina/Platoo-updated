@@ -4,6 +4,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "test:security": "TS_NODE_TRANSPILE_ONLY=1 node -r ts-node/register --test tests/security/order-security.test.ts",
     "dev": "nodemon --exec ts-node app.ts"
   },
   "keywords": [],
@@ -16,6 +17,8 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "express-rate-limit": "^8.7.0",
+    "helmet": "^8.3.0",
     "i": "^0.3.7",
     "joi": "^17.13.3",
     "jsonwebtoken": "^9.0.2",
