@@ -19,7 +19,7 @@ interface OrderItem {
 interface Order {
   id: string
   date: string
-  status: "pending" | "Preparing" | "On the way" | "Delivered" | "Cancelled"
+  status: "pending" | "preparing" | "ready" | "delivered" | "cancelled"
   items: OrderItem[]
   address: string
   estimatedDelivery: string
@@ -31,20 +31,38 @@ export default function OrdersPage() {
   const [cancelledOrders, setCancelledOrders] = useState<Order[]>([])
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const { cartItems } = useCart();
-  const loggedInUserId = typeof window !== "undefined" ? localStorage.getItem("userId") : null; // Retrieve the logged-in user's ID
+  // Retrieve the logged-in user's ID from the verified JWT so it always
+  // matches the identity sent in the Authorization header (V-12 ownership check).
+  const loggedInUserId =
+    typeof window !== "undefined"
+      ? (() => {
+          try {
+            const token = localStorage.getItem("jwtToken") || localStorage.getItem("token") || "";
+            return JSON.parse(atob(token.split(".")[1])).id;
+          } catch {
+            return null;
+          }
+        })()
+      : null;
 
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        const response = await fetch("http://localhost:3008/api/orders")
+        // V-12: fetch only this user's orders from the server. The order-service
+        // refuses to return another user's orders (IDOR-guarded history endpoint).
+        const token = localStorage.getItem("jwtToken") || localStorage.getItem("token") || "";
+        const response = await fetch(
+          `http://localhost:3008/api/orders/history/${loggedInUserId}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        )
         if (!response.ok) {
           throw new Error("Failed to fetch orders")
         }
         const orders = await response.json()
 
-        // Map the fetched orders to match the expected format and filter by logged-in user ID
+        // V-12: no client-side filtering for authorization — the server already
+        // scoped the result to this user.
         const mappedOrders: Order[] = orders
-          .filter((order: any) => order.user_id === loggedInUserId) // Only show orders for the logged-in user
           .map((order: any) => ({
             id: order.order_id,
             date: new Date(order.createdAt).toLocaleString(), // Formatting date
@@ -61,8 +79,8 @@ export default function OrdersPage() {
 
         // Categorize orders based on their status
         setActiveOrders(mappedOrders.filter((order) => order.status === "pending"))
-        setCompletedOrders(mappedOrders.filter((order) => order.status === "Delivered"))
-        setCancelledOrders(mappedOrders.filter((order) => order.status === "Cancelled"))
+        setCompletedOrders(mappedOrders.filter((order) => order.status === "delivered"))
+        setCancelledOrders(mappedOrders.filter((order) => order.status === "cancelled"))
       } catch (error) {
         console.error("Error fetching orders:", error)
       } finally {
@@ -137,9 +155,9 @@ function OrderCard({ order }: { order: Order }) {
           </div>
           <Badge
             className={
-              order.status === "Delivered"
+              order.status === "delivered"
                 ? "bg-green-500"
-                : order.status === "Cancelled"
+                : order.status === "cancelled"
                 ? "bg-red-500"
                 : "bg-orange-500"
             }

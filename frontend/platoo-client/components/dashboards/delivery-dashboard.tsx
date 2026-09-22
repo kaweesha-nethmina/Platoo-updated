@@ -174,7 +174,10 @@ export default function DeliveryDashboard() {
 
       await fetch(`http://localhost:3008/api/orders/${activeOrder.id}/status`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("jwtToken") || localStorage.getItem("token")}`,
+        },
         body: JSON.stringify({ status: "delivered" }),
       });
 

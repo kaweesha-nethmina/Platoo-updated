@@ -154,7 +154,9 @@ export default function AdminDashboardPage() {
       try {
         // Fetch orders and restaurants from endpoints
         const [ordersRes, restaurantsRes] = await Promise.all([
-          fetch("http://localhost:3008/api/orders"),
+          fetch("http://localhost:3008/api/orders", {
+            headers: { Authorization: `Bearer ${localStorage.getItem("jwtToken") || localStorage.getItem("token")}` },
+          }),
           fetch("http://localhost:3001/api/restaurants"),
         ])
         const ordersRaw = await ordersRes.json()
@@ -640,7 +642,9 @@ function OrderHistoryPage() {
     const fetchOrders = async () => {
       setIsLoading(true)
       try {
-        const response = await fetch(`http://localhost:3008/api/orders?restaurant_id=${restaurantId}`)
+        const response = await fetch(`http://localhost:3008/api/orders?restaurant_id=${restaurantId}`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("jwtToken") || localStorage.getItem("token")}` },
+        })
         if (!response.ok) throw new Error("Failed to fetch orders")
         const data = await response.json()
         setOrders(data)

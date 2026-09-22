@@ -61,7 +61,10 @@ export default function OrderConfirmationPage() {
 
   const fetchOrderDetails = async (orderId: string) => {
     try {
-      const res = await fetch(`http://localhost:3008/api/orders/${orderId}`);
+      const token = localStorage.getItem("jwtToken") || localStorage.getItem("token");
+      const res = await fetch(`http://localhost:3008/api/orders/${orderId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const data = await res.json();
       setOrderDetails(data);
     } catch (error) {

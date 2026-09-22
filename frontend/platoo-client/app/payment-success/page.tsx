@@ -32,7 +32,10 @@ export default function PaymentSuccessPage() {
           `http://localhost:3008/api/orders/${orderId}/payment`,
           {
             method: "PATCH",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${localStorage.getItem("jwtToken") || localStorage.getItem("token")}`,
+            },
             body: JSON.stringify({ sessionId }),
           }
         );

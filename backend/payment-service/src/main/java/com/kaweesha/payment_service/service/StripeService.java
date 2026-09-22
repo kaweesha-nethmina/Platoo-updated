@@ -27,6 +27,9 @@ public class StripeService {
     @Value("${order.service.url}")
     private String orderServiceUrl;
 
+    @Value("${internal.service.key:}")
+    private String internalServiceKey;
+
     public StripeResponse checkoutProducts(ProductRequest productRequest) {
         // Set your secret key
         Stripe.apiKey = secretKey;
@@ -113,10 +116,17 @@ public class StripeService {
     }
 
     private JsonNode fetchOrder(String orderId) {
-        HttpRequest request = HttpRequest.newBuilder()
+        HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
                 .uri(URI.create(orderServiceUrl + "/api/orders/" + orderId))
-                .timeout(Duration.ofSeconds(5))
-                .build();
+                .timeout(Duration.ofSeconds(5));
+
+        // Trusted service-to-service authentication (V-04): the order-service
+        // treats callers presenting the shared internal key as authorized.
+        if (internalServiceKey != null && !internalServiceKey.isBlank()) {
+            requestBuilder.header("x-internal-key", internalServiceKey);
+        }
+
+        HttpRequest request = requestBuilder.build();
 
         HttpResponse<String> response;
         try {

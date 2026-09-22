@@ -53,9 +53,17 @@ export default function OrderHistoryPage() {
   const [showModal, setShowModal] = useState(false); // State to control modal visibility
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null); // To hold the selected order
 
+  // Retrieve the logged-in user's ID from the verified JWT so it always
+  // matches the identity sent in the Authorization header (V-12 ownership check).
   const [loggedInUserId] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
-    return localStorage.getItem("userId"); // Retrieve the logged-in user's ID
+    try {
+      const token = localStorage.getItem("jwtToken") || localStorage.getItem("token");
+      if (!token) return null;
+      return JSON.parse(atob(token.split(".")[1])).id;
+    } catch {
+      return null;
+    }
   });
 
   useEffect(() => {
@@ -66,7 +74,10 @@ export default function OrderHistoryPage() {
 
     const fetchOrders = async () => {
       try {
-        const response = await fetch(`http://localhost:3008/api/orders/history/${loggedInUserId}`);
+        const token = localStorage.getItem("jwtToken") || localStorage.getItem("token");
+        const response = await fetch(`http://localhost:3008/api/orders/history/${loggedInUserId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         if (!response.ok) {
           throw new Error("Failed to fetch orders");
         }

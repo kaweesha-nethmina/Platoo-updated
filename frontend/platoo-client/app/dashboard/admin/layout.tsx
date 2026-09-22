@@ -106,7 +106,9 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
 
   // Fetch orders count
   useEffect(() => {
-    fetch("http://localhost:3008/api/orders")
+    fetch("http://localhost:3008/api/orders", {
+      headers: { Authorization: `Bearer ${localStorage.getItem("jwtToken") || localStorage.getItem("token")}` },
+    })
       .then(async (res) => {
         if (!res.ok) throw new Error("Failed to fetch orders")
         return res.json()

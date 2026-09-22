@@ -31,17 +31,28 @@ Legend: Critical → do first · High → next · Medium → then · Observation
       Made fully trustworthy by **V-07** (server-side order pricing) + **V-05**
       (server-side payment verification below).
 
-- [ ] **V-04 — Add authentication to order-service** (all routes `orderRoutes.ts`, `app.ts:17`)
-      **Backend middleware is in place** — `order-service/middleware/authenticate.ts` provides
+- [x] **V-04 — Add authentication to order-service** (all routes `orderRoutes.ts`, `app.ts:17`)
+      **Done (this session, with V-12):** `order-service/middleware/authenticate.ts` provides
       `protect(roles?)` (verifies the user-service JWT using the shared `JWT_SECRET`), an
-      internal-service bypass via `x-internal-key` header = `INTERNAL_SERVICE_KEY`, and
-      `isOwnerOrPrivileged(req, ownerUserId)` for resource-ownership checks. **Still outstanding:**
-      (1) wire `protect`/ownership onto *every* route in `orderRoutes.ts`; (2) share the same
-      `JWT_SECRET` + `INTERNAL_SERVICE_KEY` in order-service and payment-service `.env` /
-      `.env.example`; (3) have payment-service send `x-internal-key` when it fetches an order
-      (`StripeService.fetchOrder`, verify flow); (4) add `Authorization: Bearer` to all frontend
-      callers of order-service. Do not commit real secret values. Partially mirrored by the
-      V-12 checklist item (ownership on `GET /orders/history/:userId`).
+      internal-service bypass via `x-internal-key`, and `isOwnerOrPrivileged(req, ownerUserId)`.
+      **Completed wiring:**
+      1. Every route in `orderRoutes.ts` now runs `protect(...)`; `GET /orders` is restricted to
+         privileged roles (`admin`, `restaurant_owner`, `delivery_man`).
+      2. Object-level authorization added in the controllers: `createOrder`/`updateOrder` take the
+         caller's id from the verified JWT (body `user_id` ignored), `getOrderById`, `deleteOrder`,
+         `confirmPaymentHandler`, and `getOrdersByUserId` all enforce `isOwnerOrPrivileged`.
+      3. `JWT_SECRET` (same value as user-service) + `INTERNAL_SERVICE_KEY` added to
+         `order-service/.env`/`.env.example` and `payment-service/.env`/`application.properties`.
+      4. payment-service sends `x-internal-key` when fetching an order (`StripeService.fetchOrder`),
+         so its V-03 amount recompute keeps working now that `GET /orders/:orderId` is protected.
+      5. All ~20 frontend callers of order-service (checkout, payment-success, order-confirmation,
+         orders, orders/history, admin *, restaurant *, delivery-dashboard, pending-deliveries) now
+         send `Authorization: Bearer <token>`. Customer orders page switched from `GET /orders`
+         (client-side filter) to the IDOR-guarded `/orders/history/:userId` (V-12).
+      **Residuals (tracked):** tokens still in `localStorage` (V-08); `GET /orders` still returns the
+      whole collection to *any privileged role* (restaurant-owner/delivery dashboards filter
+      client-side) — a proper fix needs restaurant-owner→restaurant and delivery-assignment mapping;
+      `delivery_fee` still client-supplied (V-07 note, see `trust-boundary-audit.md`).
 
 ---
 
@@ -64,12 +75,18 @@ Legend: Critical → do first · High → next · Medium → then · Observation
       Done: menu-service exposes `POST /api/menu-items/quote` (server-side prices + invalid-id
       detection) and order-service `createOrder`/`updateOrder` build items/totals exclusively from
       those trusted prices, rejecting orders with any missing/invalid item.
+      Residual (tracked in audit): `delivery_fee` is still stored client-sent and feeds the
+      payment total (see `trust-boundary-audit.md`); the restaurant record already carries
+      `deliveryFee` server-side (`restaurant.model.ts:9`) — resolve it server-side.
 
-- [ ] **V-12 — Stop exposing all orders without auth** (`orderRoutes.ts:20-30`,
+- [x] **V-12 — Stop exposing all orders without auth** (`orderRoutes.ts:20-30`,
       `orders/page.tsx:39-47`)
-      Remove public `GET /api/orders` (or make it admin-only); protect
-      `GET /api/orders/history/:userId` and verify `:userId` matches the JWT subject.
-      Never rely on client-side filtering for authorization.
+      **Done (with V-04, this session):** `GET /api/orders` is protected and restricted to
+      privileged roles (customers get 403); `GET /api/orders/history/:userId` now requires the
+      `:userId` param to match the JWT subject (IDOR-guarded); the customer orders page now calls
+      the history endpoint instead of filtering the full collection client-side. Residual: the
+      privileged-role listing still returns all orders to every admin/restaurant-owner/delivery
+      person (see V-04 residual note).
 
 ---
 
@@ -96,6 +113,20 @@ Legend: Critical → do first · High → next · Medium → then · Observation
 ---
 
 ## Additional observations (Section 5)
+
+- **Trust-boundary audit** — see [`trust-boundary-audit.md`](./trust-boundary-audit.md)
+      (user/payment/order services). Verdict: items/total/amount are server-verified
+      (V-03+V-05+V-07 ✅), roles whitelisted (V-02 ✅), order-service fully authenticated with
+      ownership checks (V-04+V-12 ✅); **remaining client-authoritative data**: the privileged
+      `GET /orders` listing (restaurant-owner/delivery dashboards still filter client-side —
+      legit paths need owner/assignment mapping), and `delivery_fee` stored verbatim then fed into
+      the payment total (the restaurant record already carries `deliveryFee` server-side — resolve
+      it instead of trusting the client).
+
+- [ ] **Committed third-party API key (frontend)** — `components/dashboards/delivery-dashboard.tsx:105`
+      hardcodes an OpenRouteService direction API key as `Authorization`. An extra credential is now
+      exposed in the repo and browser bundle. Move it behind a small proxy/BFF or env var; at minimum
+      rotate/revoke this key after switching delivery routing to a server-side call.
 
 - [ ] **Backend password-strength validation** — register endpoint currently does not
       enforce strength server-side (frontend does; mirror it on the server).
@@ -155,10 +186,10 @@ Legend: Critical → do first · High → next · Medium → then · Observation
       array naming the exact missing/incorrect field, and `orderService.ts` 500 includes the
       rejected `menu_item_id`s — so any future rejections self-diagnose.
 
-- **New-user "My Orders" page still lists all orders** (`orders/page.tsx:39-47`) — the page
-      fetches `GET /api/orders` and filters client-side by `user_id`. This is the V-12 pattern
-      (client-side filtering ≠ authorization); it also means the public `GET /api/orders` still
-      returns the whole collection to any caller. Tracked under V-12.
+- **New-user "My Orders" page listed all orders** (`orders/page.tsx:39-47`) → **RESOLVED (this session)**
+      — the page fetched `GET /api/orders` and filtered client-side. Now it calls
+      `GET /api/orders/history/:userId` with `Authorization: Bearer`, and the backend enforces
+      token→`:userId` matching (V-12).
 
 - **payment-service now boots via `start-all.sh`** (fixed this session) — sourced
       `payment-service/.env` for `STRIPE_SECRET_KEY` (Spring Boot does not auto-load `.env`).
@@ -172,8 +203,8 @@ Legend: Critical → do first · High → next · Medium → then · Observation
 
 ## Suggested order of attack
 
-1. V-01 ✅, V-02 ✅, V-04 (auth + role hardening) — everything else depends on auth working.
+1. V-01 ✅, V-02 ✅, V-04 ✅ (auth + role hardening) — everything else depends on auth working.
 2. V-06, V-11 (stop hash leakage) + V-09 pattern everywhere.
-3. V-05 ✅, V-07 ✅, V-03 ✅ (payment/order trust) — then V-12.
+3. V-05 ✅, V-07 ✅, V-03 ✅ (payment/order trust) — V-12 ✅ with V-04.
 4. V-08, V-10 (frontend/token storage + CORS).
 5. Dependency upgrades + rate limiting, in parallel with the above.

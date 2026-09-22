@@ -1,11 +1,15 @@
 import { Request, Response } from 'express';
 import { OrderService } from '../services/orderService';
+import { AuthRequest, isOwnerOrPrivileged, USER_ROLE } from '../middleware/authenticate';
 
 // Create order
-export const createOrder = async (req: Request, res: Response): Promise<Response> => {
+export const createOrder = async (req: AuthRequest, res: Response): Promise<Response> => {
   try {
+    // V-04: the caller's identity comes from the verified JWT, never from the
+    // request body. A client supplying a different user_id is ignored.
+    const user_id = req.user?.id;
+
     const {
-      user_id,
       items,
       restaurant_id,
       delivery_fee,
@@ -86,13 +90,19 @@ export const getAllOrders = async (req: Request, res: Response): Promise<Respons
 };
 
 // Get order by ID
-export const getOrderById = async (req: Request, res: Response): Promise<Response> => {
+export const getOrderById = async (req: AuthRequest, res: Response): Promise<Response> => {
   try {
     const orderId = req.params.orderId;
     const order = await OrderService.getOrderById(orderId);
 
     if (!order) {
       return res.status(404).json({ message: 'Order not found' });
+    }
+
+    // V-04/V-12: object-level authorization — only the owner, a privileged
+    // role (admin), or a trusted internal service may read this order.
+    if (!isOwnerOrPrivileged(req, order.user_id)) {
+      return res.status(403).json({ message: 'Forbidden: You do not own this order' });
     }
 
     return res.status(200).json(order);
@@ -106,16 +116,33 @@ export const getOrderById = async (req: Request, res: Response): Promise<Respons
 };
 
 // Update Order Handler
-export const updateOrder = async (req: Request, res: Response): Promise<Response> => {
+export const updateOrder = async (req: AuthRequest, res: Response): Promise<Response> => {
   try {
-    const { user_id, items, status, restaurant_id, delivery_fee } = req.body;
+    const orderId = req.params.orderId;
+
+    let order;
+    try {
+      order = await OrderService.getOrderById(orderId);
+    } catch {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    // V-04: object-level authorization — only the owner, a privileged role (admin),
+    // or a trusted internal service may update this order.
+    if (!isOwnerOrPrivileged(req, order.user_id)) {
+      return res.status(403).json({ message: 'Forbidden: You do not own this order' });
+    }
+
+    // V-04: the caller's identity comes from the verified JWT, never from the body.
+    const user_id = req.user?.id;
+    const { items, status, restaurant_id, delivery_fee } = req.body;
 
     if (!user_id || !Array.isArray(items) || items.length === 0 || !restaurant_id) {
-      return res.status(400).json({ message: 'Invalid request body, user_id, items, and restaurant_id are required' });
+      return res.status(400).json({ message: 'Invalid request body, items, and restaurant_id are required' });
     }
 
     const updatedOrder = await OrderService.updateOrder(
-      req.params.orderId,
+      orderId,
       user_id,
       items,
       status,
@@ -159,9 +186,24 @@ export const updateOrderStatus = async (orderId: string, status: string, res: Re
   }
 };
 // Delete Order Handler
-export const deleteOrder = async (req: Request, res: Response): Promise<Response> => {
+export const deleteOrder = async (req: AuthRequest, res: Response): Promise<Response> => {
   try {
-    const deletedOrder = await OrderService.deleteOrder(req.params.orderId);
+    const orderId = req.params.orderId;
+
+    let order;
+    try {
+      order = await OrderService.getOrderById(orderId);
+    } catch {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    // V-04: object-level authorization — only the owner, a privileged role (admin),
+    // or a trusted internal service may delete this order.
+    if (!isOwnerOrPrivileged(req, order.user_id)) {
+      return res.status(403).json({ message: 'Forbidden: You do not own this order' });
+    }
+
+    await OrderService.deleteOrder(orderId);
     return res.status(200).json({ message: 'Order deleted successfully' });
   } catch (error: unknown) {
     if (error instanceof Error) {
@@ -173,9 +215,16 @@ export const deleteOrder = async (req: Request, res: Response): Promise<Response
 };
 
 // Get orders by user_id handler
-export const getOrdersByUserId = async (req: Request, res: Response): Promise<Response> => {
+export const getOrdersByUserId = async (req: AuthRequest, res: Response): Promise<Response> => {
   try {
     const userId = req.params.userId;  // Retrieve user_id from URL params
+
+    // V-12: prevent IDOR — the :userId path param must match the authenticated
+    // user unless the caller is a trusted admin/internal service.
+    if (!isOwnerOrPrivileged(req, userId)) {
+      return res.status(403).json({ message: 'Forbidden: You may only view your own orders' });
+    }
+
     const orders = await OrderService.getOrdersByUserId(userId);
     if (orders.length === 0) {
       return res.status(404).json({ message: 'No orders found for this user' });
@@ -191,7 +240,7 @@ export const getOrdersByUserId = async (req: Request, res: Response): Promise<Re
 };
 
 // Confirm an order's payment after server-side Stripe verification
-export const confirmPaymentHandler = async (req: Request, res: Response): Promise<Response> => {
+export const confirmPaymentHandler = async (req: AuthRequest, res: Response): Promise<Response> => {
   try {
     const { orderId } = req.params;
     const { sessionId } = req.body ?? {};
@@ -200,8 +249,21 @@ export const confirmPaymentHandler = async (req: Request, res: Response): Promis
       return res.status(400).json({ message: 'Order ID and session ID are required' });
     }
 
-    const order = await OrderService.confirmPayment(orderId, sessionId);
-    return res.status(200).json({ message: 'Payment confirmed', order });
+    let order;
+    try {
+      order = await OrderService.getOrderById(orderId);
+    } catch {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    // V-04: only the order owner, a trusted internal service, or an admin may
+    // confirm payment for an order.
+    if (!isOwnerOrPrivileged(req, order.user_id)) {
+      return res.status(403).json({ message: 'Forbidden: You do not own this order' });
+    }
+
+    const confirmedOrder = await OrderService.confirmPayment(orderId, sessionId);
+    return res.status(200).json({ message: 'Payment confirmed', order: confirmedOrder });
   } catch (error: unknown) {
     if (error instanceof Error) {
       if (error.message === 'Order not found') {

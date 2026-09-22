@@ -73,7 +73,11 @@ export default function OrdersPage() {
       setIsLoading(true);
       try {
         // Fetch all orders
-        const ordersRes = await fetch("http://localhost:3008/api/orders");
+        const ordersRes = await fetch("http://localhost:3008/api/orders", {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("jwtToken") || localStorage.getItem("token")}`,
+          },
+        });
         const ordersData: Order[] = await ordersRes.json();
         setOrders(ordersData);
         setFilteredOrders(ordersData);

@@ -104,7 +104,9 @@ export default function OrdersPage() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch("http://localhost:3008/api/orders");
+        const res = await fetch("http://localhost:3008/api/orders", {
+          headers: { Authorization: `Bearer ${localStorage.getItem("jwtToken") || localStorage.getItem("token")}` },
+        });
         if (!res.ok) throw new Error("Failed to fetch orders");
         const data = await res.json();
         const mappedOrders: Order[] = data
@@ -241,7 +243,10 @@ export default function OrdersPage() {
     try {
       const res = await fetch(`http://localhost:3008/api/orders/${orderId}/status`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("jwtToken") || localStorage.getItem("token")}`,
+        },
         body: JSON.stringify({ status: newStatus }),
       });
       if (!res.ok) throw new Error("Failed to update status");
@@ -261,7 +266,10 @@ export default function OrdersPage() {
         `http://localhost:3008/api/orders/${order.id}/status`,
         {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("jwtToken") || localStorage.getItem("token")}`,
+          },
           body: JSON.stringify({ status: "ready" }),
         }
       );
@@ -321,7 +329,10 @@ export default function OrdersPage() {
         `http://localhost:3008/api/orders/${order.id}/status`,
         {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("jwtToken") || localStorage.getItem("token")}`,
+          },
           body: JSON.stringify({ status: "delivered" }),
         }
       );

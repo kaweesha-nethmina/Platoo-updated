@@ -155,6 +155,7 @@ export default function UsersPage() {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("jwtToken") || localStorage.getItem("token")}`,
           },
         })
         if (!ordersRes.ok) throw new Error("Failed to fetch orders")

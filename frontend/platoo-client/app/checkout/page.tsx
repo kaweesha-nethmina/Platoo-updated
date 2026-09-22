@@ -626,7 +626,10 @@ export default function CheckoutPage() {
       // server-side from the stored order (never trust the client's amount).
       const orderResponse = await fetch("http://localhost:3008/api/orders", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("jwtToken") || localStorage.getItem("token")}`,
+        },
         body: JSON.stringify(orderPayload),
       });
 
