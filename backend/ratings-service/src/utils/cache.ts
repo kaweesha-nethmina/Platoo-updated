@@ -1,4 +1,9 @@
 import { createClient } from 'redis';
+import dotenv from 'dotenv';
+
+// Ensure env vars are loaded before validation (imports are hoisted above server.ts body)
+dotenv.config();
+dotenv.config({ path: `${process.cwd()}/.env` });
 
 // Validate environment variables
 if (!process.env.REDIS_HOST || !process.env.REDIS_PORT) {

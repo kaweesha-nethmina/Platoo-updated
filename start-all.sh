@@ -13,6 +13,14 @@ FRONTEND="$ROOT/frontend/platoo-client"
 LOGS="$ROOT/logs"
 mkdir -p "$LOGS"
 
+# Kill any leftover Platoo dev processes from a previous run so ports are free
+echo "[platoo] stopping leftover Platoo dev processes from previous runs..."
+pkill -f "$BACKEND" 2>/dev/null || true
+pkill -f "$FRONTEND" 2>/dev/null || true
+# Also free known service ports from stale node processes not matching the paths above
+pkill -f "platoo-client.*next dev" 2>/dev/null || true
+sleep 1
+
 # All Node backend services (order matters only for readability)
 SERVICES=(user-service menu-service search-service delevery-service cart-service geo-location-service order-service ratings-service admin-service notification-service)
 
@@ -74,8 +82,8 @@ echo "==========================================================================
 echo " Platoo is starting..."
 echo " Frontend : http://localhost:3000"
 echo " Backend  : user 4000 | menu 3001 | search 3002 | delivery 3003 | cart 3005"
-echo "            geo-location 3007 | order 3008 | ratings 5000 | admin 4005"
-echo "            notification 4006"
+ echo "            geo-location 3007 | order 3008 | ratings 5001 | admin 4005"
+ echo "            notification 4006"
 echo " Logs     : $LOGS  (tail -f logs/<service>.log)"
 echo " Stop     : press Ctrl-C"
 echo "==========================================================================="
