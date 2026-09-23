@@ -5,7 +5,7 @@
 import mongoose from 'mongoose';
 
 export const TEST_MONGO_URI =
-  process.env.TEST_MONGO_URI || 'mongodb://127.0.0.1:27017/platoo_menu_test';
+  process.env.TEST_MONGO_URI || 'mongodb://127.0.0.1:27017/platoo_cart_test';
 
 export const connectAndReset = async (): Promise<void> => {
   if (mongoose.connection.readyState === 0) {

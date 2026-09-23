@@ -6,6 +6,8 @@
     "test": "jest --runInBand",
     "test:blackbox": "jest tests/blackbox --runInBand",
     "test:whitebox": "jest tests/whitebox --runInBand",
+    "test:unit": "jest tests/unit --runInBand",
+    "test:integration": "jest tests/integration --runInBand",
     "test:coverage": "jest --coverage --runInBand",
     "start": "nodemon src/server.ts",
     "dev": "nodemon src/server.ts"
