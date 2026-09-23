@@ -50,28 +50,37 @@ app.use(
   }
 );
 
-const mongoUri = process.env.MONGO_URI;
-if (!mongoUri) {
-  console.error('FATAL: MONGO_URI is not configured. Exiting.');
-  process.exit(1);
-}
+// Startup is kept separate from module load so integration tests can import
+// the Express app directly (via `export default app`) and attach their own
+// database (mongodb-memory-server) without a real Mongo connection.
+export async function startServer(): Promise<void> {
+  const mongoUri = process.env.MONGO_URI;
+  if (!mongoUri) {
+    console.error('FATAL: MONGO_URI is not configured. Exiting.');
+    process.exit(1);
+  }
 
-// NOTIF-01: fail fast instead of running with an empty JWT secret (which would
-// make every token invalid and silently break the endpoint).
-if (!process.env.JWT_SECRET) {
-  console.error('FATAL: JWT_SECRET is not configured. Exiting.');
-  process.exit(1);
-}
+  // NOTIF-01: fail fast instead of running with an empty JWT secret (which would
+  // make every token invalid and silently break the endpoint).
+  if (!process.env.JWT_SECRET) {
+    console.error('FATAL: JWT_SECRET is not configured. Exiting.');
+    process.exit(1);
+  }
 
-mongoose
-  .connect(mongoUri, { serverSelectionTimeoutMS: 5000 })
-  .then(() => {
+  try {
+    await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: 5000 });
     console.log('Connected to MongoDB');
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });
-  })
-  .catch((error) => {
+  } catch (error) {
     console.error('MongoDB connection error:', error);
     process.exit(1);
-  });
+  }
+}
+
+if (require.main === module) {
+  startServer();
+}
+
+export default app;
