@@ -1,8 +1,13 @@
+import dotenv from "dotenv";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import authRoutes from "./routes/auth";
+
+// Load .env BEFORE reading RATE_LIMIT_* etc. below (index.ts requires this
+// module first, so a config() here guarantees env vars exist at that point).
+dotenv.config();
 
 const app = express();
 

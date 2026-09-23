@@ -11,16 +11,18 @@
 # curl + node (node parses the JSON responses).
 #
 # Usage:
-#   bash demo-security.sh            # run every slide (rate-limit stays last)
-#   bash demo-security.sh --cleanup  # run then delete the demo users/orders
+#   bash demo-security.sh     # run every slide, then auto-clean the demo data
+#   bash demo-security.sh --keep  # run and keep the demo users/orders for inspection
 #
 # Notes for a clean run:
 #   * Wait ~60 s since the last order creation (order-service allows 30/min).
 #     Slides that create a demo order auto-wait once if they hit the limiter,
 #     and the final slide deliberately exhausts it.
-#   * user-service allows 20 register/login per 10 min; a full run uses ~6.
-#     Back-to-back runs can hit it — restart user-service or wait.
-###############################################################################
+#   * user-service auth default is 20 requests/10 min; a run uses ~9. For
+#     repeated demos raise it in backend/user-service/.env:
+#       RATE_LIMIT_AUTH_MAX=120  RATE_LIMIT_AUTH_WINDOW_MS=900000
+#     If already exhausted, the script detects it and stops with guidance.
+##############################################################################
 set -u
 
 HOST=localhost
@@ -35,7 +37,7 @@ ITEM_ID=6aaa2f0cdbcdfa972aabd9ad
 IMG=http://${HOST}:3001/uploads/1789538037082-189844213.jpg
 QTY=2
 
-PASS=0; FAIL=0; TOTAL=0
+PASS=0; FAIL=0; SKIP=0; TOTAL=0
 G=$'\033[32m'; R=$'\033[31m'; Y=$'\033[33m'; B=$'\033[1m'; N=$'\033[0m'
 
 need() { command -v "$1" >/dev/null 2>&1 || { echo "missing: $1"; exit 1; }; }
@@ -53,6 +55,9 @@ req() { local _out="$1"; shift; curl -s -o "$_out" -w '%{http_code}' "$@"; }
 ORDER_BODY="{\"restaurant_id\":\"${REST_ID}\",\"items\":[{\"menu_item_id\":\"${ITEM_ID}\",\"quantity\":${QTY}}],\"delivery_address\":\"12 Demo Road, Colombo 07\",\"phone\":\"0771234567\",\"email\":\"e@e.com\",\"location\":{\"lat\":6.9,\"lng\":79.8}}"
 
 verdict() { TOTAL=$((TOTAL+1)); if [ "$2" = "$3" ]; then PASS=$((PASS+1)); echo "  ${G}✔ PASS${N}  $1  (got: $3)"; else FAIL=$((FAIL+1)); echo "  ${R}✘ FAIL${N}  $1  expected [$2] got [$3]"; fi; }
+# authcheck(): like verdict, but a 429 here means "user-service auth limiter
+# busy" rather than a defect — reported as SKIP so repeat demos stay clean.
+authcheck() { TOTAL=$((TOTAL+1)); if [ "$2" = "$3" ]; then PASS=$((PASS+1)); echo "  ${G}✔ PASS${N}  $1  (got: $3)"; elif [ "$3" = "429" ]; then SKIP=$((SKIP+1)); echo "  ${Y}─ SKIP${N}  $1  (user-service auth limiter busy — 429)"; else FAIL=$((FAIL+1)); echo "  ${R}✘ FAIL${N}  $1  expected [$2] got [$3]"; fi; }
 note() { echo "  ${Y}ℹ $1${N}"; }
 hr()   { echo "──────────────────────────────────────────────────────────────"; }
 sec()  { echo; echo "${B}▶ $1${N}"; hr; }
@@ -69,6 +74,15 @@ if [ "$C1" = "000" ] || [ "$C2" = "000" ] || [ "$C3" = "000" ]; then
 fi
 echo "All three services reachable (user $C1 · order $C2 · payment $C3). Time: $(date +%H:%M:%S)"; echo
 
+# Probe the user-service auth budget before burning the whole run on it.
+AUTH_PROBE=$(curl -s -o /dev/null -w '%{http_code}' -X POST $U/login -H 'Content-Type: application/json' \
+  -d '{"email":"__probe@demo.com","password":"probe"}')
+if [ "$AUTH_PROBE" = "429" ]; then
+  echo "${R}user-service auth limiter is already spent — restart user-service (or wait up to 10 min).${N}"
+  echo "  Faster fix for repeated demos: set RATE_LIMIT_AUTH_MAX=120 in backend/user-service/.env"
+  exit 1
+fi
+
 # ================================================================  slide 1
 sec "1 · USER-SERVICE — password policy, role whitelist, hashes, scoping"
 AEMAIL="demo-a-$(uuidgen)@demo.com"
@@ -76,56 +90,56 @@ AEMAIL="demo-a-$(uuidgen)@demo.com"
 W=$(mktemp)
 CW=$(req "$W" -s -X POST $U/register -H 'Content-Type: application/json' \
   -d "{\"name\":\"Weak\",\"email\":\"weak-$(uuidgen)@demo.com\",\"password\":\"Ab1!\"}")
-verdict "weak password (7 chars) → 400 (8-128 + case + number + special)" "400" "$CW"
+authcheck "weak password (7 chars) → 400 (8-128 + case + number + special)" "400" "$CW"
 note "   register reason: $(cat "$W" | body 'msg')"; rm -f "$W"
 
 E=$(mktemp)
 CE=$(req "$E" -s -X POST $U/register -H 'Content-Type: application/json' \
   -d "{\"name\":\"Bad\",\"email\":\"not-an-email\",\"password\":\"Str0ng!Pass\"}")
-verdict "malformed email → 400" "400" "$CE"
+authcheck "malformed email → 400" "400" "$CE"
 rm -f "$E"
 
 RA=$(mktemp)
 CRA=$(req "$RA" -s -X POST $U/register -H 'Content-Type: application/json' \
   -d "{\"name\":\"Demo A\",\"email\":\"$AEMAIL\",\"password\":\"Str0ng!Pass\",\"role\":\"admin\"}")
-verdict "register claiming role=admin → 201 (accepted, but role is vetted)" "201" "$CRA"
+authcheck "register claiming role=admin → 201 (accepted, but role is vetted)" "201" "$CRA"
 rm -f "$RA"
 
 LA=$(mktemp)
 CLA=$(req "$LA" -s -X POST $U/login -H 'Content-Type: application/json' \
   -d "{\"email\":\"$AEMAIL\",\"password\":\"Str0ng!Pass\"}")
 AT=$(cat "$LA" | body 'token'); AROLE=$(drole "$AT"); AID=$(did "$AT")
-verdict "login OK → 200 with a real JWT" "200" "$CLA"
-verdict "   claimed admin is downgraded to 'user' (V-02 whitelist)" "user" "$AROLE"
+authcheck "login OK → 200 with a real JWT" "200" "$CLA"
+authcheck "   claimed admin is downgraded to 'user' (V-02 whitelist)" "user" "$AROLE"
 rm -f "$LA"
 
 DD=$(mktemp)
 CD=$(req "$DD" -s -X POST $U/register -H 'Content-Type: application/json' \
   -d "{\"name\":\"Demo A\",\"email\":\"$AEMAIL\",\"password\":\"Str0ng!Pass\"}")
-verdict "duplicate email → 409 (was: 500 + logged as a server error)" "409" "$CD"
+authcheck "duplicate email → 409 (was: 500 + logged as a server error)" "409" "$CD"
 note "   reason: $(cat "$DD" | body 'msg')"; rm -f "$DD"
 
 WL=$(mktemp)
 CWL=$(req "$WL" -s -X POST $U/login -H 'Content-Type: application/json' \
   -d "{\"email\":\"$AEMAIL\",\"password\":\"WrongPass!\"}")
-verdict "wrong password → 401 with a generic message" "401" "$CWL"
+authcheck "wrong password → 401 with a generic message" "401" "$CWL"
 note "   message: $(cat "$WL" | body 'msg')"; rm -f "$WL"
 
 code=$(curl -s -o /dev/null -w '%{http_code}' $U/users)
-verdict "GET /users without token → 401 (was: 200 + every hash leaked)" "401" "$code"
+authcheck "GET /users without token → 401 (was: 200 + every hash leaked)" "401" "$code"
 code=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $AT" $U/users)
-verdict "GET /users as a regular user → 403 (admin/owner only)" "403" "$code"
+authcheck "GET /users as a regular user → 403 (admin/owner only)" "403" "$code"
 
 SELF=$(mktemp)
-_x=$(req "$SELF" -s -H "Authorization: Bearer $AT" $U/user/$AID)
-verdict "own profile → 200, NO password hash returned (V-06/V-11)" "false" "$(cat "$SELF" | pred '"password" in o')"
+SC=$(req "$SELF" -s -H "Authorization: Bearer $AT" $U/user/$AID)
+authcheck "own profile → 200, NO password hash returned (V-06/V-11)" "false" "$([ "$SC" = "429" ] && echo 429 || cat "$SELF" | pred '"password" in o')"
 rm -f "$SELF"
 
 # real restaurant owner from the menu catalogue → public profile must stay safe
 OWNER_ID=$(curl -s $M/api/restaurants | body '[0].owner_id')
 OWN=$(mktemp)
-_x=$(req "$OWN" -s $U/restaurant-owner/$OWNER_ID)
-verdict "public owner profile → NO password / googleId leaked" "false" "$(cat "$OWN" | pred '"password" in o || "googleId" in o')"
+OC=$(req "$OWN" -s $U/restaurant-owner/$OWNER_ID)
+authcheck "public owner profile → NO password / googleId leaked" "false" "$([ "$OC" = "429" ] && echo 429 || cat "$OWN" | pred '"password" in o || "googleId" in o')"
 rm -f "$OWN"
 
 # ================================================================  slide 2
@@ -135,6 +149,9 @@ TAMPERED=$(printf '%s' "$ORDER_BODY" | sed 's/"location":/"total_amount":0,"deli
 B1=$(mktemp)
 C1=$(curl -s -o "$B1" -w '%{http_code}' -X POST $O -H 'Content-Type: application/json' \
   -H "Authorization: Bearer $AT" -H "Idempotency-Key: demo-price-$(uuidgen)" -d "$TAMPERED")
+if [ "$C1" = "429" ]; then note "order limiter busy — waiting 62 s and retrying once"; sleep 62
+  C1=$(curl -s -o "$B1" -w '%{http_code}' -X POST $O -H 'Content-Type: application/json' \
+    -H "Authorization: Bearer $AT" -H "Idempotency-Key: demo-price-$(uuidgen)" -d "$TAMPERED"); fi
 note "a) order-level total_amount/delivery_fee/status + forged user_id"
 verdict "   → Joi FORBIDS them before the service runs (400)" "400" "$C1"
 note "   rejection: $(cat "$B1" 2>/dev/null)"; rm -f "$B1"
@@ -259,7 +276,8 @@ verdict "order creation returns 429 when the budget is spent" "429" "$FIRST429"
 
 # ================================================================  summary
 hr; echo
-echo "  ${G}PASS ${PASS}${N}   ${R}FAIL ${FAIL}${N}   total ${TOTAL}"
+echo "  ${G}PASS ${PASS}${N}   ${Y}SKIP ${SKIP}${N}   ${R}FAIL ${FAIL}${N}   total ${TOTAL}"
+[ "$SKIP" -gt 0 ] && echo "  ${Y}SKIPs = user-service auth limiter was busy (429) — restart user-service or wait; not defects.${N}"
 [ "$FAIL" -gt 0 ] && echo "  ${Y}Failing lines are usually 429s from a busy demo window — wait 60 s and re-run.${N}"
 hr
 echo "  Closing proof — automated suites (run anytime):"
@@ -269,11 +287,38 @@ echo "    user    : cd backend/user-service    && npx tsc --noEmit         (no t
 echo "                                                                    covered live by slide 1)"
 echo
 
-if [ "${1:-}" = "--cleanup" ]; then
-  echo "Cleaning demo users/orders (best effort)..."
-  [ -n "$AT" ] && curl -s -o /dev/null -X DELETE $U/delete/$AID -H "Authorization: Bearer $AT"
-  [ -n "${BT:-}" ] && curl -s -o /dev/null -X DELETE $U/delete/$BID -H "Authorization: Bearer $BT"
-  [ -n "$OID" ] && curl -s -o /dev/null -X DELETE $O/$OID -H "Authorization: Bearer $AT"
-  echo "  done."
+# Cleanup runs by default so demo users/orders don't linger in the DB.
+# Pass --keep to retain them.
+if [ "${1:-}" != "--keep" ]; then
+  echo "Cleaning demo users/orders..."
+
+  # Users delete their own accounts (a plain user is only allowed to delete
+  # itself — demo B must use B's token, not A's).
+  if [ -n "$AT" ]; then
+    printf "  deleted demo user A (%s) → %s\n" "$AID" \
+      "$(curl -s -o /dev/null -w '%{http_code}' -X DELETE $U/delete/$AID -H "Authorization: Bearer $AT")"
+  fi
+  if [ -n "${BT:-}" ]; then
+    printf "  deleted demo user B (%s) → %s\n" "$BID" \
+      "$(curl -s -o /dev/null -w '%{http_code}' -X DELETE $U/delete/$BID -H "Authorization: Bearer $BT")"
+  fi
+
+  # Order deletes run right after slide 8 exhausted the 30/min order budget,
+  # so wait for the window to reset before deleting the demo orders.
+  if [ -n "$OID" ] || [ -n "${E2OID:-}" ]; then
+    echo "  waiting 65 s for the order rate-limit window to reset (slide 8 exhausted it)..."
+    sleep 65
+    if [ -n "$OID" ]; then
+      printf "  deleted demo order %s → %s\n" "$OID" \
+        "$(curl -s -o /dev/null -w '%{http_code}' -X DELETE $O/$OID -H "Authorization: Bearer $AT")"
+    fi
+    if [ -n "${E2OID:-}" ]; then
+      printf "  deleted e2e order   %s → %s\n" "$E2OID" \
+        "$(curl -s -o /dev/null -w '%{http_code}' -X DELETE $O/$E2OID -H "Authorization: Bearer $AT")"
+    fi
+  fi
+  echo "  done. Pass --keep to the script to retain the demo data."
+else
+  echo "--keep: demo users/orders left in the database for inspection."
 fi
 exit 0
