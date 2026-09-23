@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { AuthRequest } from "../middleware/auth";
 import { DeliveryService } from "../services/deliveryService";
 
 export class DeliveryController {
@@ -21,9 +22,9 @@ export class DeliveryController {
   }
 
   // ✅ Get all deliveries by a driver
-  static async getDeliveriesByDriver(req: Request, res: Response): Promise<void> {
+  static async getDeliveriesByDriver(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const { driverId } = req.params;
+      const driverId = DeliveryController.resolveDriverId(req);
       const deliveries = await DeliveryService.getDeliveriesByDriver(driverId);
       res.status(200).json(deliveries);
     } catch (error) {
@@ -32,9 +33,9 @@ export class DeliveryController {
   }
 
   // ✅ Get only completed deliveries
-  static async getCompletedDeliveriesByDriver(req: Request, res: Response): Promise<void> {
+  static async getCompletedDeliveriesByDriver(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const { driverId } = req.params;
+      const driverId = DeliveryController.resolveDriverId(req);
       const deliveries = await DeliveryService.getCompletedDeliveriesByDriver(driverId);
       res.status(200).json(deliveries);
     } catch (error) {
@@ -51,9 +52,9 @@ export class DeliveryController {
     }
   }
 
-  static async getAssignedDelivery(req: Request, res: Response): Promise<void> {
+  static async getAssignedDelivery(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const { driverId } = req.params;
+      const driverId = DeliveryController.resolveDriverId(req);
       const activeDelivery = await DeliveryService.getAssignedDelivery(driverId);
       if (activeDelivery) {
         res.status(200).json(activeDelivery);
@@ -63,6 +64,13 @@ export class DeliveryController {
     } catch (error) {
       res.status(400).json({ message: "Failed to fetch assigned delivery", error });
     }
+  }
+
+  private static resolveDriverId(req: AuthRequest): string {
+    if (req.user && req.user.role === "delivery_man") {
+      return req.user.id;
+    }
+    return req.params.driverId;
   }
 
   static async deleteDelivery(req: Request, res: Response): Promise<void> {
