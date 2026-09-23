@@ -78,7 +78,6 @@ export const register = async (req: Request, res: Response): Promise<void> => {
   });
 
   try {
-    console.log("Registering user:", email, "role:", safeRole); // Never log credentials
     await user.save();
     res.status(201).json({ msg: "User registered" });
   } catch (error: unknown) {

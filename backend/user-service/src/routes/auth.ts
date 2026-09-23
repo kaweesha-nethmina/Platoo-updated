@@ -31,13 +31,7 @@ router.post("/google", async (req: AuthRequest, res: Response) => {
 router.post(
   "/logout",
   protect([UserRole.ADMIN, UserRole.RESTAURANT_OWNER, UserRole.USER, UserRole.DELIVERY_MAN]),
-  async (req: AuthRequest, res: Response): Promise<void> => {
-    try {
-      await logout(req, res);
-    } catch (error) {
-      res.status(500).json({ msg: "Error during logout" });
-    }
-  }
+  logout
 );
 
 // V-08: current session (used by the httpOnly-cookie BFF). Requires auth like

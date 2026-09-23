@@ -35,33 +35,29 @@ const isRevoked = async (token: string): Promise<boolean> => {
 
 // Protect middleware to validate JWT and check roles
 export const protect = (roles: UserRole[]) => {
-    return async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
-      const token = req.headers.authorization?.split(" ")[1];
+  return async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+    const token = req.headers.authorization?.split(" ")[1];
 
-      if (!token) {
-        res.status(401).json({ msg: "Unauthorized: No token provided" });
+    if (!token) {
+      res.status(401).json({ msg: "Unauthorized: No token provided" });
+      return;
+    }
+
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET!) as UserPayload;
+      if (!roles.includes(decoded.role)) {
+        res.status(403).json({ msg: "Forbidden: Insufficient permissions" });
         return;
       }
-
-      try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET!) as UserPayload;
-
-        if (!roles.includes(decoded.role)) {
-            res.status(403).json({ msg: "Forbidden: Insufficient permissions" });
-          return;
-        }
-
-        // V-14: reject tokens that were revoked server-side (e.g. on logout).
-        if (await isRevoked(token)) {
-          res.status(401).json({ msg: "Unauthorized: Token revoked" });
-          return;
-        }
-
-        req.user = decoded;
-        next(); // Pass control to the next handler
-      } catch (error) {
-        res.status(401).json({ msg: "Unauthorized: Invalid token" });
+      if (await isRevoked(token)) {
+        res.status(401).json({ msg: "Unauthorized: Token revoked" });
+        return;
       }
-    };
+      req.user = decoded;
+      next();
+    } catch (error) {
+      res.status(401).json({ msg: "Unauthorized: Invalid token" });
+    }
   };
+};
   

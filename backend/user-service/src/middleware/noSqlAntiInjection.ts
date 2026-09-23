@@ -23,11 +23,10 @@ function containsNoSqlOperator(value: unknown): boolean {
 }
 
 export const rejectNoSqlOperators = (req: Request, res: Response, next: NextFunction): void => {
-  for (const source of [req.params, req.query, req.body ?? null]) {
-    if (containsNoSqlOperator(source)) {
-      res.status(400).json({ msg: "Invalid request payload" });
-      return;
-    }
+  const hasOperator = [req.params, req.query, req.body ?? null].some(containsNoSqlOperator);
+  if (hasOperator) {
+    res.status(400).json({ msg: "Invalid request payload" });
+    return;
   }
   next();
 };

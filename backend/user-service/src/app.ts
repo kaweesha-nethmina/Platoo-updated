@@ -21,15 +21,18 @@ const corsOrigins = (
   .split(",")
   .map((o) => o.trim())
   .filter(Boolean);
+
+const validateCorsOrigin = (origin: string | undefined, callback: (error: Error | null, allowed?: boolean) => void): void => {
+  if (origin && !corsOrigins.includes(origin)) {
+    callback(new Error("Not allowed by CORS"));
+    return;
+  }
+  callback(null, true);
+};
+
 app.use(
   cors({
-    origin(origin, callback) {
-      if (!origin || corsOrigins.includes(origin)) {
-        callback(null, true);
-        return;
-      }
-      callback(new Error("Not allowed by CORS"));
-    },
+    origin: validateCorsOrigin,
   })
 );
 
