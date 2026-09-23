@@ -1,6 +1,6 @@
 # Fix To-Do (planning + progress)
 
-Order is dependency-first: a finding that other items rely on is listed before them (e.g. real auth middleware before any role/ownership check). Status: **K-13 done (2026-09-23)**; all other items remain unchecked/planned.
+Order is dependency-first: a finding that other items rely on is listed before them (e.g. real auth middleware before any role/ownership check). Status: **K-13 + geo-location-service K-10/K-09/K-11/K-12 + geo deps DONE (2026-09-23)**; the rest remain unchecked/planned.
 
 ## Cross-cutting (do first)
 
@@ -9,11 +9,11 @@ Order is dependency-first: a finding that other items rely on is listed before t
 
 ## geo-location-service
 
-- [ ] K-10: Implement real JWT verification middleware — geo-location-service — replace the `next(); // Bypass for development` stub with middleware that parses and verifies a user-service-issued JWT and attaches the verified identity to the request; apply it to all `/api/location/*` routes. This is the foundation for K-11/K-12 on HTTP.
-- [ ] K-09: Authenticate Socket.io handshakes + authorize room joins — geo-location-service — verify the JWT during socket connection (`io.use`); on `order:track`, only join `order_<id>` if the caller owns the order or is the assigned driver; only admit `role==='admin'` sockets to `admin_monitoring`; set an explicit socket CORS allowlist.
-- [ ] K-11: Stop driver-location spoofing — geo-location-service — derive `driverId` from the verified socket identity instead of the event payload; validate that the driver is assigned to `orderId` before persisting/broadcasting; range-check coordinates. Depends on K-10/K-09.
-- [ ] K-12: Protect `/get-directions` — geo-location-service — apply the auth middleware (K-10), validate lat/lng as finite numbers in valid ranges, add per-IP/per-key rate limiting and response caching for the OSRM calls.
-- [ ] Deps (geo-location-service): upgrade `axios`, `mongoose`, `engine.io`, `socket.io-parser`, `ws`, `socket.io-adapter`, `path-to-regexp`, `brace-expansion`, `form-data` per audit (advisory IDs in `kalana-fix/vulnerability.md`).
+- [x] K-10: Real JWT verification middleware — geo-location-service — **DONE (2026-09-23):** `jsonwebtoken` (+`@types/jsonwebtoken`) added; `src/middleware/auth.ts` rewritten (verifies HS256 `JWT_SECRET` token, attaches `req.user={id,role}`; `requireRoles(...)` helper exported); all `/api/location/*` routes run behind `authMiddleware`; `JWT_SECRET` added to `.env` (matches user-service). `addLocation`/`updateLocationById` bind/scope `userId` to the token subject (admin may update others); `getAllLocations` is admin-only for the full list, non-admin sees only their own. Not committed.
+- [x] K-09: Socket.io handshake auth + room authorization — geo-location-service — **DONE (2026-09-23):** `io.use(...)` verifies `socket.handshake.auth.token` before any event; `order:track` joins `order_<id>` only for `admin`/`delivery_man` (sanitized id); `admin:monitorDrivers` only for `role==='admin'`; socket CORS pinned to `CLIENT_URL` (no more `'*'` default). Residual limitation: full customer-ownership check needs order-service data (geo-location stores no order→user mapping). Not committed.
+- [x] K-11: Stop driver-location spoofing — geo-location-service — **DONE (2026-09-23):** `driver:updateLocation` requires verified `delivery_man` role; `driverId` comes from the verified token, never the payload; coordinates range-checked (`utils/geoValidation.ts`); `orderId` sanitized. Residual limitation: verification that the driver is actually assigned to `orderId` requires delivery/order-service data (not available in this service). Not committed.
+- [x] K-12: Protect `/get-directions` — geo-location-service — **DONE (2026-09-23):** route now runs `authMiddleware` + `rateLimitDirections` (120 req / 5 min / IP, 429 + `Retry-After`) via `src/middleware/rateLimit.ts`; coordinates validated as finite numbers in range; responses cached in memory for 60 s (`directionsCache`). Not committed.
+- [x] Deps (geo-location-service): upgrade — **DONE (2026-09-23):** `axios ^1.20.0`, `mongoose ^9.10.2` (≥8.24 for `1118997`/`1139504`), `express ^5.2.1`, `socket.io ^4.8.3`, plus `overrides` pinning `engine.io 6.6.10`, `socket.io-parser 4.2.7`, `ws 8.21.3`, `socket.io-adapter 2.5.8`, `path-to-regexp 8.4.2`, `picomatch 2.3.2`, `diff 4.0.4`. `npm audit`: **0 vulnerabilities** (was 15, incl. 1 critical). Raw output refreshed in `kalana-fix/audit-raw-geo-location-service.txt`. `typescript` re-pinned to `^5.9.3` (7.x incompatible with ts-node). Not committed.
 
 ## delevery-service
 
