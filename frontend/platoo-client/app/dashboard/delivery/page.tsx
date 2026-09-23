@@ -32,19 +32,16 @@ export default function DeliveryPersonProfile() {
   const [marker, setMarker] = useState<any>(null);
 
   useEffect(() => {
-    const token = localStorage.getItem("jwtToken");
     const deliveryManId = localStorage.getItem("deliveryManId");
-    if (!token || !deliveryManId) {
+    if (!deliveryManId) {
       router.push("/login");
       return;
     }
-    fetchUserData(token, deliveryManId);
+    fetchUserData(deliveryManId);
   }, []);
 
-  const fetchUserData = async (token: string, userId: string) => {
-    const res = await fetch(`http://localhost:4000/api/auth/user/${userId}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+  const fetchUserData = async (userId: string) => {
+    const res = await fetch(`/api/proxy/user/auth/user/${userId}`);
     const data = await res.json();
     setUser(data);
     setFormData({
@@ -114,9 +111,9 @@ export default function DeliveryPersonProfile() {
 
   const handleSaveProfile = async () => {
     const userId = localStorage.getItem("deliveryManId");
-    await fetch(`http://localhost:4000/api/auth/update/${userId}`, {
+    await fetch(`/api/proxy/user/auth/update/${userId}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("jwtToken")}` },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(formData),
     });
     toast.success("Profile updated successfully!");
@@ -148,11 +145,11 @@ export default function DeliveryPersonProfile() {
     if (!userId) return;
   
     try {
-      await fetch(`http://localhost:4000/api/auth/update/${userId}`, {
+      await fetch(`/api/proxy/user/auth/update/${userId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("jwtToken")}`,
+          // (V-08) Authorization removed — BFF proxy injects Bearer from the httpOnly cookie
         },
         body: JSON.stringify({
           address: formData.address,

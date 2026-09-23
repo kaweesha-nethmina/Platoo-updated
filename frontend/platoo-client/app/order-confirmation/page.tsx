@@ -61,7 +61,7 @@ export default function OrderConfirmationPage() {
 
   const fetchOrderDetails = async (orderId: string) => {
     try {
-      const res = await fetch(`http://localhost:3008/api/orders/${orderId}`);
+      const res = await fetch(`/api/proxy/order/orders/${orderId}`);
       const data = await res.json();
       setOrderDetails(data);
     } catch (error) {

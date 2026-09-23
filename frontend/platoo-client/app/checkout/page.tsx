@@ -22,6 +22,7 @@ import {
   X, 
   Search,
   Loader2,
+  LocateFixed,
 } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -36,6 +37,8 @@ declare global {
 
 interface MenuItem {
   _id: string;
+  productId?: string;
+  menuItemId?: string;
   name: string;
   description: string;
   price: number;
@@ -64,6 +67,7 @@ interface Restaurant {
 interface CartItem {
   id: string;
   productId: string;
+  menuItemId?: string;
   name: string;
   price: number;
   quantity: number;
@@ -473,6 +477,9 @@ export default function CheckoutPage() {
   const [phone, setPhone] = useState<string>("");
   const [email, setEmail] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [errors, setErrors] = useState<{ address?: string; phone?: string; email?: string; location?: string }>({});
+  const [submitted, setSubmitted] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
   
   // Location related states
   const [showLocationModal, setShowLocationModal] = useState(false);
@@ -483,6 +490,35 @@ export default function CheckoutPage() {
   } | null>(null);
 
   const userId = typeof window !== "undefined" ? localStorage.getItem("userId") : null;
+
+  // Idempotency-Key: generated once per checkout attempt and reused on retries
+  // so a double-click/second attempt can never mint a duplicate order. Reset
+  // only after the checkout actually succeeds.
+  const idempotencyKeyRef = useRef<string | null>(null);
+  const getOrCreateIdempotencyKey = (): string => {
+    if (!idempotencyKeyRef.current) {
+      idempotencyKeyRef.current =
+        typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    }
+    return idempotencyKeyRef.current;
+  };
+
+  // The delivery fee shown to the customer is the same value the order-service
+  // resolves server-side (from the restaurant record). Parsing mirrors the
+  // backend so the displayed total always matches what gets charged.
+  const parseDeliveryFee = (raw?: string | number | null): number => {
+    if (typeof raw === "number" && Number.isFinite(raw) && raw >= 0) return raw;
+    if (typeof raw === "string") {
+      const m = raw.replace(/,/g, "").match(/\d+(\.\d+)?/);
+      if (m) {
+        const n = Number(m[0]);
+        if (Number.isFinite(n) && n >= 0) return n;
+      }
+    }
+    return 0;
+  };
 
   // Calculate totals
   useEffect(() => {
@@ -498,14 +534,6 @@ export default function CheckoutPage() {
     if (cart) {
       const items: CartItem[] = JSON.parse(cart);
       setCartItems(items);
-
-      const calcSubtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-      const calcTax = calcSubtotal * 0.08; // 8% tax
-      const calcTotal = calcSubtotal + deliveryFee + calcTax;
-
-      setSubtotal(calcSubtotal);
-      setTax(calcTax);
-      setTotal(calcTotal);
     } else {
       const item = localStorage.getItem("selectedItem");
       const quantity = localStorage.getItem("selectedQuantity") || "1";
@@ -514,15 +542,6 @@ export default function CheckoutPage() {
         const parsedItem = JSON.parse(item);
         setSelectedItem(parsedItem);
         setSelectedQuantity(parseInt(quantity));
-
-        // Calculate for single item
-        const selectedItemTotal = parsedItem.price * parseInt(quantity);
-        const selectedItemTax = selectedItemTotal * 0.08;
-        const selectedItemTotalWithTax = selectedItemTotal + deliveryFee + selectedItemTax;
-
-        setSubtotal(selectedItemTotal);
-        setTax(selectedItemTax);
-        setTotal(selectedItemTotalWithTax);
       }
     }
 
@@ -535,19 +554,33 @@ export default function CheckoutPage() {
     // eslint-disable-next-line
   }, []);
 
-  // Recalculate totals if single item quantity changes
+  // Use the restaurant's authoritative delivery fee when available.
   useEffect(() => {
-    if (selectedItem && cartItems.length === 0) {
+    if (restaurant) {
+      setDeliveryFee(parseDeliveryFee(restaurant.deliveryFee));
+    }
+  }, [restaurant]);
+
+  // Keep the money math in sync with the data it depends on.
+  useEffect(() => {
+    if (cartItems.length > 0) {
+      const calcSubtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      const calcTax = calcSubtotal * 0.08;
+      setSubtotal(calcSubtotal);
+      setTax(calcTax);
+      setTotal(calcSubtotal + deliveryFee + calcTax);
+      return;
+    }
+
+    if (selectedItem) {
       const selectedItemTotal = selectedItem.price * selectedQuantity;
       const selectedItemTax = selectedItemTotal * 0.08;
-      const selectedItemTotalWithTax = selectedItemTotal + deliveryFee + selectedItemTax;
-
       setSubtotal(selectedItemTotal);
       setTax(selectedItemTax);
-      setTotal(selectedItemTotalWithTax);
+      setTotal(selectedItemTotal + deliveryFee + selectedItemTax);
     }
     // eslint-disable-next-line
-  }, [selectedQuantity, selectedItem]);
+  }, [cartItems, selectedItem, selectedQuantity, deliveryFee]);
 
   if (!userId) {
     if (typeof window !== "undefined") {
@@ -556,14 +589,160 @@ export default function CheckoutPage() {
     return null;
   }
 
+  // Reverse-geocode coordinates into a human-readable address (Nominatim)
+  const reverseGeocode = async (lat: number, lng: number): Promise<string> => {
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
+        {
+          headers: {
+            "Accept-Language": "en",
+            "User-Agent": "CheckoutPage/1.0",
+          },
+        }
+      );
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      if (data && data.display_name) {
+        return data.display_name;
+      }
+    } catch (error) {
+      console.error("Error fetching address:", error);
+    }
+    return `Location at ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+  };
+
+  // Read the device's current location and reverse-geocode it
+  const useMyLocation = () => {
+    if (typeof window === "undefined" || !("geolocation" in navigator)) {
+      setErrors((prev) => ({ ...prev, location: "Geolocation is not supported by this browser." }));
+      return;
+    }
+    setIsLocating(true);
+    setErrors((prev) => ({ ...prev, location: "" }));
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        const address = await reverseGeocode(latitude, longitude);
+        setDeliveryLocation({ address, lat: latitude, lng: longitude });
+        setDeliveryAddress(address);
+        setIsLocating(false);
+      },
+      (err) => {
+        setIsLocating(false);
+        let message = "Unable to get your current location. Please try picking a location manually.";
+        if (err.code === err.PERMISSION_DENIED) {
+          message = "Location permission denied. Allow location access or pick a location on the map.";
+        } else if (err.code === err.POSITION_UNAVAILABLE) {
+          message = "Your location is unavailable. Pick a location on the map instead.";
+        } else if (err.code === err.TIMEOUT) {
+          message = "Timed out getting your location. Please try again.";
+        }
+        setErrors((prev) => ({ ...prev, location: message }));
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 }
+    );
+  };
+
+  // Fill the form from the user profile (when available) and pull the device
+  // location so delivery address/coords don't have to be typed by hand.
+  const handleAutoFill = async () => {
+    let user: any = null;
+
+    const cachedUser = localStorage.getItem("user");
+    if (cachedUser) {
+      try {
+        user = JSON.parse(cachedUser);
+      } catch {
+        user = null;
+      }
+    }
+
+    // Try to fetch the freshest profile from user-service
+    try {
+      if (userId) {
+        const res = await fetch(`/api/proxy/user/auth/user/${userId}`);
+        if (res.ok) {
+          user = await res.json();
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch freshest profile, falling back to cached data:", error);
+    }
+
+    if (user) {
+      if (user.address) setDeliveryAddress(user.address);
+      if (user.phone) setPhone(user.phone);
+      if (user.email) setEmail(user.email);
+
+      const savedLocation = user.location && Number.isFinite(user.location?.lat) && Number.isFinite(user.location?.lng)
+        ? user.location
+        : null;
+      if (savedLocation) {
+        setDeliveryLocation({
+          address: user.address || `Location at ${savedLocation.lat}, ${savedLocation.lng}`,
+          lat: savedLocation.lat,
+          lng: savedLocation.lng,
+        });
+      }
+
+      setErrors((prev) => ({
+        ...prev,
+        address: user.address ? "" : prev.address,
+        phone: user.phone ? "" : prev.phone,
+        email: user.email ? "" : prev.email,
+        location: savedLocation ? "" : prev.location,
+      }));
+    }
+
+    // If the user has no saved location, use the device's current location
+    const hasSavedLocation = !!(user && user.location && Number.isFinite(user.location?.lat) && Number.isFinite(user.location?.lng));
+    if (!hasSavedLocation) {
+      useMyLocation();
+    }
+  };
+
+  // Client-side validation for the checkout form
+  const validateForm = (): boolean => {
+    const newErrors: { address?: string; phone?: string; email?: string; location?: string } = {};
+
+    if (!deliveryAddress.trim()) {
+      newErrors.address = "Delivery address is required.";
+    } else if (deliveryAddress.trim().length < 5) {
+      newErrors.address = "Please enter a valid delivery address.";
+    }
+
+    if (!phone.trim()) {
+      newErrors.phone = "Phone number is required.";
+    } else if (!/^(?:\+94|0)?7\d{8}$/.test(phone.trim())) {
+      newErrors.phone = "Enter a valid Sri Lankan phone number (e.g. 07XXXXXXXX or +947XXXXXXXX).";
+    }
+
+    if (!email.trim()) {
+      newErrors.email = "Email is required.";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      newErrors.email = "Enter a valid email address.";
+    }
+
+    if (!deliveryLocation) {
+      newErrors.location = "Please pick a delivery location before placing the order.";
+    }
+
+    setErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) {
+      setSubmitted(true);
+    } else {
+      setSubmitted(false);
+    }
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handlePlaceOrder = async () => {
-    if (
-      !deliveryAddress || 
-      !phone || 
-      !email || 
-      (!selectedItem && cartItems.length === 0) ||
-      !deliveryLocation
-    ) {
+    const hasItems = !!(selectedItem || cartItems.length > 0);
+    if (!hasItems || !validateForm()) {
       console.log("Missing order details");
       return;
     }
@@ -571,37 +750,39 @@ export default function CheckoutPage() {
     setIsProcessing(true);
 
     try {
-      const itemsToSend =
-        cartItems.length > 0
-          ? cartItems.map((item) => ({
-              menu_item_id: item.productId,
-              quantity: item.quantity,
-              price: item.price,
-              name: item.name,
-            }))
+      // Only identifiers + quantities are sent to the order-service. Prices,
+      // totals, delivery fee, status, and identity are derived server-side
+      // from the catalog and the verified JWT — never accepted from the client.
+      const itemsToSend = cartItems.length > 0
+          ? cartItems.map((item) => {
+              // Cart items can carry the menu id under either name depending on
+              // which path created them (cart-service uses `productId`, the
+              // cart page re-maps it to `menuItemId`). Resolve whichever is
+              // present so menu_item_id is never undefined.
+              const menu_item_id = item.menuItemId ?? item.productId;
+              return {
+                menu_item_id,
+                quantity: Number(item.quantity),
+              };
+            })
           : [
               {
-                menu_item_id: selectedItem!._id,
-                quantity: selectedQuantity,
-                price: selectedItem!.price,
-                name: selectedItem!.name,
+                menu_item_id: selectedItem?._id ?? selectedItem?.productId ?? selectedItem?.menuItemId,
+                quantity: Number(selectedQuantity),
               },
             ];
 
-      // Always use the calculated total (which includes tax)
-      const orderTotal = total;
-
       const orderPayload = {
-        user_id: userId,
         restaurant_id: restaurant?._id,
         items: itemsToSend,
-        total_amount: orderTotal,
-        delivery_fee: deliveryFee,
-        status: "pending",
         delivery_address: deliveryAddress,
         location: { // Match your backend schema
-          lat: deliveryLocation.lat,
-          lng: deliveryLocation.lng
+          // The map/marker and auto-fill paths can produce string lat/lng
+          // (e.g. "7.291418" or 6.9271); the order-service rejects anything
+          // that is not typeof 'number'. Coerce explicitly at the payload
+          // boundary so numeric coordinates always reach the server.
+          lat: Number(deliveryLocation!.lat),
+          lng: Number(deliveryLocation!.lng),
         },
         phone,
         email,
@@ -609,16 +790,43 @@ export default function CheckoutPage() {
 
       localStorage.setItem("pending_order", JSON.stringify(orderPayload));
 
+      // Persist the order first so the payment amount can be recomputed
+      // server-side from the stored order (never trust the client's amount).
+      const orderResponse = await fetch("/api/proxy/order/orders", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": getOrCreateIdempotencyKey(),
+          // (V-08) Authorization removed — BFF proxy injects Bearer from the httpOnly cookie
+        },
+        body: JSON.stringify(orderPayload),
+      });
+
+      if (!orderResponse.ok) {
+        // Capture the server's actual rejection reason — the browser only gets
+        // "Failed to create order." otherwise)Skip; this surfaces which field
+        // order-service's createOrder validation rejected so we stop guessing.
+        void orderResponse.clone().text().then((t) => console.error("createOrder 400 body:", t));
+        console.error("Failed to create order.");
+        setIsProcessing(false);
+        return;
+      }
+
+      const orderResult = await orderResponse.json();
+      if (!orderResult?.order?._id) {
+        console.error("No order id returned.");
+        setIsProcessing(false);
+        return;
+      }
+
+      localStorage.setItem("order_id", orderResult.order.order_id);
+
       const paymentData = {
-        amount: orderTotal.toFixed(2),
-        quantity: itemsToSend.reduce((acc, item) => acc + item.quantity, 0),
-        name: "Food Order",
+        orderId: orderResult.order._id,
         currency: "USD",
-        successUrl: "http://localhost:3000/payment-success",
-        cancelUrl: "http://localhost:3000/checkout",
       };
 
-      const response = await fetch("http://localhost:8081/product/v1/checkout", {
+      const response = await fetch("/api/proxy/pay/product/v1/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(paymentData),
@@ -626,6 +834,8 @@ export default function CheckoutPage() {
 
       const result = await response.json();
       if (response.ok && result.sessionUrl) {
+        // Checkout succeeded; a fresh key for any future order.
+        idempotencyKeyRef.current = null;
         window.location.href = result.sessionUrl;
       } else {
         console.error("Payment session failed.");
@@ -641,6 +851,7 @@ export default function CheckoutPage() {
   const handleLocationSelect = (location: { address: string; lat: number; lng: number }) => {
     setDeliveryAddress(location.address);
     setDeliveryLocation(location);
+    setErrors((prev) => ({ ...prev, address: "", location: "" }));
   };
 
   return (
@@ -666,22 +877,7 @@ export default function CheckoutPage() {
                   type="button"
                   variant="outline"
                   className="text-sm flex items-center gap-2 px-3 py-1 rounded-md"
-                  onClick={() => {
-                    const userData = localStorage.getItem("user");
-                    if (userData) {
-                      const user = JSON.parse(userData);
-                      if (user.address) setDeliveryAddress(user.address);
-                      if (user.phone) setPhone(user.phone);
-                      if (user.email) setEmail(user.email);
-                      if (user.location && user.location.lat && user.location.lng) {
-                        setDeliveryLocation({
-                          address: user.address || "",
-                          lat: user.location.lat,
-                          lng: user.location.lng,
-                        });
-                      }
-                    }
-                  }}
+                  onClick={handleAutoFill}
                 >
                   <Sparkles className="w-4 h-4 text-red-500" />
                   Auto fill
@@ -690,22 +886,50 @@ export default function CheckoutPage() {
 
               <CardContent>
                 <div className="space-y-4">
-                  <div className="flex gap-2">
-                    <Input
-                      type="text"
-                      placeholder="Enter delivery address"
-                      value={deliveryAddress}
-                      readOnly
-                      className="w-full bg-gray-50"
-                    />
-                    <Button
-                      type="button"
-                      onClick={() => setShowLocationModal(true)}
-                      variant="outline"
-                    >
-                      <MapPin className="h-4 w-4 mr-2" />
-                      Pick Location
-                    </Button>
+                  <div>
+                    <div className="flex gap-2">
+                      <Input
+                        type="text"
+                        placeholder="Enter delivery address"
+                        value={deliveryAddress}
+                        readOnly
+                        className={`w-full bg-gray-50 ${errors.address || errors.location ? "border-red-500" : ""}`}
+                      />
+                      <Button
+                        type="button"
+                        onClick={useMyLocation}
+                        variant="outline"
+                        disabled={isLocating}
+                        className="whitespace-nowrap"
+                      >
+                        {isLocating ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <LocateFixed className="h-4 w-4 mr-2" />
+                        )}
+                        Use My Location
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={() => setShowLocationModal(true)}
+                        variant="outline"
+                      >
+                        <MapPin className="h-4 w-4 mr-2" />
+                        Pick Location
+                      </Button>
+                    </div>
+                    {errors.address && (
+                      <p className="mt-1 text-sm text-red-500 flex items-center">
+                        <AlertCircle className="h-4 w-4 mr-1" />
+                        {errors.address}
+                      </p>
+                    )}
+                    {!errors.address && errors.location && (
+                      <p className="mt-1 text-sm text-red-500 flex items-center">
+                        <AlertCircle className="h-4 w-4 mr-1" />
+                        {errors.location}
+                      </p>
+                    )}
                   </div>
                   
                   {deliveryLocation && (
@@ -714,18 +938,43 @@ export default function CheckoutPage() {
                     </div>
                   )}
                   
-                  <Input
-                    type="text"
-                    placeholder="Enter your phone number"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                  />
-                  <Input
-                    type="email"
-                    placeholder="Enter your email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
+                  <div>
+                    <Input
+                      type="tel"
+                      placeholder="Enter your phone number"
+                      value={phone}
+                      onChange={(e) => {
+                        const sanitized = e.target.value.replace(/[^0-9+]/g, "").slice(0, 15);
+                        setPhone(sanitized);
+                        setErrors((prev) => ({ ...prev, phone: "" }));
+                      }}
+                      className={errors.phone ? "border-red-500" : ""}
+                    />
+                    {errors.phone && (
+                      <p className="mt-1 text-sm text-red-500 flex items-center">
+                        <AlertCircle className="h-4 w-4 mr-1" />
+                        {errors.phone}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <Input
+                      type="email"
+                      placeholder="Enter your email"
+                      value={email}
+                      onChange={(e) => {
+                        setEmail(e.target.value);
+                        setErrors((prev) => ({ ...prev, email: "" }));
+                      }}
+                      className={errors.email ? "border-red-500" : ""}
+                    />
+                    {errors.email && (
+                      <p className="mt-1 text-sm text-red-500 flex items-center">
+                        <AlertCircle className="h-4 w-4 mr-1" />
+                        {errors.email}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -738,11 +987,11 @@ export default function CheckoutPage() {
                 >
                   {isProcessing ? <>Processing Order...</> : <>Place Order</>}
                 </Button>
-                {(!deliveryAddress || !phone || !email || !deliveryLocation) && (
+                {submitted && Object.values(errors).some(Boolean) && (
                   <div className="flex items-center text-sm text-amber-600">
                     <AlertCircle className="h-4 w-4 mr-2" />
                     <span>
-                      Please pick a delivery location and fill in phone and email
+                      Please fix the highlighted fields before placing the order
                     </span>
                   </div>
                 )}

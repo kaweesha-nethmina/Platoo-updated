@@ -53,7 +53,7 @@
 		<dependency>
 			<groupId>com.stripe</groupId>
 			<artifactId>stripe-java</artifactId>
-			<version>24.3.0</version>
+			<version>24.24.0</version>
 		</dependency>
 	</dependencies>
 
@@ -69,6 +69,23 @@
 							<artifactId>lombok</artifactId>
 						</exclude>
 					</excludes>
+				</configuration>
+			</plugin>
+			<!-- OWASP dependency-check (SCA). NOT bound to a lifecycle phase so
+			     normal builds/startup are unaffected; run explicitly with:
+			       mvn org.owasp:dependency-check-maven:check
+			     Fails the build when a dependency has a CVSS score >= 8. -->
+			<plugin>
+				<groupId>org.owasp</groupId>
+				<artifactId>dependency-check-maven</artifactId>
+				<version>10.0.4</version>
+				<configuration>
+					<failBuildOnCVSS>8</failBuildOnCVSS>
+					<skipProvidedScope>false</skipProvidedScope>
+					<formats>
+						<format>HTML</format>
+						<format>JSON</format>
+					</formats>
 				</configuration>
 			</plugin>
 		</plugins>

@@ -8,24 +8,18 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class ProductRequest {
-    private Double amount;  // Directly use the amount, e.g., 24.57
-    private String name;
+    // Reference to the order that was already persisted by the order service.
+    // The payable amount is recomputed server-side from the stored order; it is
+    // never taken from the client.
+    private String orderId;
     private String currency;
 
-    public Double getAmount() {
-        return amount;
+    public String getOrderId() {
+        return orderId;
     }
 
-    public void setAmount(Double amount) {
-        this.amount = amount;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
+    public void setOrderId(String orderId) {
+        this.orderId = orderId;
     }
 
     public String getCurrency() {
