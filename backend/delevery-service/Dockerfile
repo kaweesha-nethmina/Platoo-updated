@@ -14,8 +14,8 @@ COPY . .
 # Expose the port your app uses
 EXPOSE 4000
 
-# Set environment (optional but good)
-ENV NODE_ENV=development
+# Set environment
+ENV NODE_ENV=production
 
 # Start the app in development mode
 CMD ["npm", "run", "dev"]

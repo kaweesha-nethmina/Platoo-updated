@@ -1,11 +1,11 @@
-# Fix To-Do (planning only — no fixes implemented)
+# Fix To-Do (planning + progress)
 
-None of these items are done. Order is dependency-first: a finding that other items rely on is listed before them (e.g. real auth middleware before any role/ownership check).
+Order is dependency-first: a finding that other items rely on is listed before them (e.g. real auth middleware before any role/ownership check). Status: **K-13 done (2026-09-23)**; all other items remain unchecked/planned.
 
 ## Cross-cutting (do first)
 
 - [ ] K-02: Rotate/secret-handling — all three services — move the Gmail app-password and the shared MongoDB credentials out of plaintext `.env` into a secrets store / deployment-time env injection; give each service its own least-privilege MongoDB user; stop emailing plaintext passwords (send passwordless invite links instead).
-- [ ] K-13: Error handling hardening — all three services — add a JSON error middleware that logs stacks server-side and returns generic messages + correlation IDs; set `NODE_ENV=production` in every deployment.
+- [x] K-13: Error handling hardening — all three services — **DONE (2026-09-23):** JSON 404 handler + centralized error middleware (logs stack server-side with `crypto.randomUUID()` correlation ID, returns generic `{ error, correlationId }`) added in `admin-service/src/app.ts`, `delevery-service/src/app.ts`, `geo-location-service/src/index.ts`; `NODE_ENV=production` set in all three `.env` files and both Dockerfiles (`admin-service`, `delevery-service`). `tsc --noEmit` passes for all three. Not committed.
 
 ## geo-location-service
 

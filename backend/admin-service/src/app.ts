@@ -1,7 +1,7 @@
-import express from "express";
-//import adminRoutes from "./routes/admin.routes";
+import express, { Request, Response, NextFunction } from "express";
 import emailRoutes from "./routes/email";
 import dotenv from "dotenv";
+import crypto from "crypto";
 
 const cors = require('cors');
 dotenv.config();
@@ -10,8 +10,17 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-//app.use("/api/admin", adminRoutes);
 app.use("/api/email", emailRoutes);
+
+app.use((req: Request, res: Response) => {
+  res.status(404).json({ error: "Not found" });
+});
+
+app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+  const correlationId = crypto.randomUUID();
+  console.error(`[${correlationId}] ${req.method} ${req.originalUrl} -`, err.stack || err.message);
+  res.status(500).json({ error: "Internal server error", correlationId });
+});
 
 // Start the server
 const PORT = process.env.PORT;

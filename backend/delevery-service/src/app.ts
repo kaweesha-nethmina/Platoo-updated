@@ -1,7 +1,8 @@
-import express, { Request, Response } from "express";
+import express, { Request, Response, NextFunction } from "express";
 import mongoose from "mongoose";
 import dotenv from "dotenv";
 import cors from "cors"; // Import cors properly
+import crypto from "crypto";
 import deliveryRoutes from "./routes/deliveryRoutes";
 
 dotenv.config();
@@ -33,6 +34,16 @@ mongoose
 // Basic route
 app.get("/", (req: Request, res: Response) => {
   res.send("Delivery Panel API is running!");
+});
+
+app.use((req: Request, res: Response) => {
+  res.status(404).json({ error: "Not found" });
+});
+
+app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+  const correlationId = crypto.randomUUID();
+  console.error(`[${correlationId}] ${req.method} ${req.originalUrl} -`, err.stack || err.message);
+  res.status(500).json({ error: "Internal server error", correlationId });
 });
 
 app.listen(port, () => {
