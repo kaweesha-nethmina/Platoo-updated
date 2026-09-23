@@ -1,7 +1,9 @@
 // src/routes/email.ts
 import express, { Request, Response } from 'express';
-import nodemailer from 'nodemailer';
 import { requireAdmin } from '../middleware/auth';
+import { validateAdminInvite } from '../middleware/validate';
+import { rateLimitInvites, isRecipientRateLimited, recordRecipientInvite } from '../middleware/inviteRateLimit';
+import mailQueue from '../services/mailQueue';
 
 interface AdminInviteRequest {
   email: string;
@@ -11,23 +13,24 @@ interface AdminInviteRequest {
 
 const router = express.Router();
 
-router.post('/send-admin-invite', requireAdmin, async (req: Request<{}, {}, AdminInviteRequest>, res: Response) => {
-  const { email, name, password } = req.body;
+router.post(
+  '/send-admin-invite',
+  requireAdmin,
+  rateLimitInvites,
+  validateAdminInvite,
+  async (req: Request<{}, {}, AdminInviteRequest>, res: Response) => {
+    const { email, name, password } = req.body;
 
-  // Configure transporter with environment variables
-  const transporter = nodemailer.createTransport({
-    service: process.env.EMAIL_SERVICE || 'Gmail',
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASSWORD,
-    },
-  });
+    if (isRecipientRateLimited(email)) {
+      res.status(429).json({ error: 'Too many invites for this recipient, please try again later' });
+      return;
+    }
 
-  const mailOptions = {
-    from: `"${process.env.APP_NAME || 'Your App'}" <${process.env.EMAIL_USER}>`,
-    to: email,
-    subject: 'Your Admin Account Login Instructions',
-    text: `Hello ${name},
+    const mailOptions = {
+      from: `"${process.env.APP_NAME || 'Your App'}" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: 'Your Admin Account Login Instructions',
+      text: `Hello ${name},
 
 Your admin account has been created.
 
@@ -39,18 +42,21 @@ Please log in and change your password after first login.
 Best regards,
 ${process.env.APP_NAME || 'Your App'} Team
 `,
-  };
+    };
 
-  try {
-    await transporter.sendMail(mailOptions);
-    res.json({ message: 'Email sent successfully' });
-  } catch (err: unknown) {
-    const error = err instanceof Error ? err : new Error('Unknown error occurred');
-    res.status(500).json({ 
-      error: 'Failed to send email',
-      details: error.message
-    });
+    try {
+      await mailQueue.enqueue(mailOptions);
+      recordRecipientInvite(email);
+      res.json({ message: 'Email sent successfully' });
+    } catch (err: unknown) {
+      const error = err instanceof Error ? err : new Error('Unknown error occurred');
+      console.error('send-admin-invite failed:', error);
+      res.status(500).json({
+        error: 'Failed to send email',
+        details: 'The email could not be sent at this time',
+      });
+    }
   }
-});
+);
 
 export default router;
