@@ -21,9 +21,40 @@ const PUBLIC_REGISTRATION_ROLES = [
   UserRole.DELIVERY_MAN,
 ];
 
+// Mirrors the client-side registration policy (see register/page.tsx).
+const PASSWORD_MIN = 8;
+const PASSWORD_MAX = 128;
+const PASSWORD_REQUIREMENTS = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).+$/;
+
+const isValidPassword = (value: string): boolean =>
+  value.length >= PASSWORD_MIN &&
+  value.length <= PASSWORD_MAX &&
+  PASSWORD_REQUIREMENTS.test(value);
+
+// Returns a user document ready for JSON responses: never include the password
+// hash or internal auth identifiers (V-06 / V-11).
+const toSafeUser = (user: {
+  toObject: () => Record<string, unknown>;
+}): Record<string, unknown> => {
+  const { password: _pw, googleId: _googleId, ...safe } = user.toObject();
+  return safe;
+};
+
 // Register user
 export const register = async (req: Request, res: Response): Promise<void> => {
   const { name, email, password, role, phone, address, restaurantName, vehicleNumber } = req.body;
+
+  if (!email || typeof email !== "string" || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    res.status(400).json({ msg: "Invalid email address" });
+    return;
+  }
+  if (typeof password !== "string" || !isValidPassword(password)) {
+    res.status(400).json({
+      msg: "Password must be 8-128 characters with uppercase, lowercase, a number, and a special character",
+    });
+    return;
+  }
+
   const hashedPassword = await bcrypt.hash(password, 10);
 
   // Server-side guard (V-02): ignore any privileged/unknown role sent by the
@@ -45,31 +76,42 @@ export const register = async (req: Request, res: Response): Promise<void> => {
   });
 
   try {
-    console.log("Registering user with data:", req.body); // Log the request data
+    console.log("Registering user:", email, "role:", safeRole); // Never log credentials
     await user.save();
     res.status(201).json({ msg: "User registered" });
   } catch (error: unknown) {
     console.error("Registration error:", error); // Log error
-    if (error instanceof Error) {
-      res.status(500).json({ msg: "Error registering user", error: error.message });
-    } else {
-      res.status(500).json({ msg: "Unknown error occurred" });
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      (error as { code: number }).code === 11000
+    ) {
+      res.status(409).json({ msg: "An account with this email already exists" });
+      return;
     }
+    res.status(500).json({ msg: "Unable to register user" });
   }
 };
 
 // Login user
 export const login = async (req: Request, res: Response): Promise<void> => {
   const { email, password } = req.body;
-  const user = await User.findOne({ email });
 
-  if (!user || !user.password || !(await bcrypt.compare(password, user.password))) {
-    res.status(401).json({ msg: "Invalid credentials" });
-    return; // Ensure to exit early after sending the response
+  try {
+    const user = await User.findOne({ email });
+
+    if (!user || !user.password || !(await bcrypt.compare(password, user.password))) {
+      res.status(401).json({ msg: "Invalid credentials" });
+      return; // Ensure to exit early after sending the response
+    }
+
+    const token = generateToken(user.id, user.role);
+    res.json({ token });
+  } catch (error) {
+    console.error("Login error:", error);
+    res.status(500).json({ msg: "Unable to sign in" });
   }
-
-  const token = generateToken(user.id, user.role);
-  res.json({ token });
 };
 
 // Google OAuth (OIDC) sign-in
@@ -154,20 +196,24 @@ export const updateUser = async (req: AuthRequest, res: Response): Promise<void>
     if (restaurantName) user.restaurantName = restaurantName;
     if (vehicleNumber) user.vehicleNumber = vehicleNumber;
     if (location) user.location = location; // Update the location field
-    // If the new password is provided, hash it and update it
+    // If the new password is provided, hash it and update it (and enforce the
+    // same strength policy used at registration).
     if (newPassword) {
+      if (typeof newPassword !== "string" || !isValidPassword(newPassword)) {
+        res.status(400).json({
+          msg: "Password must be 8-128 characters with uppercase, lowercase, a number, and a special character",
+        });
+        return;
+      }
       const hashedPassword = await bcrypt.hash(newPassword, 10); // Hash the new password
       user.password = hashedPassword; // Update the password in the user document
     }
     // Save the updated user information
     await user.save();
-    res.status(200).json({ msg: "User updated successfully", user });
+    res.status(200).json({ msg: "User updated successfully", user: toSafeUser(user) });
   } catch (error: unknown) {
-    if (error instanceof Error) {
-      res.status(500).json({ msg: "Error updating user", error: error.message });
-    } else {
-      res.status(500).json({ msg: "Unknown error occurred" });
-    }
+    console.error("Error updating user:", error);
+    res.status(500).json({ msg: "Unable to update user" });
   }
 };
 
@@ -197,32 +243,25 @@ export const deleteUser = async (req: AuthRequest, res: Response): Promise<void>
         return ;
       }
   
-      // Delete the user using deleteOne()
+// Delete the user using deleteOne()
       await user.deleteOne(); // Use `deleteOne()` instead of `remove()` in Mongoose v6
-  
+
       // Send response confirming deletion
       res.status(200).json({ msg: "User deleted successfully" });
     } catch (error: unknown) {
-      if (error instanceof Error) {
-        res.status(500).json({ msg: "Error deleting user", error: error.message });
-      } else {
-        res.status(500).json({ msg: "Unknown error occurred" });
-      }
+      console.error("Error deleting user:", error);
+      res.status(500).json({ msg: "Unable to delete user" });
     }
   };
   
-// Get all users (Admin only)
+// Get all users (Admin / restaurant-owner only, never exposes password hashes)
 export const getAllUsers = async (req: Request, res: Response): Promise<void> => {
   try {
-    const users = await User.find(); // Fetch all users from the database
+    const users = await User.find().select("-password"); // Fetch all users without password hashes
     res.status(200).json(users); // Return the list of users
   } catch (error: unknown) {
     console.error("Error fetching users:", error);
-    if (error instanceof Error) {
-      res.status(500).json({ msg: "Error fetching users", error: error.message });
-    } else {
-      res.status(500).json({ msg: "Unknown error occurred" });
-    }
+    res.status(500).json({ msg: "Unable to fetch users" });
   }
 };
 
@@ -237,8 +276,8 @@ export const getUserById = async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
-    // Find the user by ObjectId
-    const user = await User.findById(userId);
+    // Find the user by ObjectId (never expose the password hash)
+    const user = await User.findById(userId).select("-password");
     if (!user) {
       res.status(404).json({ msg: "User not found" });
       return;
@@ -248,18 +287,14 @@ export const getUserById = async (req: Request, res: Response): Promise<void> =>
     res.status(200).json(user);
   } catch (error: unknown) {
     console.error("Error fetching user:", error);
-    if (error instanceof Error) {
-      res.status(500).json({ msg: "Error fetching user", error: error.message });
-    } else {
-      res.status(500).json({ msg: "Unknown error occurred" });
-    }
+    res.status(500).json({ msg: "Unable to fetch user" });
   }
 };
 
 
 
-
 // controllers/authController.ts
+// Public helper used by restaurant profile pages; returns only safe, non-secret fields.
 export const getRestaurantOwnerByIdPublic = async (req: Request, res: Response): Promise<void> => {
   const { userId } = req.params;
 
@@ -269,7 +304,9 @@ export const getRestaurantOwnerByIdPublic = async (req: Request, res: Response):
       return;
     }
 
-    const user = await User.findOne({ _id: userId, role: UserRole.RESTAURANT_OWNER });
+    const user = await User.findOne({ _id: userId, role: UserRole.RESTAURANT_OWNER }).select(
+      "-password -googleId -updatedAt"
+    );
 
     if (!user) {
       res.status(404).json({ msg: "Restaurant owner not found" });
@@ -278,11 +315,8 @@ export const getRestaurantOwnerByIdPublic = async (req: Request, res: Response):
 
     res.status(200).json(user);
   } catch (error) {
-    if (error instanceof Error) {
-      res.status(500).json({ msg: "Error retrieving restaurant owner", error: error.message });
-    } else {
-      res.status(500).json({ msg: "Unknown error occurred" });
-    }
+    console.error("Error fetching restaurant owner:", error);
+    res.status(500).json({ msg: "Unable to fetch restaurant owner" });
   }
 };
 

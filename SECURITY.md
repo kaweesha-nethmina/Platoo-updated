@@ -20,7 +20,10 @@ Implemented on 2026-09-22 and verified end-to-end.
 - **AuthN/AuthZ** — every order-service route runs `protect(roles?)` (shared-JWT verify against
   the user-service `JWT_SECRET`); internal service-to-service calls use `x-internal-key`.
   Ownership enforced in controllers (`isOwnerOrPrivileged`); order-status changes are
-  staff-only and a restaurant owner can only touch their own restaurant's orders.
+  staff-only and a restaurant owner can only touch their own restaurant's orders. user-service
+  `GET /users` and `GET /user/:userId` are now authenticated (privileged / any-authenticated
+  respectively) and **no endpoint ever returns a password hash** (`.select('-password')` /
+  `toSafeUser()`).
 - **Idempotency** — `POST /api/orders` honors an `Idempotency-Key` header. The frontend sends a
   UUID (reused until success). A replay returns `200` + `{ idempotent: true }` with the *same*
   order; duplicate keys are rejected even in racing requests via a partial unique index
@@ -32,6 +35,10 @@ Implemented on 2026-09-22 and verified end-to-end.
 - **Rate limiting** — global 500 / 15 min (order + user), order-create 30 / min, auth
   (register/login) 20 / 10 min. Tunable via `RATE_LIMIT_*` env vars. Every response carries the
   `RateLimit-*` headers.
+- **Credential hygiene** — registration/`updateUser` enforce a server-side password policy
+  (8–128 chars, upper/lower/digit/special) mirroring the frontend; the register log never
+  contains passwords; the one-time OpenRouteService key is no longer hardcoded in the bundle
+  (`NEXT_PUBLIC_ORS_API_KEY`, see `frontend/platoo-client/.env.local.example`).
 - **NoSQL-injection hygiene** — `menu_item_id` must match the Mongo ObjectId pattern; quoted
   strings and example "NoSQL" payloads are rejected. Auth/payment/order ids are validated.
 - **XSS-in-transit** — user-supplied text (address, notes) is stored verbatim and React renders
@@ -68,14 +75,18 @@ meaningful 404; idempotent replay (`201` → `200 idempotent:true`, same `_id`);
 ## Residuals (tracked, not in scope)
 
 - `menu-service` CRUD endpoints remain unauthenticated (they are the server-side price source);
-  expose them to trusted services only in production.
+  expose them to trusted services only in production — protecting the write routes requires the
+  frontend dashboards + order-service to send credentials first.
 - `GET /api/orders` returns the whole collection to *any* privileged role; customer dashboards
   use the IDOR-guarded `/orders/history/:userId`. A map restaurant-owner→restaurant /
   delivery-man→assignment is needed before exposing per-role listings.
 - Tokens live in `localStorage` (XSS-exposed); an httpOnly-cookie/BFF session is the follow-up
   (V-08).
-- Deleted / soft-deleted records still hold payment data; Stripe metadata is the source of truth
-  for verification.
+- `GET /api/auth/user/:userId` is authenticated but not per-role IDOR-scoped: any signed-in user
+  can read another user's profile card (admin/owner/delivery flows legitimately need this; add
+  explicit role rules in production).
+- Dependency audits (user-service, order-service, payment-service) and JWT expiry/refresh + the
+  old committed OpenRouteService key rotation remain open operational items.
 
 Verified end-to-end on 2026-09-22: `npx tsc --noEmit` (order/user/menu), `mvn -o -q compile`
 (payment), suite 12/12, and a live checkout produced a real Stripe Test session for an order

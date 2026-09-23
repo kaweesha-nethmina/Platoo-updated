@@ -68,10 +68,16 @@ Legend: Critical → do first · High → next · Medium → then · Observation
       order, marks the order `paid`, and sends the confirmation email only then.
       Idempotent; failures → redirect to checkout; `localStorage` alone is never trusted.
 
-- [ ] **V-06 — Stop leaking password hashes** (`authController.ts:149-161,164-191,197-221`,
+- [x] **V-06 — Stop leaking password hashes** (`authController.ts:149-161,164-191,197-221`,
       `auth.ts:46-55`)
-      Add auth middleware to `/users`, `/user/:userId`, `/restaurant-owner/:userId`;
-      return users with `.select('-password')` (or a `toSafeJSON()` method).
+      **DONE (2026-09-22):** `GET /api/auth/users` now requires `admin`/`restaurant_owner`
+      (`protect`), `GET /api/auth/user/:userId` requires any authenticated role, and
+      `GET /api/auth/restaurant-owner/:userId` stays public. Every controller response excludes the
+      hash: `getAllUsers`/`getUserById` use `.select('-password')`, `getRestaurantOwnerByIdPublic`
+      returns only safe fields, and `updateUser` returns `toSafeUser(user)` (also strips
+      `googleId`). Verified: no `password` field in any response; `/users` answers 401 anonymous /
+      403 for non-privileged / 200 for admin+owner. Frontend caller that lacked a token
+      (`restaurant/orders/page.tsx` `/users` fetch) now sends `Authorization: Bearer`.
 
 - [x] **V-07 — Use server-side prices for order totals** (order-service `orderService.ts:22-23,124`)
       Done: menu-service exposes `POST /api/menu-items/quote` (server-side prices + invalid-id
@@ -102,16 +108,17 @@ Legend: Critical → do first · High → next · Medium → then · Observation
       Use an `httpOnly` + `Secure` + `SameSite` cookie set by the server (or a BFF)
       instead of `localStorage`. Also consolidate the `"jwtToken"` vs `"token"` key duplication.
 
-- [ ] **V-09 — Stop leaking raw error messages in 500s** (user-service, order-service,
+- [x] **V-09 — Stop leaking raw error messages in 500s** (user-service, order-service,
       payment-service)
       Return generic messages to clients; log details server-side only. Do not relay
       `StripeException.getMessage()`.
-      Partial: ✅ Google-auth endpoint and payment-service `verify-payment` already return
-      generic errors (see `kaweesha.md`).
-      **Extended (2026-09-22):** order-service, user-service, and menu-service `app.ts` now have
-      central generic 404/500 handlers — no `error.message` / MongoDB strings reach clients
-      (order-service has a dedicated leaked-details test). Remaining gap: auth/user responses
-      (V-06/V-11) and payment-service non-verify endpoints.
+      **DONE (2026-09-22):** order-service, user-service, and menu-service `app.ts` central
+      generic 404/500 handlers (no `error.message`/Mongo strings — order-service has a dedicated
+      no-leak test); user-service `authController` error paths all return generic messages (and no
+      longer logs passwords on register); payment-service `ProductCheckoutController` returns
+      generic `400`/`500` bodies (`Invalid checkout request` / generic session error) and
+      `PaymentVerificationController` never relays `StripeException.getMessage()`. All
+      controller/service errors are logged server-side only.
 
 - [ ] **V-10 — Restrict CORS on user-service** (`app.ts:8`)
       `app.use(cors({ origin: 'http://localhost:3000', credentials: true }))` (allowlist for prod).
@@ -120,8 +127,10 @@ Legend: Critical → do first · High → next · Medium → then · Observation
       `http://localhost:3000,http://127.0.0.1:3000` — so dev keeps working and a future prod
       just points the env var at the real origins.
 
-- [ ] **V-11 — Don't return the password hash from updateUser** (`authController.ts:98`)
-      Exclude password via `.select('-password')` on the response.
+- [x] **V-11 — Don't return the password hash from updateUser** (`authController.ts:98`)
+      **DONE (2026-09-22):** `updateUser` responds with `toSafeUser(user)` (password + googleId
+      stripped) and now also enforces the same 8-128 + complexity password policy on `newPassword`,
+      returning a `400` without mutating the account on weak input.
 
 ---
 
@@ -137,14 +146,19 @@ Legend: Critical → do first · High → next · Medium → then · Observation
       it instead of trusting the client) — **resolved 2026-09-22: the payable fee, tax, and totals are
       all recomputed in order-service (`computeTotals`) from the menu quote + restaurant record.**
 
-- [ ] **Committed third-party API key (frontend)** — `components/dashboards/delivery-dashboard.tsx:105`
+- [x] **Committed third-party API key (frontend)** — `components/dashboards/delivery-dashboard.tsx:105`
       hardcodes an OpenRouteService direction API key as `Authorization`. An extra credential is now
-      exposed in the repo and browser bundle. Move it behind a small proxy/BFF or env var; at minimum
-      rotate/revoke this key after switching delivery routing to a server-side call.
+      exposed in the repo and browser bundle. **RESOLVED (2026-09-22):** the key is no longer in
+      source — the component reads `process.env.NEXT_PUBLIC_ORS_API_KEY` (documented in
+      `frontend/platoo-client/.env.local.example`); routing degrades gracefully if it is unset.
+      **Action still required:** the old key is in the commit history → rotate/revoke it in the
+      OpenRouteService console; prefer a server-side/BFF proxy for the real key later.
 
-- [ ] **Backend password-strength validation** — register endpoint currently does not
+- [x] **Backend password-strength validation** — register endpoint currently does not
       enforce strength server-side (frontend does; mirror it on the server).
-      Partial: ✅ frontend register enforces 8+ chars + complexity (see `kaweesha.md`).
+      **DONE (2026-09-22):** `authController.register` mirrors the frontend policy — 8-128 chars
+      with uppercase, lowercase, a digit and a special character (rejects with `400`), and validates
+      email format. Also removed the `req.body` (password-including) register log.
 
 - [x] **Login rate limiting / account lockout / CAPTCHA** — `/api/auth/login` has no
       throttling → brute force is practical. Add rate limiting, lockout, or CAPTCHA.
@@ -241,6 +255,9 @@ services, `mvn -o -q compile` for payment-service, live Stripe checkout session)
   staff-only, restaurant owners only touch their restaurant's orders.
 - **Test suite** — `backend/order-service/tests/security/order-security.test.ts`
   (`npm run test:security`, 12 cases incl. mass-assignment, IDOR, replay, rate limit).
+- **Live demo** — [`demo-security.sh`](./demo-security.sh) covers user-service,
+  order-service, and payment-service with real requests (33/33 PASS on live stack).
+  Run `bash kaweesha-fix/demo-security.sh --cleanup` to also remove its demo data.
 
 **Operational lesson (this session):** re-running `start-all.sh` leaves one `nodemon`/
 `ts-node-dev` watcher behind **per run**; several watchers then fight over the same port and

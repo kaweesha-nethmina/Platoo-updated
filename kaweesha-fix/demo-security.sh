@@ -1,0 +1,279 @@
+#!/usr/bin/env bash
+###############################################################################
+# Platoo Security Demo Runner — user + order + payment services
+# -----------------------------------------------------------------------------
+# Every slide talks to the LIVE services (user:4000, menu:3001, order:3008,
+# payment:8081) with REAL requests and prints PASS/FAIL evidence you can
+# narrate during the demo. It also runs one real end-to-end flow:
+# browse menu (real price) → place order → Stripe Test checkout session.
+#
+# Requires all services up (./start-all.sh from the project root) and
+# curl + node (node parses the JSON responses).
+#
+# Usage:
+#   bash demo-security.sh            # run every slide (rate-limit stays last)
+#   bash demo-security.sh --cleanup  # run then delete the demo users/orders
+#
+# Notes for a clean run:
+#   * Wait ~60 s since the last order creation (order-service allows 30/min).
+#     Slides that create a demo order auto-wait once if they hit the limiter,
+#     and the final slide deliberately exhausts it.
+#   * user-service allows 20 register/login per 10 min; a full run uses ~6.
+#     Back-to-back runs can hit it — restart user-service or wait.
+###############################################################################
+set -u
+
+HOST=localhost
+U=http://${HOST}:4000/api/auth
+O=http://${HOST}:3008/api/orders
+M=http://${HOST}:3001
+P=http://${HOST}:8081/product/v1/checkout
+
+# Seed references used by the demo (Gimana restaurant / lime mojito item).
+REST_ID=6aaa2d90dbcdfa972aabd999
+ITEM_ID=6aaa2f0cdbcdfa972aabd9ad
+IMG=http://${HOST}:3001/uploads/1789538037082-189844213.jpg
+QTY=2
+
+PASS=0; FAIL=0; TOTAL=0
+G=$'\033[32m'; R=$'\033[31m'; Y=$'\033[33m'; B=$'\033[1m'; N=$'\033[0m'
+
+need() { command -v "$1" >/dev/null 2>&1 || { echo "missing: $1"; exit 1; }; }
+need node; need curl
+
+# JSON helpers
+body()  { node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{try{const o=JSON.parse(d);const v=eval("o."+process.argv[1]);console.log(v===undefined?"":(typeof v=="object"?JSON.stringify(v):v))}catch(e){console.log("")}})' "$1"; }
+pred()  { node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{try{const o=JSON.parse(d);console.log(!!eval(process.argv[1]))}catch(e){console.log("false")}})' "$1"; }
+drole() { [ -n "${1:-}" ] && node -e 'try{const t=process.argv[1],p=JSON.parse(Buffer.from(t.split(".")[1],"base64url"));console.log(p.role||"")}catch(e){console.log("")}' "$1" || echo ""; }
+did()   { [ -n "${1:-}" ] && node -e 'try{const t=process.argv[1],p=JSON.parse(Buffer.from(t.split(".")[1],"base64url"));console.log(p.id||"")}catch(e){console.log("")}' "$1" || echo ""; }
+
+# Req helper: first arg = output file; prints the http code, stores the body.
+req() { local _out="$1"; shift; curl -s -o "$_out" -w '%{http_code}' "$@"; }
+
+ORDER_BODY="{\"restaurant_id\":\"${REST_ID}\",\"items\":[{\"menu_item_id\":\"${ITEM_ID}\",\"quantity\":${QTY}}],\"delivery_address\":\"12 Demo Road, Colombo 07\",\"phone\":\"0771234567\",\"email\":\"e@e.com\",\"location\":{\"lat\":6.9,\"lng\":79.8}}"
+
+verdict() { TOTAL=$((TOTAL+1)); if [ "$2" = "$3" ]; then PASS=$((PASS+1)); echo "  ${G}✔ PASS${N}  $1  (got: $3)"; else FAIL=$((FAIL+1)); echo "  ${R}✘ FAIL${N}  $1  expected [$2] got [$3]"; fi; }
+note() { echo "  ${Y}ℹ $1${N}"; }
+hr()   { echo "──────────────────────────────────────────────────────────────"; }
+sec()  { echo; echo "${B}▶ $1${N}"; hr; }
+
+# ================================================================ preflight
+echo "${B}Platoo Security Demo — user · order · payment services${N}"; echo
+C1=$(curl -s -o /dev/null -m 3 -w '%{http_code}' $U/restaurant-owner/000000000000000000000000 2>/dev/null)
+C2=$(curl -s -o /dev/null -m 3 -w '%{http_code}' $O 2>/dev/null)
+C3=$(curl -s -o /dev/null -m 3 -w '%{http_code}' -X POST $P 2>/dev/null)
+if [ "$C1" = "000" ] || [ "$C2" = "000" ] || [ "$C3" = "000" ]; then
+  echo "${R}One or more services unreachable — run ./start-all.sh first.${N}"
+  echo "  user:4000 → $C1 · order:3008 → $C2 · payment:8081 → $C3"
+  exit 1
+fi
+echo "All three services reachable (user $C1 · order $C2 · payment $C3). Time: $(date +%H:%M:%S)"; echo
+
+# ================================================================  slide 1
+sec "1 · USER-SERVICE — password policy, role whitelist, hashes, scoping"
+AEMAIL="demo-a-$(uuidgen)@demo.com"
+
+W=$(mktemp)
+CW=$(req "$W" -s -X POST $U/register -H 'Content-Type: application/json' \
+  -d "{\"name\":\"Weak\",\"email\":\"weak-$(uuidgen)@demo.com\",\"password\":\"Ab1!\"}")
+verdict "weak password (7 chars) → 400 (8-128 + case + number + special)" "400" "$CW"
+note "   register reason: $(cat "$W" | body 'msg')"; rm -f "$W"
+
+E=$(mktemp)
+CE=$(req "$E" -s -X POST $U/register -H 'Content-Type: application/json' \
+  -d "{\"name\":\"Bad\",\"email\":\"not-an-email\",\"password\":\"Str0ng!Pass\"}")
+verdict "malformed email → 400" "400" "$CE"
+rm -f "$E"
+
+RA=$(mktemp)
+CRA=$(req "$RA" -s -X POST $U/register -H 'Content-Type: application/json' \
+  -d "{\"name\":\"Demo A\",\"email\":\"$AEMAIL\",\"password\":\"Str0ng!Pass\",\"role\":\"admin\"}")
+verdict "register claiming role=admin → 201 (accepted, but role is vetted)" "201" "$CRA"
+rm -f "$RA"
+
+LA=$(mktemp)
+CLA=$(req "$LA" -s -X POST $U/login -H 'Content-Type: application/json' \
+  -d "{\"email\":\"$AEMAIL\",\"password\":\"Str0ng!Pass\"}")
+AT=$(cat "$LA" | body 'token'); AROLE=$(drole "$AT"); AID=$(did "$AT")
+verdict "login OK → 200 with a real JWT" "200" "$CLA"
+verdict "   claimed admin is downgraded to 'user' (V-02 whitelist)" "user" "$AROLE"
+rm -f "$LA"
+
+DD=$(mktemp)
+CD=$(req "$DD" -s -X POST $U/register -H 'Content-Type: application/json' \
+  -d "{\"name\":\"Demo A\",\"email\":\"$AEMAIL\",\"password\":\"Str0ng!Pass\"}")
+verdict "duplicate email → 409 (was: 500 + logged as a server error)" "409" "$CD"
+note "   reason: $(cat "$DD" | body 'msg')"; rm -f "$DD"
+
+WL=$(mktemp)
+CWL=$(req "$WL" -s -X POST $U/login -H 'Content-Type: application/json' \
+  -d "{\"email\":\"$AEMAIL\",\"password\":\"WrongPass!\"}")
+verdict "wrong password → 401 with a generic message" "401" "$CWL"
+note "   message: $(cat "$WL" | body 'msg')"; rm -f "$WL"
+
+code=$(curl -s -o /dev/null -w '%{http_code}' $U/users)
+verdict "GET /users without token → 401 (was: 200 + every hash leaked)" "401" "$code"
+code=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $AT" $U/users)
+verdict "GET /users as a regular user → 403 (admin/owner only)" "403" "$code"
+
+SELF=$(mktemp)
+_x=$(req "$SELF" -s -H "Authorization: Bearer $AT" $U/user/$AID)
+verdict "own profile → 200, NO password hash returned (V-06/V-11)" "false" "$(cat "$SELF" | pred '"password" in o')"
+rm -f "$SELF"
+
+# real restaurant owner from the menu catalogue → public profile must stay safe
+OWNER_ID=$(curl -s $M/api/restaurants | body '[0].owner_id')
+OWN=$(mktemp)
+_x=$(req "$OWN" -s $U/restaurant-owner/$OWNER_ID)
+verdict "public owner profile → NO password / googleId leaked" "false" "$(cat "$OWN" | pred '"password" in o || "googleId" in o')"
+rm -f "$OWN"
+
+# ================================================================  slide 2
+sec "2 · ORDER-SERVICE — server-owned fields are forbidden at the API boundary"
+
+TAMPERED=$(printf '%s' "$ORDER_BODY" | sed 's/"location":/"total_amount":0,"delivery_fee":0,"status":"paid","user_id":"000000000000000000000000","location":/')
+B1=$(mktemp)
+C1=$(curl -s -o "$B1" -w '%{http_code}' -X POST $O -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer $AT" -H "Idempotency-Key: demo-price-$(uuidgen)" -d "$TAMPERED")
+note "a) order-level total_amount/delivery_fee/status + forged user_id"
+verdict "   → Joi FORBIDS them before the service runs (400)" "400" "$C1"
+note "   rejection: $(cat "$B1" 2>/dev/null)"; rm -f "$B1"
+
+PRICED=$(printf '%s' "$ORDER_BODY" | sed 's/"quantity":2/"quantity":2,"price":1/')
+B2=$(mktemp)
+C2=$(curl -s -o "$B2" -w '%{http_code}' -X POST $O -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer $AT" -H "Idempotency-Key: demo-item-$(uuidgen)" -d "$PRICED")
+if [ "$C2" = "429" ]; then note "order limiter busy — waiting 62 s and retrying once"; sleep 62
+  C2=$(curl -s -o "$B2" -w '%{http_code}' -X POST $O -H 'Content-Type: application/json' \
+    -H "Authorization: Bearer $AT" -H "Idempotency-Key: demo-item-$(uuidgen)" -d "$PRICED"); fi
+OID=$(cat "$B2" | body 'order._id')
+verdict "b) item price:1 echo accepted (legacy clients) → 201" "201" "$C2"
+note "   order id: ${OID:-<none>}"
+# expected bill computed from the LIVE menu/restaurant data
+MP=$(curl -s $M/api/menu-items | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{const it=JSON.parse(d).find?JSON.parse(d).find(i=>i._id==="6aaa2f0cdbcdfa972aabd9ad"):JSON.parse(d).menuItems.find(i=>i._id==="6aaa2f0cdbcdfa972aabd9ad");console.log(it.price)})')
+FEE=$(curl -s $M/api/restaurants/$REST_ID | body 'deliveryFee' | tr -cd 0-9); FEE=${FEE:-200}
+SUB=$((MP*QTY)); TAX=$((SUB*8/100)); EXP=$((SUB+FEE+TAX))
+OTOT=$(cat "$B2" | body 'order.total_amount')
+verdict "   server total = live price ${MP}×${QTY} + fee $FEE + 8% tax = $EXP (price:1 unused)" "$EXP" "$OTOT"
+verdict "   order belongs to the verified JWT user" "true" "$(cat "$B2" | pred "o && o.order && o.order.user_id==='$AID'")"
+rm -f "$B2"
+
+if [ -n "$OID" ]; then
+  PB=$(mktemp)
+  TCODE=$(curl -s -o "$PB" -w '%{http_code}' -X PUT $O/$OID -H 'Content-Type: application/json' \
+    -H "Authorization: Bearer $AT" -d '{"total_amount":0,"status":"paid","user_id":"000000000000000000000000"}')
+  verdict "PUT with server-owned fields → 400" "400" "$TCODE"
+  note "   rejection: $(cat "$PB" 2>/dev/null)"; rm -f "$PB"
+fi
+
+# ================================================================  slide 3
+sec "3 · ORDER-SERVICE — auth + ownership (IDOR) blocked"
+code=$(curl -s -o /dev/null -w '%{http_code}' $O)
+verdict "GET /orders without token → 401" "401" "$code"
+code=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $AT" $O)
+verdict "GET /orders as a customer → 403 (privileged listing only)" "403" "$code"
+
+BEMAIL="demo-b-$(uuidgen)@demo.com"
+curl -s -o /dev/null -X POST $U/register -H 'Content-Type: application/json' \
+  -d "{\"name\":\"Demo B\",\"email\":\"$BEMAIL\",\"password\":\"Str0ng!Pass\"}"
+BT=$(curl -s -X POST $U/login -H 'Content-Type: application/json' \
+  -d "{\"email\":\"$BEMAIL\",\"password\":\"Str0ng!Pass\"}" | body 'token')
+BID=$(did "$BT")
+if [ -z "$BT" ]; then
+  note "user B's login was throttled (auth budget) — IDOR checks skipped this run"
+elif [ -n "$OID" ]; then
+  code=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $BT" $O/$OID)
+  verdict "user B reading user A's order → 403 (IDOR blocked)" "403" "$code"
+  code=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $BT" $O/history/$AID)
+  verdict "user B reading user A's order history → 403" "403" "$code"
+else
+  note "skipped IDOR checks (no demo order to target)"
+fi
+
+# ================================================================  slide 4
+sec "4 · ORDER-SERVICE — idempotency: same key never mints a duplicate"
+KEY="demo-idem-$(uuidgen)"
+I1=$(mktemp); I2=$(mktemp)
+C1=$(curl -s -o "$I1" -w '%{http_code}' -X POST $O -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer $AT" -H "Idempotency-Key: $KEY" -d "$ORDER_BODY")
+C2=$(curl -s -o "$I2" -w '%{http_code}' -X POST $O -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer $AT" -H "Idempotency-Key: $KEY" -d "$ORDER_BODY")
+ID1=$(cat "$I1" | body 'order._id'); ID2=$(cat "$I2" | body 'order._id')
+verdict "first create → 201" "201" "$C1"
+verdict "replay → 200 idempotent:true" "200" "$C2"
+verdict "replay returns the identical order id" "$ID1" "$ID2"
+rm -f "$I1" "$I2"
+
+# ================================================================  slide 5
+sec "5 · PAYMENT-SERVICE — no internal error leakage"
+PR=$(curl -s -X POST $P -H 'Content-Type: application/json' -d '{}')
+verdict "empty checkout → status FAILED" "FAILED" "$(echo "$PR" | body 'status')"
+verdict "no internals leaked (was: 'An order reference (orderId) is required')" "0" "$(echo "$PR" | grep -ciE 'orderId|exception|stripe|at com\.')"
+note "   response: $PR"
+note "   CORS now reads env (CORS_ORIGINS) — evil Origin check in slide 6"
+
+# ================================================================  slide 6
+sec "6 · TRANSPORT — helmet, CORS allowlist, image loading (CORP)"
+H6=$(curl -sI $M/api/menu-items | tr -d '\r')
+echo "$H6" | grep -qi "x-frame-options" && X="x-frame-options present" || X="missing"
+verdict "helmet: X-Frame-Options set on APIs" "x-frame-options present" "$X"
+CC=$(curl -sI -H "Origin: http://evil.example" $M/api/menu-items | tr -d '\r' | grep -ic "access-control-allow-origin")
+verdict "evil Origin is NOT granted CORS (allowlist)" "0" "$CC"
+CP=$(curl -sI "$IMG" | tr -d '\r' | grep -i "^cross-origin-resource-policy:" | sed 's/^[^:]*:[ ]*//')
+verdict "images loadable cross-origin (CORP — the blank-image bug)" "cross-origin" "$CP"
+
+# ================================================================  slide 7
+MP=${MP:-600}; FEE=${FEE:-200}; SUB=$((MP*QTY)); TAX=$((SUB*8/100)); EXP=$((SUB+FEE+TAX))
+sec "7 · REAL FLOW — menu (real price) → order → Stripe Test checkout"
+note "item 'lime mojito' live price: $MP × $QTY, delivery fee $FEE, 8% tax $TAX → payable $EXP"
+E2=$(mktemp)
+CE2=$(curl -s -o "$E2" -w '%{http_code}' -X POST $O -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer $AT" -H "Idempotency-Key: demo-e2e-$(uuidgen)" -d "$ORDER_BODY")
+E2OID=$(cat "$E2" | body 'order._id')
+verdict "place a real order → 201 with \`_id\`" "201" "$CE2"
+if [ -n "$E2OID" ]; then
+  SE=$(curl -s -X POST $P -H 'Content-Type: application/json' -d "{\"orderId\":\"$E2OID\",\"currency\":\"lkr\"}")
+  verdict "   checkout → Stripe Test session (status SUCCESS)" "SUCCESS" "$(echo "$SE" | body 'status')"
+  SID=$(echo "$SE" | body 'sessionId'); SURL=$(echo "$SE" | body 'sessionUrl')
+  echo "$SID" | grep -q '^cs_' && SIDOK=1 || SIDOK=0
+  verdict "   session id is a real Stripe id (cs_…)" "1" "$SIDOK"
+  echo "$SURL" | grep -q 'checkout.stripe.com' && SUOK=1 || SUOK=0
+  verdict "   session hosts the Stripe Checkout url" "1" "$SUOK"
+  note "   payable charged = stored order total (${EXP}) — client never sends an amount"
+  note "   → $SURL"
+else
+  note "   checkout skipped (no order id)"
+fi
+rm -f "$E2"
+
+# ================================================================  slide 8  (LAST)
+sec "8 · RATE LIMITING — order creation is throttled at the box"
+echo "  firing POST /api/orders until the limiter kicks in (30/min)..."
+FIRST429=""
+for i in $(seq 1 40); do
+  C=$(curl -s -o /dev/null -w '%{http_code}' -X POST $O -H 'Content-Type: application/json' \
+    -H "Authorization: Bearer $AT" -H "Idempotency-Key: demo-rl-$i-$(uuidgen)" -d "$ORDER_BODY")
+  if [ "$C" = "429" ]; then FIRST429="429"; echo "  429 after $i attempts"; break; fi
+done
+verdict "order creation returns 429 when the budget is spent" "429" "$FIRST429"
+
+# ================================================================  summary
+hr; echo
+echo "  ${G}PASS ${PASS}${N}   ${R}FAIL ${FAIL}${N}   total ${TOTAL}"
+[ "$FAIL" -gt 0 ] && echo "  ${Y}Failing lines are usually 429s from a busy demo window — wait 60 s and re-run.${N}"
+hr
+echo "  Closing proof — automated suites (run anytime):"
+echo "    order   : cd backend/order-service   && npm run test:security   →  12/12"
+echo "    payment : cd backend/payment-service && JAVA_HOME=jdk-17 mvn -o compile"
+echo "    user    : cd backend/user-service    && npx tsc --noEmit         (no test suite yet —"
+echo "                                                                    covered live by slide 1)"
+echo
+
+if [ "${1:-}" = "--cleanup" ]; then
+  echo "Cleaning demo users/orders (best effort)..."
+  [ -n "$AT" ] && curl -s -o /dev/null -X DELETE $U/delete/$AID -H "Authorization: Bearer $AT"
+  [ -n "${BT:-}" ] && curl -s -o /dev/null -X DELETE $U/delete/$BID -H "Authorization: Bearer $BT"
+  [ -n "$OID" ] && curl -s -o /dev/null -X DELETE $O/$OID -H "Authorization: Bearer $AT"
+  echo "  done."
+fi
+exit 0

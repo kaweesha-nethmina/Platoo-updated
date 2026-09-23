@@ -274,7 +274,11 @@ export default function OrdersPage() {
         }
       );
       if (!statusRes.ok) throw new Error("Failed to update order status");
-      const usersRes = await fetch("http://localhost:4000/api/auth/users");
+      const usersRes = await fetch("http://localhost:4000/api/auth/users", {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("jwtToken") || localStorage.getItem("token")}`,
+        },
+      });
       if (!usersRes.ok) throw new Error("Failed to fetch users");
       const users = await usersRes.json();
 

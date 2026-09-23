@@ -16,7 +16,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/product/v1")
-@CrossOrigin(origins = "http://localhost:3000") // Allow requests from localhost:3000
+@CrossOrigin(origins = "${cors.origins:http://localhost:3000}") // Allow requests from the configured frontend origins
 public class ProductCheckoutController {
 
 
@@ -40,7 +40,7 @@ public class ProductCheckoutController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity
                     .status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of("status", "FAILED", "message", e.getMessage()));
+                    .body(Map.of("status", "FAILED", "message", "Invalid checkout request"));
         } catch (Exception e) {
             return ResponseEntity
                     .status(HttpStatus.INTERNAL_SERVER_ERROR)
