@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Desima — Security Hardening Contribution Report</title>
+<style>
+  :root {
+    --bg: #0b0e1a;
+    --bg-2: #111527;
+    --bg-3: #161b30;
+    --panel: #1a2038;
+    --panel-2: #202747;
+    --border: #2a3357;
+    --text: #e8ecf7;
+    --muted: #9aa3c0;
+    --accent: #5b8cff;
+    --accent-2: #34d0b2;
+    --grad: linear-gradient(135deg, #5b8cff 0%, #8b5bff 100%);
+    --red: #ff6b6b;
+    --orange: #ffa056;
+    --yellow: #ffd166;
+    --green: #34d0b2;
+    --radius: 14px;
+    --shadow: 0 12px 40px rgba(0,0,0,.35);
+    --mono: "Cascadia Code", "JetBrains Mono", Consolas, "Courier New", monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+  body {
+    font-family: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+    background: radial-gradient(1200px 600px at 80% -10%, #1c2450 0%, transparent 60%),
+                var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+  ::selection { background: var(--accent); color: #fff; }
+
+  /* ---------- Layout ---------- */
+  .layout { display: grid; grid-template-columns: 280px 1fr; max-width: 1400px; margin: 0 auto; }
+  .content { padding: 40px 48px 120px; min-width: 0; }
+
+  /* ---------- Sidebar ---------- */
+  .sidebar {
+    position: sticky; top: 0; height: 100vh; overflow-y: auto;
+    background: var(--bg-2); border-right: 1px solid var(--border);
+    padding: 28px 20px;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; }
+  .logo {
+    width: 42px; height: 42px; border-radius: 12px; flex: 0 0 auto;
+    background: var(--grad); display: grid; place-items: center;
+    font-weight: 800; font-size: 18px; color: #fff;
+    box-shadow: 0 6px 18px rgba(91,140,255,.4);
+  }
+  .brand h1 { font-size: 17px; line-height: 1.2; }
+  .brand small { color: var(--muted); font-size: 11px; letter-spacing: .05em; text-transform: uppercase; }
+  nav a {
+    display: flex; gap: 10px; align-items: center;
+    padding: 10px 12px; margin: 2px 0; border-radius: 10px;
+    color: var(--muted); text-decoration: none; font-size: 13.5px;
+    transition: background .15s, color .15s;
+  }
+  nav a:hover { background: var(--panel); color: var(--text); }
+  nav a.active { background: var(--grad); color: #fff; box-shadow: 0 6px 16px rgba(91,140,255,.35); }
+  nav a .num {
+    margin-left: auto; font-size: 11px; background: var(--panel-2);
+    padding: 1px 8px; border-radius: 20px; color: var(--muted);
+  }
+  nav a.active .num { background: rgba(255,255,255,.2); color: #fff; }
+  .side-note { margin-top: 24px; font-size: 11.5px; color: var(--muted); padding: 12px; background: var(--panel); border-radius: 10px; border: 1px dashed var(--border); }
+
+  /* ---------- Header / hero ---------- */
+  .hero { margin-bottom: 40px; }
+  .eyebrow {
+    display: inline-block; font-size: 12px; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--accent-2); border: 1px solid rgba(52,208,178,.4); padding: 4px 12px; border-radius: 30px; margin-bottom: 14px;
+  }
+  .hero h2 { font-size: 34px; line-height: 1.2; margin-bottom: 10px; letter-spacing: -.01em; }
+  .hero h2 span { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .hero p { color: var(--muted); max-width: 760px; font-size: 15px; }
+  .meta-line { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 18px; font-size: 13px; color: var(--muted); }
+  .meta-line b { color: var(--text); font-weight: 600; }
+
+  section { margin-bottom: 56px; }
+  .sec-head { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; }
+  .sec-idx {
+    width: 38px; height: 38px; border-radius: 10px; background: var(--grad); color: #fff;
+    display: grid; place-items: center; font-weight: 800; font-size: 15px; flex: 0 0 auto;
+  }
+  .sec-head h3 { font-size: 23px; letter-spacing: -.01em; }
+  .sec-head small { display: block; color: var(--muted); font-size: 12.5px; font-weight: 400; }
+
+  /* ---------- Stats ---------- */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 16px; }
+  .stat {
+    background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 20px; position: relative; overflow: hidden;
+  }
+  .stat::after { content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; background: var(--grad); opacity: .7; }
+  .stat .val { font-size: 30px; font-weight: 800; }
+  .stat .lbl { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+  .stat.good .val { color: var(--green); } .stat.warn .val { color: var(--orange); }
+  .stat.danger .val { color: var(--red); } .stat.accent .val { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+  /* ---------- Controls (filter) ---------- */
+  .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 22px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    padding: 7px 14px; border-radius: 30px; background: var(--panel); border: 1px solid var(--border);
+    color: var(--muted); cursor: pointer; font-size: 13px; transition: all .15s; user-select: none;
+  }
+  .chip:hover { border-color: var(--accent); color: var(--text); }
+  .chip.on { background: var(--grad); color: #fff; border-color: transparent; }
+  .search-in {
+    margin-left: auto; background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    padding: 9px 14px; color: var(--text); font-size: 13.5px; min-width: 220px; outline: none;
+  }
+  .search-in:focus { border-color: var(--accent); }
+
+  /* ---------- Finding cards ---------- */
+  .finding {
+    background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+    margin-bottom: 14px; overflow: hidden; transition: box-shadow .2s, border-color .2s;
+  }
+  .finding:hover { border-color: #34407a; }
+  .finding.open { box-shadow: var(--shadow); }
+  .f-head { display: flex; align-items: center; gap: 14px; padding: 16px 20px; cursor: pointer; }
+  .f-id {
+    font-family: var(--mono); font-weight: 700; font-size: 13px; color: var(--accent);
+    background: rgba(91,140,255,.12); border: 1px solid rgba(91,140,255,.35);
+    padding: 3px 10px; border-radius: 8px; flex: 0 0 auto;
+  }
+  .f-title { flex: 1; font-size: 14.5px; font-weight: 600; }
+  .f-svc { font-size: 11px; padding: 2px 10px; border-radius: 20px; flex: 0 0 auto; }
+  .f-svc.search { background: rgba(91,140,255,.15); color: #8fb1ff; }
+  .f-svc.notif { background: rgba(138,91,255,.15); color: #bfa1ff; }
+  .f-svc.front { background: rgba(52,208,178,.15); color: #67e6cc; }
+  .f-badges { display: flex; gap: 6px; flex: 0 0 auto; }
+  .badge { font-size: 11px; padding: 2px 8px; border-radius: 6px; font-family: var(--mono); }
+  .badge.cwe { background: var(--panel-2); color: var(--muted); }
+  .badge.cvss { color: #fff; font-weight: 700; }
+  .badge.cvss.crit { background: var(--red); } .badge.cvss.high { background: var(--orange); }
+  .badge.cvss.med { background: var(--yellow); color: #3a3200; } .badge.cvss.low { background: var(--green); color: #003; }
+  .f-chev { color: var(--muted); transition: transform .2s; flex: 0 0 auto; }
+  .finding.open .f-chev { transform: rotate(180deg); }
+
+  .f-body { display: none; padding: 0 20px 20px; border-top: 1px dashed var(--border); }
+  .finding.open .f-body { display: block; }
+  .f-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; padding-top: 18px; }
+  @media (max-width: 900px) { .f-grid { grid-template-columns: 1fr; } }
+  .f-block h5 { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--accent-2); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .f-block h5 .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent-2); }
+  .f-block p { font-size: 13.5px; color: var(--muted); }
+  .f-block p strong { color: var(--text); }
+
+  /* Code block */
+  .code-wrap { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--bg-3); }
+  .code-tabs { display: flex; background: var(--bg-2); border-bottom: 1px solid var(--border); }
+  .code-tab { padding: 8px 14px; font-size: 12px; color: var(--muted); cursor: pointer; border: 0; background: none; font-family: var(--mono); }
+  .code-tab.on { color: var(--text); background: var(--bg-3); border-bottom: 2px solid var(--accent); }
+  pre {
+    margin: 0; padding: 16px; font-family: var(--mono); font-size: 12.5px; line-height: 1.55;
+    overflow-x: auto; color: #c9d4ff; max-height: 340px; overflow-y: auto;
+  }
+  .code-tab.before.on { color: var(--red); border-bottom-color: var(--red); }
+  .code-tab.after.on { color: var(--green); border-bottom-color: var(--green); }
+
+  .check-list { list-style: none; margin-top: 8px; }
+  .check-list li { font-size: 13.5px; color: var(--muted); padding: 4px 0; padding-left: 24px; position: relative; }
+  .check-list li::before { position: absolute; left: 0; content: "✓"; color: var(--green); font-weight: 800; }
+
+  /* ---------- Tables ---------- */
+  .tbl-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 640px; background: var(--panel); }
+  th { text-align: left; padding: 12px 16px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); background: var(--bg-2); border-bottom: 1px solid var(--border); }
+  td { padding: 12px 16px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  td.muted { color: var(--muted); }
+  .pill { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 11.5px; font-weight: 600; }
+  .pill.pass { background: rgba(52,208,178,.15); color: var(--green); }
+  .pill.fail { background: rgba(255,107,107,.15); color: var(--red); }
+  .mono { font-family: var(--mono); font-size: 12.5px; }
+  .fixed { color: var(--green); } .open { color: var(--orange); }
+
+  /* Two-column compare for before/after testing */
+  .compare { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: center; }
+  @media (max-width: 900px) { .compare { grid-template-columns: 1fr; } }
+  .compare .side { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .compare .side h5 { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 8px; }
+  .compare .side.before h5 { color: var(--red); } .compare .side.after h5 { color: var(--green); }
+  .compare .side li { font-size: 13.5px; color: var(--muted); list-style: none; padding: 4px 0 4px 22px; position: relative; }
+  .compare .side.before li::before { content: "✗"; position: absolute; left: 0; color: var(--red); font-weight: 800; }
+  .compare .side.after li::before { content: "✓"; position: absolute; left: 0; color: var(--green); font-weight: 800; }
+  .compare .arrow { font-size: 26px; color: var(--accent); text-align: center; }
+
+  /* ---------- Tool bars ---------- */
+  .tool-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+  .tool { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+  .tool h5 { display: flex; align-items: center; gap: 10px; font-size: 15px; margin-bottom: 6px; }
+  .tool .ico { width: 30px; height: 30px; border-radius: 8px; background: var(--grad); color: #fff; display: grid; place-items: center; font-size: 14px; flex: 0 0 auto; }
+  .tool p { font-size: 13px; color: var(--muted); }
+  .bar { height: 8px; border-radius: 20px; background: var(--bg-3); margin-top: 14px; overflow: hidden; }
+  .bar span { display: block; height: 100%; border-radius: 20px; width: 0; transition: width 1.2s cubic-bezier(.2,.8,.2,1); }
+  .bar-label { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+  /* ---------- Not-fixed accordion ---------- */
+  details { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 12px; }
+  details summary {
+    cursor: pointer; padding: 16px 20px; font-weight: 600; font-size: 14.5px; list-style: none;
+    display: flex; gap: 12px; align-items: center;
+  }
+  details summary::-webkit-details-marker { display: none; }
+  details summary .nf-id { font-family: var(--mono); color: var(--orange); font-size: 12px; background: rgba(255,160,86,.12); border: 1px solid rgba(255,160,86,.35); padding: 2px 9px; border-radius: 8px; }
+  details[open] summary { border-bottom: 1px dashed var(--border); }
+  details .nf-body { padding: 16px 20px; color: var(--muted); font-size: 13.5px; }
+  details .nf-body b { color: var(--text); }
+
+  /* ---------- Best practice cards ---------- */
+  .bp { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+  .bp-card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; position: relative;
+    transition: transform .2s, border-color .2s;
+  }
+  .bp-card:hover { transform: translateY(-4px); border-color: #34407a; }
+  .bp-num { font-size: 26px; font-weight: 800; font-family: var(--mono); color: transparent; -webkit-background-clip: text; background-clip: text; background-image: var(--grad); }
+  .bp-card h5 { margin: 8px 0 6px; font-size: 15px; }
+  .bp-card p { font-size: 13px; color: var(--muted); }
+  .bp-card .tag { position: absolute; top: 16px; right: 16px; font-size: 11px; color: var(--accent-2); font-family: var(--mono); }
+
+  /* ---------- Footer ---------- */
+  .foot { margin-top: 40px; padding-top: 22px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12.5px; display: flex; flex-wrap: wrap; gap: 14px; justify-content: space-between; }
+
+  /* ---------- Reveal animation ---------- */
+  .reveal { opacity: 0; transform: translateY(18px); transition: opacity .5s ease, transform .5s ease; }
+  .reveal.in { opacity: 1; transform: none; }
+
+  /* ---------- Mobile ---------- */
+  .menu-btn { display: none; position: fixed; top: 14px; left: 14px; z-index: 60; background: var(--grad); color: #fff; border: 0; border-radius: 10px; width: 44px; height: 44px; font-size: 20px; cursor: pointer; box-shadow: var(--shadow); }
+  @media (max-width: 960px) {
+    .menu-btn { display: block; }
+    .layout { display: block; }
+    .sidebar { position: fixed; inset: 0 auto 0 0; width: 280px; z-index: 50; transform: translateX(-100%); transition: transform .25s; }
+    .sidebar.show { transform: none; box-shadow: var(--shadow); }
+    .content { padding: 76px 18px 80px; }
+    .hero h2 { font-size: 26px; }
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 40; display: none; }
+    .overlay.show { display: block; }
+  }
+</style>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleSidebar(true)" aria-label="Menu">☰</button>
+<div class="overlay" onclick="toggleSidebar(false)"></div>
+
+<div class="layout">
+  <!-- ======================= SIDEBAR ======================= -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="logo">D</div>
+      <div>
+        <h1>Desima</h1>
+        <small>SSD · Security Report</small>
+      </div>
+    </div>
+    <nav id="nav">
+      <a href="#overview"><span>Overview</span><span class="num">01</span></a>
+      <a href="#register"><span>Findings &amp; Fixes</span><span class="num" id="count16">16</span></a>
+      <a href="#blackbox"><span>Black-box Testing</span><span class="num">02</span></a>
+      <a href="#whitebox"><span>White-box Testing</span><span class="num">03</span></a>
+      <a href="#tooling"><span>Tooling Results</span><span class="num">04</span></a>
+      <a href="#notfixed"><span>Not Fixed</span><span class="num">05</span></a>
+      <a href="#bestpractices"><span>Best Practices</span><span class="num">06</span></a>
+      <a href="#summary"><span>Summary</span><span class="num">07</span></a>
+    </nav>
+    <div class="side-note">
+      Original source: commit <b class="mono">f1ff1c8</b> (2026-09-16 "old project codes")
+      — predating the semester assessment window.
+    </div>
+  </aside>
+
+  <!-- ======================= CONTENT ======================= -->
+  <main class="content">
+
+    <!-- HERO -->
+    <header class="hero reveal">
+      <span class="eyebrow">Individual Contribution · Security Hardening</span>
+      <h2>Search &amp; Notification Services — <span>from Vulnerable to Hardened</span></h2>
+      <p>
+        An interactive report of how <b>16 distinct vulnerabilities</b> (search-service, notification-service and the
+        related frontend call) were identified with open-source black-box &amp; white-box tools and fixed —
+        where full coverage started at 0 fixed and ends at <b>16/16 fixed</b>.
+      </p>
+      <div class="meta-line">
+        <span>Student: <b>&lt;Your Name&gt;</b></span>
+        <span>Index: <b>&lt;NIC/Index&gt;</b></span>
+        <span>Services: <b>search :3002 · notification :4006</b></span>
+        <span>Branch: <b class="mono">security/search-notification-hardening</b></span>
+      </div>
+    </header>
+
+    <!-- OVERVIEW -->
+    <section id="overview" class="reveal">
+      <div class="sec-head"><div class="sec-idx">01</div><div>
+        <h3>Overview</h3>
+        <small>Before → after at a glance</small>
+      </div></div>
+      <div class="stats">
+        <div class="stat danger"><div class="val" data-count="16">0</div><div class="lbl">Vulnerabilities before</div></div>
+        <div class="stat good"><div class="val">0</div><div class="lbl">Open in scope after</div></div>
+        <div class="stat warn"><div class="val" data-count="11">0</div><div class="lbl">npm audit deps (search) before</div></div>
+        <div class="stat good"><div class="val" data-count="37">0</div><div class="lbl">Black+white-box tests green</div></div>
+        <div class="stat accent"><div class="val" data-count="3">0</div><div class="lbl">Security scanners used</div></div>
+      </div>
+      <p style="margin-top:18px;color:var(--muted);font-size:14px;">
+        Tools: <b>supertest</b> (black-box), <b>Jest</b> (white-box), <b>Semgrep</b> (SAST), <b>ESLint</b> security plugins,
+        <b>npm audit</b> (SCA) and <b>gitleaks</b> (secret scanning). All scans are reproducible per service via
+        <span class="mono">npm run test:blackbox</span>, <span class="mono">test:whitebox</span>, <span class="mono">test:security</span>.
+      </p>
+    </section>
+
+    <!-- REGISTER / FINDINGS -->
+    <section id="register" class="reveal">
+      <div class="sec-head"><div class="sec-idx">02</div><div>
+        <h3>Findings &amp; Fixes</h3>
+        <small>16 distinct vulnerabilities — click a card to expand, filter &amp; search below</small>
+      </div></div>
+
+      <div class="controls">
+        <div class="chips" id="chips"></div>
+        <input class="search-in" id="q" type="search" placeholder="Search findings, CWE, CVSS…" />
+      </div>
+      <div id="findings"></div>
+
+      <p style="margin-top:14px;font-size:12.5px;color:var(--muted);">
+        Full Before/After source, evidence files and run commands live in <span class="mono">docs/security/</span> and
+        <span class="mono">desima-contribution.md</span>.
+      </p>
+    </section>
+
+    <!-- BLACK-BOX -->
+    <section id="blackbox" class="reveal">
+      <div class="sec-head"><div class="sec-idx">03</div><div>
+        <h3>Black-box (Dynamic) Testing</h3>
+        <small>External-attacker view over live HTTP — supertest + k6</small>
+      </div></div>
+
+      <p style="color:var(--muted);font-size:14px;margin-bottom:18px;">
+        Each suite runs against the <b>live, seeded service</b> exactly as an outside client sees it. Notification tokens are
+        minted with the service's real <span class="mono">JWT_SECRET</span>, exercising the genuine auth path over the wire.
+      </p>
+
+      <div class="compare">
+        <div class="side before">
+          <h5>Before · original code</h5>
+          <ul>
+            <li>search suite <b>10 pass / 10 fail</b></li>
+            <li>notif suite <b>15 pass / 2 fail</b></li>
+            <li>NoSQL operators → 500 / altered results</li>
+            <li>ReDoS payload at risk of hang</li>
+            <li><span class="mono">ACAO: *</span> reflected for any Origin</li>
+            <li>oversized body → HTML stack trace</li>
+            <li>no 429 on rapid abuse</li>
+            <li>no token / forged token → 200 (spam)</li>
+          </ul>
+        </div>
+        <div class="arrow">→</div>
+        <div class="side after">
+          <h5>After · hardened</h5>
+          <ul>
+            <li>search suite <b>20 / 20</b></li>
+            <li>notif suite <b>17 / 17</b></li>
+            <li>operator objects → <span class="mono">400 JSON</span></li>
+            <li>`(a+)+$` responds fast, no trace</li>
+            <li>unknown Origin not reflected</li>
+            <li>oversized body → <span class="mono">413 JSON</span></li>
+            <li>30 rapid requests → <span class="mono">429</span></li>
+            <li>no/forged/alg-none token → <span class="mono">401/403</span></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="tbl-wrap" style="margin-top:22px;">
+        <table>
+          <thead><tr><th>Check (black-box)</th><th>Before</th><th>After</th></tr></thead>
+          <tbody>
+            <tr><td><span class="mono">query[$ne]=pizza</span></td><td><span class="pill fail">500 / altered</span></td><td><span class="pill pass">400 JSON</span></td></tr>
+            <tr><td><span class="mono">query[$gt] · cuisine[$ne] · location[$regex]=^.*</span></td><td><span class="pill fail">500</span></td><td><span class="pill pass">400 JSON</span></td></tr>
+            <tr><td><span class="mono">(a+)+$</span> catastrophic pattern</td><td><span class="pill fail">hang / blow-up</span></td><td><span class="pill pass">fast, no trace</span></td></tr>
+            <tr><td><span class="mono">limit=999999999</span> unbounded</td><td><span class="pill fail">full collection</span></td><td><span class="pill pass">≤ 100 rows</span></td></tr>
+            <tr><td><span class="mono">Origin: https://evil.example</span></td><td><span class="pill fail">ACAO: * reflected</span></td><td><span class="pill pass">no ACAO header</span></td></tr>
+            <tr><td>Security headers / <span class="mono">X-Powered-By</span></td><td><span class="pill fail">missing / present</span></td><td><span class="pill pass">Helmet on / absent</span></td></tr>
+            <tr><td>Oversized POST body</td><td><span class="pill fail">HTML stack trace</span></td><td><span class="pill pass">413 JSON</span></td></tr>
+            <tr><td>30 rapid requests</td><td><span class="pill fail">no throttle</span></td><td><span class="pill pass">429 JSON</span></td></tr>
+            <tr><td>Notification: no token → spam</td><td><span class="pill fail">200</span></td><td><span class="pill pass">401</span></td></tr>
+            <tr><td>Notification: <span class="mono">alg:none</span> / forged / expired</td><td><span class="pill fail">200</span></td><td><span class="pill pass">401</span></td></tr>
+            <tr><td>Notification: <span class="mono">role:"user"</span></td><td><span class="pill fail">200</span></td><td><span class="pill pass">403</span></td></tr>
+            <tr><td>Notification: disallowed Origin</td><td><span class="pill fail">500</span></td><td><span class="pill pass">403 JSON</span></td></tr>
+            <tr><td>CRLF / HTML customer payloads</td><td><span class="pill fail">raw injection</span></td><td><span class="pill pass">sanitised / 400</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="margin-top:12px;font-size:12.5px;color:var(--muted);">
+        Additional dynamic tooling: <b>k6</b> load scripts (<span class="mono">tests/perf/*.js</span>) reproduced the
+        ~1.7 req/s throughput collapse that motivated rate limiting.
+      </p>
+    </section>
+
+    <!-- WHITE-BOX -->
+    <section id="whitebox" class="reveal">
+      <div class="sec-head"><div class="sec-idx">04</div><div>
+        <h3>White-box (Static) Testing</h3>
+        <small>Source review + Jest unit suites on the internal security logic</small>
+      </div></div>
+
+      <p style="color:var(--muted);font-size:14px;margin-bottom:18px;">
+        File-by-file review first flagged unchecked <span class="mono">req.*</span> usage, missing limits, <span class="mono">any</span>
+        typing and empty-catch paths. Then the unit suites imported the <b>actual internal modules</b>
+        (<span class="mono">sanitize.ts · auth.ts · validation.ts · transport.ts · mailer.ts</span>) and locked the fixes in.
+      </p>
+
+      <div class="compare">
+        <div class="side before">
+          <h5>Before</h5>
+          <ul>
+            <li>search white-box — <b>red</b>: no sanitisation module existed</li>
+            <li>notif white-box — <b>red</b>: no validation/pin/transport modules existed</li>
+          </ul>
+        </div>
+        <div class="arrow">→</div>
+        <div class="side after">
+          <h5>After</h5>
+          <ul>
+            <li><b>6 / 6</b> search — sanitize / pagination / schema</li>
+            <li><b>14 / 14</b> notif — auth pin, validation, mailer</li>
+            <li><span class="mono">tsc --noEmit</span> clean in both</li>
+            <li>ESLint (security + no-unsanitized) clean</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="tbl-wrap" style="margin-top:22px;">
+        <table>
+          <thead><tr><th>White-box coverage</th><th>Result</th></tr></thead>
+          <tbody>
+            <tr><td><span class="mono">sanitizeSearchParam</span> — rejects <span class="mono">{$ne:..}</span>/arrays, regex-escapes, caps at 100</td><td><span class="pill pass">pass</span></td></tr>
+            <tr><td><span class="mono">sanitizePagination</span> — page ≥ 1, limit ∈ [1,100], defaults on junk</td><td><span class="pill pass">pass</span></td></tr>
+            <tr><td><span class="mono">protect()</span> — HS256 pin, required id/role, 401 vs 403, <span class="mono">alg:none</span> rejected</td><td><span class="pill pass">5/5</span></td></tr>
+            <tr><td><span class="mono">validateOrderDetails</span> — type / length / range bounds on every field</td><td><span class="pill pass">pass</span></td></tr>
+            <tr><td><span class="mono">sanitizeEmailField</span> — CR/LF stripped, <span class="mono">\r\nBcc:</span> cannot escape body</td><td><span class="pill pass">pass</span></td></tr>
+            <tr><td><span class="mono">createTransport</span> — mock vs env-only config, no credential literals</td><td><span class="pill pass">pass</span></td></tr>
+            <tr><td><span class="mono">buildEmailMessage</span> — fixed subject/from, header-injection proof</td><td><span class="pill pass">pass</span></td></tr>
+            <tr><td>Mongoose schema invariants (role enum, email unique, required)</td><td><span class="pill pass">pass</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- TOOLING -->
+    <section id="tooling" class="reveal">
+      <div class="sec-head"><div class="sec-idx">05</div><div>
+        <h3>Open-source Tooling Results</h3>
+        <small>SAST · SCA · secrets scanning · linting</small>
+      </div></div>
+      <div class="tool-grid">
+        <div class="tool">
+          <h5><span class="ico">S</span>Semgrep (custom taint rules)</h5>
+          <p><span class="mono">nosql-unsafe-regex-input · jwts-verify-no-algorithm · res-500-with-internals</span></p>
+          <div class="bar"><span data-w="100" style="background:var(--green)"></span></div>
+          <div class="bar-label"><span>Findings eliminated</span><span>3 → 0</span></div>
+        </div>
+        <div class="tool">
+          <h5><span class="ico">A</span>npm audit (SCA)</h5>
+          <p>Dependency advisories in search-service before hardening</p>
+          <div class="bar"><span data-w="100" style="background:var(--green)"></span></div>
+          <div class="bar-label"><span>Vulnerabilities</span><span>11 (7 high) → 0</span></div>
+        </div>
+        <div class="tool">
+          <h5><span class="ico">G</span>gitleaks (secret scanning)</h5>
+          <p>Credential material committed in k8s manifests</p>
+          <div class="bar"><span data-w="81" style="background:var(--orange)"></span></div>
+          <div class="bar-label"><span>Hits</span><span>21 → 17 (all out-of-scope, 0 in scope)</span></div>
+        </div>
+        <div class="tool">
+          <h5><span class="ico">E</span>ESLint security plugins</h5>
+          <p><span class="mono">eslint-plugin-security</span> + <span class="mono">no-unsanitized</span></p>
+          <div class="bar"><span data-w="100" style="background:var(--green)"></span></div>
+          <div class="bar-label"><span>Lint findings</span><span>0</span></div>
+        </div>
+      </div>
+      <p style="margin-top:16px;font-size:12.5px;color:var(--muted);">
+        Evidence JSON committed under <span class="mono">docs/security/evidence/</span>:
+        semgrep before/after ×2, audit-after ×2, gitleaks before/after.
+      </p>
+    </section>
+
+    <!-- NOT FIXED -->
+    <section id="notfixed" class="reveal">
+      <div class="sec-head"><div class="sec-idx">06</div><div>
+        <h3>Identified but Not Fixed</h3>
+        <small>And the honest reasons why</small>
+      </div></div>
+      <details>
+        <summary><span class="nf-id">NF-1</span> Credential rotation for previously committed secrets</summary>
+        <div class="nf-body">
+          The Gmail app password &amp; MongoDB URIs exposed before (SRCH-08 / NOTIF-07) must be <b>rotated/revoked</b>.
+          Not a code fix — an <b>operator action</b>: regenerate the app password and DB access strings and re-inject via a
+          secret manager. Flagged in the manifest comments.
+        </div>
+      </details>
+      <details>
+        <summary><span class="nf-id">NF-2</span> Out-of-scope sibling microservices (17 gitleaks hits remain)</summary>
+        <div class="nf-body">
+          cart / menu / delivery / admin / order / stripe / user manifests still contain real-looking credential material.
+          <b>Out of scope</b> for this contribution (search + notification + frontend). The gitleaks allowlist covers
+          <i>only</i> the two assessed manifests; siblings are a cross-team follow-up.
+        </div>
+      </details>
+      <details>
+        <summary><span class="nf-id">NF-3</span> Dockerfiles run as root / <span class="mono">NODE_ENV=development</span></summary>
+        <div class="nf-body">
+          Semgrep's default rule pack flagged a container without a <span class="mono">USER</span> directive. These are local
+          dev images (<span class="mono">npm run dev</span>), not the deployment path; a production multi-stage image
+          (<span class="mono">USER node</span>) would alter the dev workflow — deferred.
+        </div>
+      </details>
+      <details>
+        <summary><span class="nf-id">NF-4</span> Per-recipient retry queue for e-mail fan-out</summary>
+        <div class="nf-body">
+          Current design counts delivered/failed and fails loudly (<span class="mono">Promise.all</span> one-shot). A durable
+          queue with retries is an <b>architectural change</b> beyond the sandbox requirement — documented follow-up.
+        </div>
+      </details>
+      <details>
+        <summary><span class="nf-id">NF-5</span> Hardening of the other microservices</summary>
+        <div class="nf-body">
+          Rate limiting / CORS / headers / input validation for user, menu, order, etc. are <b>out of scope</b> — a team
+          project where each member owns a subset of services. Listed as cross-team follow-up.
+        </div>
+      </details>
+    </section>
+
+    <!-- BEST PRACTICES -->
+    <section id="bestpractices" class="reveal">
+      <div class="sec-head"><div class="sec-idx">07</div><div>
+        <h3>Best Practices that would have prevented these</h3>
+        <small>Software-engineering process, not just patches</small>
+      </div></div>
+      <div class="bp">
+        <div class="bp-card"><span class="tag">A03</span><div class="bp-num">01</div><h5>Validate input at the boundary</h5><p>Never trust <span class="mono">req.*</span>. Enforce types, lengths and ranges before values reach a DB query or e-mail template.</p></div>
+        <div class="bp-card"><span class="tag">A03</span><div class="bp-num">02</div><h5>Escape before interpolation</h5><p>Regex-escape before <span class="mono">$regex</span>; keep user text out of SMTP headers and templates (fixed subject/from).</p></div>
+        <div class="bp-card"><span class="tag">A01</span><div class="bp-num">03</div><h5>Default-deny everywhere</h5><p>CORS by allow-list, JWT algorithms pinned, roles checked at middleware, secrets referenced by name only.</p></div>
+        <div class="bp-card"><span class="tag">A07</span><div class="bp-num">04</div><h5>Never commit secrets</h5><p>Env / secret-manager / Helm only; a gitleaks pre-commit hook would have blocked SRCH-08 &amp; NOTIF-07 at the gate.</p></div>
+        <div class="bp-card"><span class="tag">A05</span><div class="bp-num">05</div><h5>Bound every resource</h5><p>Pagination caps, recipient caps, rate limits, <span class="mono">maxTimeMS</span> query timeouts.</p></div>
+        <div class="bp-card"><span class="tag">A05</span><div class="bp-num">06</div><h5>Fail loudly, generically to clients</h5><p>Central error handler: static messages out, full details into server logs only.</p></div>
+        <div class="bp-card"><span class="tag">A05</span><div class="bp-num">07</div><h5>Security headers from day one</h5><p>Helmet + disabling <span class="mono">X-Powered-By</span> belong in the first middleware of any Express app.</p></div>
+        <div class="bp-card"><span class="tag">CI/CD</span><div class="bp-num">08</div><h5>SAST + SCA + tests in CI</h5><p>Fail the build on <span class="mono">npm audit</span> &gt; 0, Semgrep/gitleaks findings and black/white-box regressions.</p></div>
+        <div class="bp-card"><span class="tag">Testing</span><div class="bp-num">09</div><h5>Assert secure behaviour</h5><p>Write tests that demand 400-not-500, no reflection and no stack traces, so regressions cannot silently return.</p></div>
+      </div>
+    </section>
+
+    <!-- SUMMARY -->
+    <section id="summary" class="reveal">
+      <div class="sec-head"><div class="sec-idx">08</div><div>
+        <h3>Summary</h3>
+        <small>16/16 fixed, all suites green</small>
+      </div></div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Metric</th><th>Before</th><th>After</th></tr></thead>
+          <tbody>
+            <tr><td>Distinct vulnerabilities (this contribution)</td><td class="muted"><span class="pill fail">16 open</span></td><td><span class="pill pass">0 open in scope</span></td></tr>
+            <tr><td>search-service black-box</td><td class="muted">10 pass / 10 fail</td><td><b>20 / 20</b></td></tr>
+            <tr><td>search-service white-box</td><td class="muted">red</td><td><b>6 / 6</b></td></tr>
+            <tr><td>notification-service black-box</td><td class="muted">15 pass / 2 fail</td><td><b>17 / 17</b></td></tr>
+            <tr><td>notification-service white-box</td><td class="muted">red</td><td><b>14 / 14</b></td></tr>
+            <tr><td><span class="mono">npm audit</span> (search)</td><td class="muted">11 (7 high)</td><td><b>0</b></td></tr>
+            <tr><td><span class="mono">npm audit</span> (notification)</td><td class="muted">0</td><td><b>0</b></td></tr>
+            <tr><td>Semgrep custom taint rules</td><td class="muted">firing</td><td><b>0 findings</b></td></tr>
+            <tr><td>gitleaks in scope</td><td class="muted">4 hits with real creds</td><td><b>0</b></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="margin-top:18px;color:var(--muted);font-size:13.5px;">
+        <b style="color:var(--accent-2);">Next iterations:</b> rotate previously committed credentials · move all
+        k8s Secret creation to Helm / a secret manager · extend the same hardening to the sibling services ·
+        add a CI gate on audit, Semgrep, gitleaks and black-box regressions.
+      </p>
+    </section>
+
+    <footer class="foot">
+      <span>Platoo Food Ordering System · SSD Capstone — Security Hardening Report</span>
+      <span>Branch: <span class="mono">security/search-notification-hardening</span></span>
+    </footer>
+  </main>
+</div>
+
+<script>
+/* ================= FINDINGS DATA (mirrors desima-contribution.md) ================= */
+const FINDINGS = [
+  { id:"SRCH-01", svc:"search", title:"NoSQL operator injection — object values flow into Mongo $regex", cwe:"CWE-943", cvss:"5.3", cv:"med",
+    desc:"An object such as <span class=\"mono\">?query[$ne]=x</span> is parsed by Express/qs into a nested key and reaches <span class=\"mono\">$regex</span> as an operator object, crashing the request (500) or altering query semantics.",
+    how:"Black-box suite drove <span class=\"mono\">query[$ne]</span>, <span class=\"mono\">query[$gt]</span>, <span class=\"mono\">cuisine[$ne]</span>, <span class=\"mono\">location[$regex]=^.*</span> → original code passed objects straight into the query. Semgrep taint rule <span class=\"mono\">nosql-unsafe-regex-input</span> flags the exact pattern.",
+    fix:"New <span class=\"mono\">sanitize.ts</span>: reject non-string values, trim, cap at 100 chars, regex-escape. Controller now passes only sanitised strings into <span class=\"mono\">$regex</span>.",
+    codeBefore:`const { query, location, cuisine } = req.query;
+const searchQuery: any = {};
+if (query) {
+  searchQuery.name = { $regex: query, $options: 'i' }; // object $ne/$gt flows in
+}
+const restaurants = await RestaurantModel.find(searchQuery);`,
+    codeAfter:`const safeQuery    = sanitizeSearchParam(query);
+const safeLocation = sanitizeSearchParam(location);
+const safeCuisine  = sanitizeSearchParam(cuisine);
+if (!safeQuery && !safeLocation && !safeCuisine)
+  return res.status(400).json({ message: 'At least one search parameter is required' });
+...
+searchQuery.name = { $regex: safeQuery, $options: 'i' };
+const restaurants = await RestaurantModel.find(searchQuery)
+  .skip((page-1)*limit).limit(limit).maxTimeMS(2000);`,
+    verify:["Black-box: operator objects → 400 JSON (was 500)","White-box sanitizeSearchParam: objects rejected, metachars escaped, length capped","Semgrep nosql-unsafe-regex-input: 0 findings"] },
+  { id:"SRCH-02", svc:"search", title:"ReDoS — user input placed verbatim into RegExp", cwe:"CWE-1333 / 400", cvss:"5.3", cv:"med",
+    desc:"Patterns like <span class=\"mono\">(a+)+$</span> were injected raw into the regex, enabling catastrophic backtracking; <span class=\"mono\">.*</span> over-matched the whole store.",
+    how:"Black-box ReDoS payload <span class=\"mono\">(a+)+$</span> against the live API; white-box review of query building.",
+    fix:"<span class=\"mono\">escape-string-regexp</span> escapes every metacharacter before the value reaches <span class=\"mono\">$regex</span>.",
+    codeBefore:`searchQuery.name = { $regex: query, $options: 'i' };  // '(a+)+$' stays live`,
+    codeAfter:`export function sanitizeSearchParam(value: unknown): string | null {
+  if (typeof value !== 'string') return null;      // rejects {$ne:..} objects
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return null;
+  return escapeRegex(trimmed.slice(0, MAX_SEARCH_LENGTH)); // ReDoS-safe
+}`,
+    verify:["Black-box: (a+)+$ completes fast, no stack trace","White-box: '(a+)+$.*[x]' → '\\(a\\+\\)\\+\\$\\.\\*\\[x\\]'","tsc / eslint clean"] },
+  { id:"SRCH-03", svc:"search", title:"Unbounded result sets — no pagination cap", cwe:"CWE-770", cvss:"5.3", cv:"med",
+    desc:"The query had no <span class=\"mono\">limit</span>; one request could materialise the entire collection (resource exhaustion).",
+    how:"Code review + black-box <span class=\"mono\">query=.&limit=999999999</span>.",
+    fix:"sanitizePagination clamps page ≥ 1, limit ∈ [1,100]; query bounded with skip/limit and maxTimeMS(2000).",
+    codeBefore:`const restaurants = await RestaurantModel.find(searchQuery); // ALL rows`,
+    codeAfter:`const restaurants = await RestaurantModel.find(searchQuery)
+  .skip((pageInfo.page - 1) * pageInfo.limit)
+  .limit(pageInfo.limit)
+  .maxTimeMS(2000);`,
+    verify:["Black-box: limit=999999999 returns ≤ 100 rows","Negative / non-numeric page handled without 500","White-box sanitizePagination clamps to safe ranges"] },
+  { id:"SRCH-04", svc:"search", title:"No rate limiting on a public API", cwe:"CWE-799 / 770", cvss:"3.1", cv:"low",
+    desc:"The unauthenticated search API was unthrottled — 50 rapid requests collapsed throughput to ~1.7 req/s.",
+    how:"k6 load scripts + raw 30-request burst; black-box 429 assertion.",
+    fix:"express-rate-limit per IP, env-configurable window/limit, standard + legacy headers, JSON 429.",
+    codeBefore:`app.use(cors());
+app.use(express.json());   // no throttle anywhere`,
+    codeAfter:`app.use(rateLimit({
+  windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS || 60_000),
+  limit:    Number(process.env.RATE_LIMIT_MAX || 20),
+  standardHeaders: true, legacyHeaders: true,
+  message: { error: 'Too many requests, please slow down' },
+}));`,
+    verify:["Black-box: RateLimit-* headers present","30 rapid requests → 429 JSON","Load tests document throughput recovery"] },
+  { id:"SRCH-05", svc:"search", title:"Stack traces & internal errors leaked in responses", cwe:"CWE-209 / 200", cvss:"6.5", cv:"high",
+    desc:"Category-search 500s returned <span class=\"mono\">error.response?.data || error.message</span>; Express's default HTML body leaked FS paths (<span class=\"mono\">node_modules</span>, absolute paths).",
+    how:"Black-box oversized-POST returned <span class=\"mono\">PayloadTooLargeError</span> HTML; Semgrep <span class=\"mono\">res-500-with-internals</span> taint rule.",
+    fix:"Bounded body (100kb) + centralised JSON error handler with static messages; details logged server-side only.",
+    codeBefore:`res.status(500).json({ message: 'Internal Server Error', error: error.message });`,
+    codeAfter:`app.use(express.json({ limit: '100kb' }));
+app.use((err, _req, res, _next) => {
+  if (err.type === 'entity.too.large')   return res.status(413).json({ error: 'Request body too large' });
+  if (err.type === 'entity.parse.failed') return res.status(400).json({ error: 'Malformed JSON body' });
+  console.error('[search-service] unhandled error:', err);   // logs only
+  res.status(500).json({ error: 'Internal Server Error' });  // static
+});`,
+    verify:["Black-box: 413 JSON, no 'node_modules' / 'PayloadTooLargeError'","Malformed JSON → 400 JSON","All bodies free of stack traces"] },
+  { id:"SRCH-06", svc:"search", title:"Permissive CORS — wildcard reflection", cwe:"CWE-942 / 346", cvss:"4.3", cv:"med",
+    desc:"<span class=\"mono\">app.use(cors())</span> reflected <span class=\"mono\">Access-Control-Allow-Origin: *</span> — any website could read the responses.",
+    how:"Manual review + black-box <span class=\"mono\">Origin: https://evil.example</span>.",
+    fix:"Allow-list from CLIENT_URL; unknown origins get no ACAO header so browsers block the read.",
+    codeBefore:`app.use(cors());   // ACAO: *`,
+    codeAfter:`const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:3000').split(',').map(s => s.trim());
+app.use(cors({
+  origin(origin, cb) {
+    if (!origin || allowedOrigins.includes(origin)) cb(null, true);
+    else cb(null, false);              // no ACAO header -> browser blocks
+  },
+  methods: ['GET','POST','OPTIONS'],
+}));`,
+    verify:["Black-box: evil Origin not reflected (acao != '*' and != evil)","Preflight for unknown origin does not echo origin"] },
+  { id:"SRCH-07", svc:"search", title:"Missing security headers & X-Powered-By fingerprint", cwe:"CWE-693 / 200", cvss:"3.1", cv:"low",
+    desc:"No CSP / X-Content-Type-Options / X-Frame-Options; <span class=\"mono\">X-Powered-By: Express</span> advertised the framework.",
+    how:"Manual review + black-box header assertions.",
+    fix:"<span class=\"mono\">app.disable('x-powered-by')</span> + <span class=\"mono\">app.use(helmet())</span>.",
+    codeBefore:`const app = express();
+app.use(cors());
+app.use(express.json());`,
+    codeAfter:`app.disable('x-powered-by');
+app.use(helmet());
+app.use(express.json({ limit: '100kb' }));`,
+    verify:["Black-box: CSP, nosniff, X-Frame-Options, Referrer-Policy present","X-Powered-By absent"] },
+  { id:"SRCH-08", svc:"search", title:"Live MongoDB URI committed in k8s Secret", cwe:"CWE-798", cvss:"9.8", cv:"crit",
+    desc:"A real <span class=\"mono\">mongodb+srv://...</span> connection string sat base64-encoded in <span class=\"mono\">backend/k8s/search-service.yaml</span>.",
+    how:"gitleaks scan — kubernetes-secret-yaml heuristic hit decodable to a live URI.",
+    fix:"Replaced encoded data with a stringData placeholder; inject out-of-band and rotate.",
+    codeBefore:`data:
+  mongo-uri: bW9uZ29kYitzcnY6Ly9oMXJ1bmljaGFtYXRoa2EyMzA6...  # live URI`,
+    codeAfter:`stringData:
+  mongo-uri: '<replace-with-rotated-mongo-uri>'`,
+    verify:["gitleaks post-fix: 0 in-scope findings","Rotation flag documented in manifest comment"] },
+  { id:"NOTIF-01", svc:"notif", title:"JWT algorithm confusion + originally unauthenticated endpoint", cwe:"CWE-347", cvss:"3.1", cv:"low",
+    desc:"The route had no auth at all (anyone could trigger e-mails); when added, <span class=\"mono\">jwt.verify</span> had no pinned algorithm — <span class=\"mono\">alg:none</span> / HS-RS confusion possible.",
+    how:"White-box review; black-box alg:none / forged / expired token assertions; Semgrep <span class=\"mono\">jwts-verify-no-algorithm</span>.",
+    fix:"protect() middleware pins <span class=\"mono\">algorithms: ['HS256']</span>, requires id + role ∈ {admin, restaurant_owner}; app fails fast if JWT_SECRET missing.",
+    codeBefore:`router.post('/send-delivery-notification', sendDeliveryNotification); // open
+// jwt.verify(token, secret)  <- algorithm not pinned`,
+    codeAfter:`const decoded = jwt.verify(token, process.env.JWT_SECRET || '', {
+  algorithms: ['HS256'],          // pinned
+}) as jwt.JwtPayload & { id: string; role: string };
+if (!decoded || typeof decoded.id !== 'string' || decoded.id.length === 0
+    || typeof decoded.role !== 'string' || !ALLOWED_ROLES.includes(decoded.role)) {
+  return res.status(403).json({ error: 'Forbidden: Insufficient permissions' });
+}
+router.post('/send-delivery-notification', protect, sendDeliveryNotification);`,
+    verify:["Black-box: no token → 401; role 'user' → 403; forged/expired/alg:none → 401; admin → 200","White-box protect() 5/5","Semgrep jwts-verify-no-algorithm → 0"] },
+  { id:"NOTIF-02", svc:"notif", title:"Unbounded e-mail fan-out + silent SMTP failures as 200", cwe:"CWE-770 / 703", cvss:"5.4", cv:"med",
+    desc:"Every delivery_man got an e-mail with no cap, and all per-recipient failures were only logged — the API still returned <span class=\"mono\">success: true</span>.",
+    how:"Code review: no recipient cap; per-email errors swallowed; controller always 200.",
+    fix:"Recipient cap (MAX_NOTIFICATION_RECIPIENTS=50) with truncation log; delivered/failed counted; zero-delivery throws → 5xx; controller returns a static message.",
+    codeBefore:`const emailPromises = deliveryPersons.map(async (person) => {
+  try { await sendEmail(...); } catch (e) { console.error(...); } // swallowed
+});
+await Promise.all(emailPromises);
+return { success: true, message: 'Notifications sent successfully' };`,
+    codeAfter:`const recipients = deliveryPersons.slice(0, MAX_RECIPIENTS);
+if (deliveryPersons.length > MAX_RECIPIENTS)
+  console.warn('[notification-service] truncated recipients ...');
+let delivered = 0; const failed = recipients.length;
+await Promise.all(recipients.map(async (person) => {
+  if (!person.email) return;
+  try { await sendEmail(...); delivered += 1; }
+  catch (e) { console.error('Error sending delivery notification email:', e); }
+}));
+if (delivered === 0 && failed > 0)
+  throw new Error('Failed to send any notification emails');   // -> 5xx, never fake 200`,
+    verify:["White-box cap/unit suites","Black-box: 200 only on genuinely delivered (mock-transport) send","Controller returns static error string"] },
+  { id:"NOTIF-03", svc:"notif", title:"Monolithic per-IP limiter throttled all users", cwe:"CWE-799 / 770", cvss:"5.3", cv:"med",
+    desc:"A single in-memory Map shared one hard-coded 10/min budget across every localhost client — one abuser (or burst) throttled the frontend and everyone else.",
+    how:"Review of the Map-based limiter + observed cross-tenant throttling; black-box 429 assertion.",
+    fix:"express-rate-limit keyed by IP + decoded user id, env-configurable, IPv4-mapped-IPv6 keys normalised.",
+    codeBefore:`// in-memory Map per IP, shared budget, hard-coded 10/min, keyed on IP only`,
+    codeAfter:`const keyGenerator = (req) => {
+  const ip = (req.ip || req.socket.remoteAddress || 'unknown').replace(/^::ffff:/, '');
+  const token = (req.headers.authorization || '').replace(/^Bearer /, '');
+  try {
+    const d = jwt.decode(token);
+    if (d && typeof d.id === 'string' && d.id.length) return ip + ':' + d.id;
+  } catch { /* IP-only */ }
+  return ip;
+};
+export const rateLimiter = rateLimit({
+  windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS || 60_000),
+  limit: Number(process.env.RATE_LIMIT_MAX || 25),
+  keyGenerator, standardHeaders: true, legacyHeaders: true,
+  message: { error: 'Too many requests, please slow down' },
+});`,
+    verify:["Black-box: JSON 429 with standard headers","IPv6 key normalisation covered in white-box","Rate-limit params env-configurable"] },
+  { id:"NOTIF-04", svc:"notif", title:"Disallowed CORS Origin surfaced as 500", cwe:"CWE-346 / 200", cvss:"4.3", cv:"med",
+    desc:"A refused Origin fell into the generic error path and returned a 500 (volatile, malformed error).",
+    how:"Black-box <span class=\"mono\">Origin: https://evil.example</span> POST → observed 500.",
+    fix:"CORS error routed to a dedicated handler returning clean 403 JSON, still without reflecting the origin.",
+    codeBefore:`// cors() error fell through to the default handler -> 500`,
+    codeAfter:`app.use((err, _req, res, _next) => {
+  if (err instanceof Error && err.message === 'Not allowed by CORS')
+    return res.status(403).json({ error: 'Origin not allowed' });  // clean 403
+  res.status(500).json({ error: 'Internal Server Error' });
+});`,
+    verify:["Black-box: disallowed origin → 403 JSON (never 500)","Offending origin not reflected in response"] },
+  { id:"NOTIF-05", svc:"notif", title:"CRLF / HTML injection into e-mails", cwe:"CWE-80 / 93", cvss:"4.3", cv:"med",
+    desc:"<span class=\"mono\">orderDetails.customer.name/address</span> were embedded verbatim — <span class=\"mono\">\\r\\nBcc: attacker@...</span> header injection or scripted body content.",
+    how:"Code review of the template + black-box payloads <span class=\"mono\">\\r\\nBcc:...\\r\\nX-Evil: 1</span> and <span class=\"mono\">&lt;img onerror=alert(1)&gt;</span>.",
+    fix:"validateOrderDetails bounds every field; sanitizeEmailField strips CR/LF; buildEmailMessage uses a fixed subject/from with user text confined to the plain-text body.",
+    codeBefore:`const emailContent = \`
+  New Order Details:
+  Order ID: \${orderDetails.id}
+  Customer: \${orderDetails.customer.name}   // raw -> header injection
+  Address: \${orderDetails.customer.address}\`;`,
+    codeAfter:`export const sanitizeEmailField = (value: string): string =>
+  value.replace(/[\\r\\n]+/g, (m) => (m.includes('\\r') ? '' : ' '));
+
+const message = buildEmailMessage(
+  orderDetails.id,
+  sanitizeEmailField(orderDetails.customer.name),
+  sanitizeEmailField(orderDetails.customer.address),
+  orderDetails.total
+);
+// subject/from are fixed strings; user text only in the text body`,
+    verify:["White-box: 'Alice\\r\\nBcc:...' → 'AliceBcc:...'","Black-box: CRLF / HTML payloads cannot escape the JSON contract","Fixed subject/from verified in unit suite"] },
+  { id:"NOTIF-06", svc:"notif", title:"Hard-coded Gmail transport + credentials", cwe:"CWE-547", cvss:"4.3", cv:"med",
+    desc:"<span class=\"mono\">nodemailer.createTransport({ service: 'gmail', auth: {...} })</span> — a fixed Gmail service with no injection point and no sandbox for tests.",
+    how:"Source review of <span class=\"mono\">src/utils/mailer.ts</span>.",
+    fix:"Injectable createTransport() factory — env/options only, no literals; lazy creation; <span class=\"mono\">SMTP_TRANSPORT=mock</span> gives a JSON transport for dev/CI (the assignment's sandbox/mock-e-mail requirement).",
+    codeBefore:`const transporter = nodemailer.createTransport({
+  service: 'gmail',            // hard-coded
+  auth: { user: EMAIL_USER, pass: EMAIL_PASS },
+});`,
+    codeAfter:`export const createTransport = (opts: SmtpOptions = {}): Transporter => {
+  if (opts.verbose || process.env.SMTP_TRANSPORT === 'mock')
+    return nodemailer.createTransport({ jsonTransport: true });  // sandbox
+  const host = opts.host || process.env.SMTP_HOST || 'smtp.ethereal.email';
+  const port = Number(opts.port || process.env.SMTP_PORT || 587);
+  const auth = opts.auth || (process.env.EMAIL_USER && process.env.EMAIL_PASS
+      ? { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS } : undefined);
+  return nodemailer.createTransport({ host, port, secure: opts.secure ?? false, auth });
+};`,
+    verify:["White-box createTransport({verbose:true}) → JSON transport","No credential literals anywhere in source","Lazy transport sees dotenv output"] },
+  { id:"NOTIF-07", svc:"notif", title:"Gmail app password + MongoDB URI in k8s Secret", cwe:"CWE-798", cvss:"9.8", cv:"crit",
+    desc:"Real base64 <span class=\"mono\">mongo-uri</span>, <span class=\"mono\">email-user</span> and <span class=\"mono\">email-pass</span> (a Gmail app password) committed to the manifest.",
+    how:"gitleaks — kubernetes-secret-yaml / generic-api-key hits; decode confirmed live credentials.",
+    fix:"data + base64 replaced by stringData placeholders; real app password must be rotated.",
+    codeBefore:`data:
+  mongo-uri: bW9uZ29kYitzcnY6Ly9rYXdlZXNoYW5ldGg6...  # live URI
+  email-user: aDFydW5pY2hhbWF0aGthMjMwQGdtYWlsLmNvbQ==
+  email-pass: Z3F2cCB5ZXFpIHZwZG4gZ3FpaQ==          # app password`,
+    codeAfter:`stringData:
+  mongo-uri:  '<replace-with-rotated-mongo-uri>'
+  email-user: '<replace-with-mailbox-user>'
+  email-pass: '<replace-with-app-password>'`,
+    verify:["gitleaks post-fix: 0 in-scope findings","Rotation documented for the exposed app password"] },
+  { id:"F-01", svc:"front", title:"Frontend 4006 call missing Authorization header", cwe:"CWE-306", cvss:"—", cv:"med",
+    desc:"The restaurant-orders page POSTed the notification API with only Content-Type; after NOTIF-01 the feature silently returned 401 (broken flow + unreachable API).",
+    how:"Functional pass of the restaurant-orders flow against the new auth contract.",
+    fix:"Attach the same Bearer token used across the app to the 4006 POST.",
+    codeBefore:`headers: { "Content-Type": "application/json" }`,
+    codeAfter:`headers: {
+  "Content-Type": "application/json",
+  Authorization: \`Bearer \${localStorage.getItem("jwtToken") || ""}\`,
+}`,
+    verify:["Manual E2E: restaurant owner triggers a delivery notification","Black-box suite verifies server rejects unauthenticated calls"] }
+];
+
+const SERVICES = { search:"search", notif:"notif", front:"front" };
+
+/* ================= RENDERING ================= */
+const $ = (id) => document.getElementById(id);
+const servLabel = { search:["search-service","search"], notif:["notification-service","notif"], front:["frontend","front"] };
+
+function cvssClass(cv) { return cv; }
+
+function renderChips() {
+  const chips = [
+    { key:"all", label:"All" },
+    { key:"search", label:"Search (8)" },
+    { key:"notif", label:"Notification (7)" },
+    { key:"front", label:"Frontend (1)" },
+    { key:"crit", label:"Critical / High" },
+  ];
+  $("chips").innerHTML = chips.map(c =>
+    `<button class="chip${c.key==="all"?" on":""}" data-k="${c.key}">${c.label}</button>`).join("");
+  $("chips").addEventListener("click", (e) => {
+    const b = e.target.closest(".chip"); if (!b) return;
+    document.querySelectorAll("#chips .chip").forEach(x => x.classList.remove("on"));
+    b.classList.add("on");
+    render();
+  });
+}
+
+function render() {
+  const active = document.querySelector("#chips .chip.on")?.dataset.k || "all";
+  const q = ($("q").value || "").toLowerCase().trim();
+  const list = FINDINGS.filter(f => {
+    const svcOK = active === "all" ? true
+      : active === "crit" ? (f.cv === "crit" || f.cv === "high")
+      : f.svc === active;
+    if (!svcOK) return false;
+    if (!q) return true;
+    return (f.id + " " + f.title + " " + f.cwe + " " + f.cvss + " " +
+            ["NoSQL","ReDoS","rate","CORS","JWT","e-mail","secret","CRLF","header","pagination"].join(" "))
+           .toLowerCase().includes(q);
+  });
+  $("count16").textContent = list.length;
+  $("findings").innerHTML = list.map(f => `
+    <div class="finding reveal in" data-id="${f.id}">
+      <div class="f-head" onclick="this.parentElement.classList.toggle('open')">
+        <span class="f-id">${f.id}</span>
+        <span class="f-title">${f.title}</span>
+        <span class="f-svc ${f.svc}">${servLabel[f.svc][0]}</span>
+        <span class="f-badges">
+          <span class="badge cwe">${f.cwe}</span>
+          <span class="badge cvss ${cvssClass(f.cv)}">CVSS ${f.cvss}</span>
+        </span>
+        <span class="f-chev">▾</span>
+      </div>
+      <div class="f-body">
+        <div class="f-grid">
+          <div class="f-block">
+            <h5><span class="dot"></span>Vulnerability</h5>
+            <p>${f.desc}</p>
+          </div>
+          <div class="f-block">
+            <h5><span class="dot"></span>How it was found</h5>
+            <p>${f.how}</p>
+          </div>
+          <div class="f-block" style="grid-column:1 / -1">
+            <h5><span class="dot"></span>Fix</h5>
+            <p>${f.fix}</p>
+            <div class="code-wrap" style="margin-top:12px">
+              <div class="code-tabs">
+                <button class="code-tab before on" onclick="swapCode(this)">before</button>
+                <button class="code-tab after" onclick="swapCode(this)">after</button>
+              </div>
+              <pre class="panel-before">${esc(f.codeBefore)}</pre>
+              <pre class="panel-after" style="display:none">${esc(f.codeAfter)}</pre>
+            </div>
+          </div>
+          <div class="f-block" style="grid-column:1 / -1">
+            <h5><span class="dot"></span>Verification</h5>
+            <ul class="check-list">${f.verify.map(v => `<li>${v}</li>`).join("")}</ul>
+          </div>
+        </div>
+      </div>
+    </div>`).join("") || `<p style="color:var(--muted);padding:20px;">No findings match your filter / search.</p>`;
+}
+
+function esc(s) {
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+function swapCode(btn) {
+  const wrap = btn.closest(".code-wrap");
+  wrap.querySelectorAll(".code-tab").forEach(t => t.classList.remove("on"));
+  btn.classList.add("on");
+  const isAfter = btn.classList.contains("after");
+  wrap.querySelector(".panel-before").style.display = isAfter ? "none" : "";
+  wrap.querySelector(".panel-after").style.display  = isAfter ? "" : "none";
+}
+
+/* ================= SIDEBAR / NAV ================= */
+function toggleSidebar(show) {
+  document.getElementById("sidebar").classList.toggle("show", show);
+  document.querySelector(".overlay").classList.toggle("show", show);
+}
+document.getElementById("nav").addEventListener("click", (e) => {
+  const a = e.target.closest("a"); if (!a) return;
+  document.getElementById("nav").querySelectorAll("a").forEach(x => x.classList.remove("active"));
+  a.classList.add("active");
+  toggleSidebar(false);
+});
+const sections = [...document.querySelectorAll("main section")];
+window.addEventListener("scroll", () => {
+  const y = window.scrollY + 120;
+  let cur = 0;
+  sections.forEach((s, i) => { if (s.offsetTop <= y) cur = i; });
+  const links = document.querySelectorAll("#nav a");
+  links.forEach(l => l.classList.remove("active"));
+  links[cur] && links[cur].classList.add("active");
+}, { passive:true });
+
+/* ================= ANIMATIONS ================= */
+function reveal(el) { el.classList.add("in"); }
+const io = new IntersectionObserver((es) => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }), { threshold:.12 });
+document.querySelectorAll(".reveal").forEach(el => io.observe(el));
+
+function countUp(el) {
+  if (!el.dataset.count) return;
+  const target = +el.dataset.count; const dur = 900; const t0 = performance.now();
+  const step = (t) => {
+    const p = Math.min(1, (t - t0) / dur);
+    el.textContent = Math.round(target * (1 - Math.pow(1 - p, 3)));
+    if (p < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+const cio = new IntersectionObserver((es) => es.forEach(e => { if (e.isIntersecting) { countUp(e.target); cio.unobserve(e.target); } }), { threshold:.5 });
+document.querySelectorAll(".stat .val[data-count]").forEach(el => cio.observe(el));
+
+/* bars */
+const bio = new IntersectionObserver((es) => es.forEach(e => {
+  if (e.isIntersecting) { e.target.style.width = (e.target.dataset.w||0) + "%"; bio.unobserve(e.target); }
+}), { threshold:.4 });
+document.querySelectorAll(".bar span").forEach(el => bio.observe(el));
+
+/* init */
+$("q").addEventListener("input", render);
+renderChips();
+</script>
+</body>
+</html>
