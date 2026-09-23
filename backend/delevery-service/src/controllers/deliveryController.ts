@@ -8,7 +8,8 @@ export class DeliveryController {
       const delivery = await DeliveryService.createDelivery(req.body);
       res.status(201).json(delivery);
     } catch (error) {
-      res.status(400).json({ message: "Failed to create delivery", error });
+      console.error("createDelivery failed:", error);
+      res.status(400).json({ message: "Failed to create delivery" });
     }
   }
 
@@ -17,7 +18,8 @@ export class DeliveryController {
       const deliveries = await DeliveryService.getAllDeliveries();
       res.status(200).json(deliveries);
     } catch (error) {
-      res.status(400).json({ message: "Failed to fetch deliveries", error });
+      console.error("getAllDeliveries failed:", error);
+      res.status(400).json({ message: "Failed to fetch deliveries" });
     }
   }
 
@@ -28,7 +30,8 @@ export class DeliveryController {
       const deliveries = await DeliveryService.getDeliveriesByDriver(driverId);
       res.status(200).json(deliveries);
     } catch (error) {
-      res.status(400).json({ message: "Failed to fetch driver deliveries", error });
+      console.error("getDeliveriesByDriver failed:", error);
+      res.status(400).json({ message: "Failed to fetch driver deliveries" });
     }
   }
 
@@ -39,7 +42,8 @@ export class DeliveryController {
       const deliveries = await DeliveryService.getCompletedDeliveriesByDriver(driverId);
       res.status(200).json(deliveries);
     } catch (error) {
-      res.status(400).json({ message: "Failed to fetch completed deliveries", error });
+      console.error("getCompletedDeliveriesByDriver failed:", error);
+      res.status(400).json({ message: "Failed to fetch completed deliveries" });
     }
   }
 
@@ -48,7 +52,8 @@ export class DeliveryController {
       const deliveries = await DeliveryService.getUnassignedDeliveries();
       res.status(200).json(deliveries);
     } catch (error) {
-      res.status(400).json({ message: "Failed to fetch unassigned deliveries", error });
+      console.error("getUnassignedDeliveries failed:", error);
+      res.status(400).json({ message: "Failed to fetch unassigned deliveries" });
     }
   }
 
@@ -62,7 +67,8 @@ export class DeliveryController {
         res.status(404).json({ message: "No active delivery" });
       }
     } catch (error) {
-      res.status(400).json({ message: "Failed to fetch assigned delivery", error });
+      console.error("getAssignedDelivery failed:", error);
+      res.status(400).json({ message: "Failed to fetch assigned delivery" });
     }
   }
 
@@ -82,7 +88,8 @@ export class DeliveryController {
         res.status(404).json({ message: "Delivery not found" });
       }
     } catch (error) {
-      res.status(400).json({ message: "Failed to delete delivery", error });
+      console.error("deleteDelivery failed:", error);
+      res.status(400).json({ message: "Failed to delete delivery" });
     }
   }
 }
