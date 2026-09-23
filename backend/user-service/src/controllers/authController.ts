@@ -3,6 +3,8 @@ import User, { UserRole } from "../models/User";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { AuthRequest } from "../middleware/authMiddleware";  // Ensure this is correct
+import { hashToken } from "../middleware/authMiddleware";
+import TokenBlacklist from "../models/TokenBlacklist";
 import mongoose from "mongoose";
 import { OAuth2Client } from "google-auth-library";
 
@@ -344,6 +346,32 @@ export const getRestaurantOwnerByIdPublic = async (req: Request, res: Response):
   } catch (error) {
     console.error("Error fetching restaurant owner:", error);
     res.status(500).json({ msg: "Unable to fetch restaurant owner" });
+  }
+};
+
+// Revoke the presented JWT server-side. The caller must be authenticated (the
+// route is protected); revoking a token merely records its fingerprint with a
+// 1-day TTL and is idempotent, so it also covers "logout from another device".
+export const logout = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const raw = req.headers.authorization;
+    const token = typeof raw === "string" ? raw.split(" ")[1] : undefined;
+
+    if (!token) {
+      res.status(401).json({ msg: "Unauthorized: No token provided" });
+      return;
+    }
+
+    await TokenBlacklist.findOneAndUpdate(
+      { tokenHash: hashToken(token) },
+      { $setOnInsert: { tokenHash: hashToken(token), expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) } },
+      { upsert: true, new: true }
+    );
+
+    res.status(200).json({ msg: "Logged out" });
+  } catch (error) {
+    console.error("Error during logout:", error);
+    res.status(500).json({ msg: "Error during logout" });
   }
 };
 

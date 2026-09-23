@@ -204,9 +204,30 @@ export class OrderService {
     }
   }
 
-  // Get all orders (privileged roles only — route-level gate)
-  static async getAllOrders() {
-    return await Order.find();
+  // Get all orders (privileged roles only). `filter` is optional and is built
+  // server-side by the controller from the caller's role — never from raw
+  // client input (beyond the validated `restaurant_id` query parameter).
+  static async getAllOrders(filter?: Record<string, unknown>) {
+    return await Order.find(filter ?? {});
+  }
+
+  // Resolve the restaurant ids owned by an owner. The menu service exposes
+  // owner_id on every restaurant record, so the mapping is derived from the
+  // public restaurant list.
+  static async getRestaurantsByOwnerId(ownerId: string): Promise<string[]> {
+    try {
+      const resp = await axios.get(`${this.getMenuServiceUrl()}/api/restaurants`, {
+        timeout: 5000,
+      });
+      const restaurants: unknown[] = Array.isArray(resp.data) ? resp.data : [];
+      return restaurants
+        .filter((r) => (r as Record<string, unknown>).owner_id === ownerId)
+        .map((r) => String((r as Record<string, unknown>)._id))
+        .filter(Boolean);
+    } catch (error) {
+      console.error('Restaurant list lookup failed:', error);
+      return [];
+    }
   }
 
   // Get an order by its ID (either Mongo ObjectId or custom order_id)

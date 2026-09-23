@@ -37,7 +37,7 @@ export interface AuthRequest extends Request {
  */
 export const protect =
   (roles?: UserRole[]) =>
-  (req: AuthRequest, res: Response, next: NextFunction): void => {
+  async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
     // Trusted service-to-service call.
     if (
       process.env.INTERNAL_SERVICE_KEY &&
@@ -63,6 +63,29 @@ export const protect =
       if (roles && !roles.includes(decoded.role)) {
         res.status(403).json({ message: 'Forbidden: Insufficient permissions' });
         return;
+      }
+
+      // V-14: when JWT_INTROSPECT_URL is set, confirm server-side that the token
+      // has not been revoked (e.g. by logout) before accepting it. The identity
+      // plane is user-service; a lookup failure fails closed so revocation can
+      // never be bypassed. Left unset, verification degrades to local verify
+      // only (good enough for offline/standalone runs).
+      const introspectUrl = process.env.JWT_INTROSPECT_URL;
+      if (introspectUrl) {
+        try {
+          const probe = await fetch(`${introspectUrl}/api/auth/verify`, {
+            headers: { Authorization: `Bearer ${token}` },
+            cache: 'no-store',
+          });
+          if (!probe.ok) {
+            res.status(401).json({ message: 'Unauthorized: Token revoked' });
+            return;
+          }
+        } catch (error) {
+          console.error('[order-service] token introspection failed:', error);
+          res.status(401).json({ message: 'Unauthorized: Token revoked' });
+          return;
+        }
       }
 
       req.user = decoded;

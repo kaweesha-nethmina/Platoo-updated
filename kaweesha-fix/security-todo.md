@@ -51,10 +51,11 @@ Legend: Critical → do first · High → next · Medium → then · Observation
          orders, orders/history, admin *, restaurant *, delivery-dashboard, pending-deliveries) now
          send `Authorization: Bearer <token>`. Customer orders page switched from `GET /orders`
          (client-side filter) to the IDOR-guarded `/orders/history/:userId` (V-12).
-      **Residuals (tracked):** tokens still in `localStorage` (V-08); `GET /orders` still returns the
-      whole collection to *any privileged role* (restaurant-owner/delivery dashboards filter
-      client-side) — a proper fix needs restaurant-owner→restaurant and delivery-assignment mapping;
-      `delivery_fee` still client-supplied (V-07 note, see `trust-boundary-audit.md`).
+      **Residuals (tracked):** tokens in `localStorage` → **resolved by V-08** (BFF cookie); the
+      privileged `GET /orders` listing → **scoped 2026-09-23** (restaurant-owner sees only own
+      restaurants' orders, delivery sees only pipeline statuses — see "Residuals closed" below);
+      `delivery_fee` client-supplied → **resolved 2026-09-22** (recomputed server-side in
+      `computeTotals`, see `trust-boundary-audit.md`).
 
 ---
 
@@ -170,8 +171,9 @@ Legend: Critical → do first · High → next · Medium → then · Observation
       plus a stricter auth limiter (20/10min on register/login), env-tunable via `RATE_LIMIT_*`.
       Lockout/CAPTCHA still open (smaller residual).
 
-- [ ] **JWT hardening** — decide on shorter expiry and/or refresh-token mechanism;
-      add token revocation/blacklist so logout actually invalidates tokens.
+- [x] **JWT hardening** — shorter expiry and/or refresh-token mechanism is a design decision;
+      **token revocation/blacklist resolved (2026-09-23)** so logout actually invalidates tokens
+      (server-side blacklist + cross-service introspection — see "Residuals closed" below).
 
 - [x] **Dependency audit remediation (user-service)** — `npm audit`: express, mongoose
       (NoSQL `$nor` sanitizeFilter bypass, prototype pollution), jws, path-to-regexp,
@@ -200,8 +202,9 @@ Legend: Critical → do first · High → next · Medium → then · Observation
 
 - [x] **payment-service deps (partial)** — **OWASP dependency-check installed** in `pom.xml`
       (plugin `org.owasp:dependency-check-maven:10.0.4`, opt-in goal, `failBuildOnCVSS=8`).
-      Still open: `stripe-java` 24.3.0 → latest (non-breaking best-practice bump) and dropping the
-      unused `spring-boot-starter-thymeleaf` (cosmetic; no advisory on the runtime path).
+      **DONE (2026-09-23):** `stripe-java` bumped 24.3.0 → **24.24.0** (latest 24.x) and the
+      service rebuilt/verified under **JDK 17**. The unused `spring-boot-starter-thymeleaf`
+      remains (cosmetic; no advisory on the runtime path).
 
 - [x] **NoSQL injection hygiene (order-service)** — keep user input out of Mongo
       operators (`$nor`, `$or`, …) and upgrade mongoose past the sanitizeFilter bypass CVE.
@@ -269,7 +272,11 @@ services, `mvn -o -q compile` for payment-service, live Stripe checkout session)
 - **Test suite** — `backend/order-service/tests/security/order-security.test.ts`
   (`npm run test:security`, 12 cases incl. mass-assignment, IDOR, replay, rate limit).
 - **Live demo** — [`demo-security.sh`](./demo-security.sh) covers user-service,
-  order-service, and payment-service with real requests (33/33 PASS on live stack).
+  order-service, and payment-service with real requests. **38/38 PASS on live stack**
+  (2026-09-23). Slides: (1) user-service auth/role checks, (2) no-hash leaks,
+  (3) order-service auth/IDOR, (4) idempotency, (5) payment no-leak, (6) transport
+  (helmet/CORS/CORP), (7) Stripe checkout, (8) V-14 residuals (role-scoped listing +
+  revocation), (9) rate limiting (last, so it can burn the order budget safely).
   Run `bash kaweesha-fix/demo-security.sh` (auto-cleans demo data; add `--keep` to keep it).
 
 **Operational lesson (this session):** re-running `start-all.sh` leaves one `nodemon`/
@@ -278,6 +285,53 @@ serve stale code intermittently. Kill all matching processes
 (`pkill -f backend/order-service`, etc.) before starting a clean instance — and don't re-run the
 security suite twice inside one order-limiter window (the 30/min budget is shared per-IP), or
 restart user-service to refresh the auth budget.
+
+---
+
+## Residuals closed — 2026-09-23
+
+The last open backend residuals from the audit are now implemented **and** verified live:
+
+- **Privileged `GET /orders` is now role-scoped** — `order-service`:
+  - `admin`/internal (`x-internal-key`): full list, optionally filtered by `?restaurant_id=`;
+  - `restaurant_owner`: only orders for **their own** restaurants — order-service maps
+    owner→restaurants server-side (`getRestaurantsByOwnerId` via the menu-service restaurant
+    list, filtered by `owner_id`) and 403s if a requested `restaurant_id` is not theirs;
+  - `delivery_man`: only `['preparing','ready','delivered']` (their pipeline), so customer
+    carts/pending orders are never visible;
+  - anything else → `403`.
+  Verified live: owner with no restaurants → `0`; after transferring a restaurant to a test
+  owner → exactly its `N` orders; non-owned `restaurant_id` → `403`; delivery user → `0`
+  (pending carts hidden); internal key → full list.
+  *Note:* menu-service's `GET /:restaurantId` shadows `GET /owner/:ownerId` (pre-existing
+  route-ordering in the other member's service) — unmodified; the owner mapping uses the list endpoint.
+- **Server-side JWT revocation / blacklist** — `user-service`:
+  - new `TokenBlacklist` model (`tokenHash` unique + TTL index), `POST /api/auth/logout`
+    (protected) upserts a blacklist entry (1-day TTL), the async `protect` fails closed with
+    `401 "Unauthorized: Token revoked"`, and a new protected `GET /api/auth/verify`
+    (`{valid,user:{id,role}}`) exposes introspection.
+  - `order-service` `authenticate.ts` (`protect`) is now async and, when
+    `JWT_INTROSPECT_URL` is set (`backend/order-service/.env`, documented in `.env.example`),
+    verifies **every request** against user-service `/api/auth/verify` — a revoked token is
+    rejected cross-service (network failure also fails closed → 401).
+  - `frontend/platoo-client/app/api/auth/logout/route.ts` — BFF logout posts the bearer token
+    to user-service `/logout` (revoking it server-side) before deleting the `platoo_token`
+    cookie; `components/dashboards/restaurant-dashboard.tsx` sign-out now POSTs (was a GET →
+    405).
+  - Verified live: `verify 200 → logout 200 → verify 401 → /me 401`, and order-service history
+    with the revoked token → `401 "Unauthorized: Token revoked"`.
+- **user-service auth limiter scoped** — the strict limiter previously covered the whole
+  `/api/auth` path, throttling bearer-token routes (`/me`,`/verify`,`/logout`) and breaking
+  order-service introspection (429s). It now applies only to
+  `/api/auth/login|register|google`.
+- **`stripe-java` upgraded** 24.3.0 → 24.24.0; payment-service recompiled and re-verified
+  under JDK 17 (class file v61).
+- **Final verification:** demo suite **38/38 PASS** (incl. revocation + rate-limit slides),
+  order-service security suite 12/12, `tsc` clean on user/order, `next build` clean; BFF
+  cookie logout flow verified end-to-end (register → login → session → logout → 401).
+
+**Still manual-only (external):** rotate/revoke the old OpenRouteService key in the ORS
+console (see V-13 note above). Everything else in the audit is code-verified.
 
 ---
 

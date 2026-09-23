@@ -6,7 +6,7 @@
 
 This document is the individual write-up behind the group report. It follows the assignment requirements: how vulnerabilities were **identified** (white-box and black-box), **how they were fixed**, the **OAuth / OpenID Connect feature** implemented, what was **not fixed and why**, and the **software-engineering practices** that would have prevented the issues.
 
-> Companion documents: [`vulnerability-assessment.md`](./vulnerability-assessment.md) (findings + black-box evidence), [`fixed-vulnerability.md`](./fixed-vulnerability.md) and the interactive [`fixed-vulnerability.html`](fixed-vulnerability.html) (fix details), [`demo-security.sh`](./demo-security.sh) (live exploit/fix demo, 33/33 PASS).
+> Companion documents: [`vulnerability-assessment.md`](./vulnerability-assessment.md) (findings + black-box evidence), [`fixed-vulnerability.md`](./fixed-vulnerability.md) and the interactive [`fixed-vulnerability.html`](fixed-vulnerability.html) (fix details), [`demo-security.sh`](./demo-security.sh) (live exploit/fix demo, 38/38 PASS).
 
 ---
 
@@ -40,7 +40,7 @@ This document is the individual write-up behind the group report. It follows the
 |---|---|
 | Manual `curl` exploit probes against the **live** services on ports 4000 (user) and 3008 (order) | **BB-01…BB-11** — 8 of the 12 findings independently confirmed exploitable at runtime (see assessment §6), e.g. `role:"admin"` registration produced a real admin JWT, `/api/auth/users` returned bcrypt hashes to anonymous callers, `GET /api/orders` returned the whole collection with no token |
 | Automated regression suite `backend/order-service/tests/security/order-security.test.ts` | **12/12 PASS** covering 401, server-side totals, mass-assignment 400, IDOR, invalid qty, NoSQL id injection, forbidden fields, no error leakage, XSS-safe storage, 404, idempotent replay, rate limit |
-| `kaweesha-fix/demo-security.sh` — a self-contained live demo harness | Runs the whole assignment story against the **real** services in real time: **33/33 PASS** (user + order + payment + transport) |
+| `kaweesha-fix/demo-security.sh` — a self-contained live demo harness | Runs the whole assignment story against the **real** services in real time: **38/38 PASS** (user + order + payment + transport + V-14 residuals + rate limit) |
 | CORS / preflight checks with hostile `Origin: https://evil.example.com` | Confirmed V-10 before, then confirmed rejection after fix |
 | OWASP Top 10 (2021) mapping | Every finding labelled with category (A01, A02, A03, A04, A05, A07) in the assessment report |
 
@@ -100,7 +100,7 @@ A new **Google Sign-In** feature was added to the existing login flow — this i
 `bash kaweesha-fix/demo-security.sh` drives the **real** services (user-service :4000, order-service :3008, payment-service :8081, Stripe Test mode) and proves fix → exploit → fixed:
 
 ```
-PASS 33   SKIP 0   FAIL 0   total 33
+PASS 38   SKIP 0   FAIL 0   total 38
 ```
 - user-service: weak password → 400 · malformed email → 400 · claimed `role:admin` downgraded to `user` · login → real JWT · duplicate email → **409** · wrong password → 401 generic · `/users` → 401/403 by role · profile/owner responses contain **no** `password`/`googleId`
 - order-service: forged order fields → 400 · client `price` ignored (total recomputed from live menu: **1496**) · ownership from JWT · 401/403 + IDOR blocked · idempotency replay → same order · 30/min throttle → 429
@@ -115,7 +115,11 @@ The harness then **cleans up after itself** (deletes demo users and orders; wait
   **no** inline `Authorization: Bearer`, **no** `jwtDecode`/`atob` in client code.
 - Dependencies: `npm audit` → **0 vulnerabilities** (user-service & order-service).
 - NoSQL hygiene: `rejectNoSqlOperators` middleware active on every order/user route.
-- Payment: `dependency-check-maven` wired; `mvn validate` passes.
+- Payment: `dependency-check-maven` wired; `mvn validate` passes; `stripe-java` 24.24.0 (JDK 17).
+- **Role-scoped `GET /orders` + server-side JWT revocation (§6 residuals) now closed** — demo
+  slide 8 verifies both live: delivery user sees no customer carts; `verify 200 → logout 200 →
+  verify/me 401`; order-service rejects the revoked token (`401 "Unauthorized: Token revoked"`)
+  via `JWT_INTROSPECT_URL` introspection. auth limiter scoped to login/register/google only.
 
 `npx tsc --noEmit` passes for user-service and order-service after all changes (menu-service
 unchanged, still passes).
@@ -133,13 +137,18 @@ Items from the assessment's "not-fixed" list that **have now been fixed** (and h
   dot-notation keys, and `$`-prefixed values on every order- and user-service route.
 - **Old OpenRouteService key** → removed from code/bundle; the **manual** revocation in the
   OpenRouteService console remains a user action outside the repo.
+- **Privileged `GET /orders` returned all orders to every privileged role** → now role-scoped
+  server-side (2026-09-23): restaurant-owner resolves their restaurants via the menu-service
+  list; delivery sees only pipeline statuses; non-owned `restaurant_id` → 403.
+- **JWT revocation/refresh** → server-side blacklist shipped (2026-09-23): `TokenBlacklist`
+  model + `POST /api/auth/logout` + `GET /api/auth/verify`; order-service introspects every
+  request (`JWT_INTROSPECT_URL`, fail-closed). Shorter expiry/refresh tokens remain a design choice.
+- **`stripe-java` 24.3.0** → **24.24.0**, rebuilt and running under JDK 17.
 
 | Item | Why still open |
 |---|---|
-| Privileged `GET /orders` returns all orders to every admin/restaurant-owner/delivery person | Proper scoping needs restaurant-owner→restaurant and delivery-man→assignment mappings (group scope, requires the menu-service member's data model). |
-| JWT revocation/refresh | Tokens are 1-day with no server-side blacklist. Logout clears the cookie; a full revocation store was out of scope. |
 | ORS key revocation in the console | Requires login to the OpenRouteService dashboard (user action). |
-| `stripe-java` 24.3.0 → latest | Best-practice bump, no advisory on the runtime path; keeping the demo's verified Stripe session stable meanwhile. |
+| JWT expiry / refresh-token mechanism | Design decision; revocation itself is shipped (blacklist + introspection). |
 
 Everything else in the assessment is fixed and reverified (§8). Details remain in
 `security-todo.md`.
@@ -170,7 +179,7 @@ cd backend/payment-service && mvn -o -q compile
 cd backend/order-service && npm run test:security          # 12/12 PASS
 
 # live exploit/fix demo against the running stack (user:4000 order:3008 payment:8081)
-bash kaweesha-fix/demo-security.sh                          # 33/33 PASS
+bash kaweesha-fix/demo-security.sh                          # 38/38 PASS
 ```
 
 Raw dependency audit output: `kaweesha-fix/audit-raw-user-service.txt`, `kaweesha-fix/audit-raw-order-service.txt`.

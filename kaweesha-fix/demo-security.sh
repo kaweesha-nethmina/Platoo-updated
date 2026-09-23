@@ -263,16 +263,59 @@ else
 fi
 rm -f "$E2"
 
-# ================================================================  slide 8  (LAST)
-sec "8 · RATE LIMITING — order creation is throttled at the box"
-echo "  firing POST /api/orders until the limiter kicks in (30/min)..."
+# ================================================================  slide 8
+sec "8 · V-14 RESIDUALS — role-scoped order listing + server-side revocation"
+# (a) A delivery person must NOT be able to pull every customer's order list.
+#   The seeded catalogue orders are all 'pending' (customer carts) — those are
+#   outside the delivery pipeline (preparing/ready/delivered), so the listing
+#   must come back empty instead of exposing 420+ carts.
+DEMAIL="demo-del-$(uuidgen)@demo.com"
+DREG=$(mktemp); DTOK=$(mktemp)
+curl -s -o "$DREG" -X POST $U/register -H 'Content-Type: application/json' \
+  -d "{\"name\":\"Demo Del\",\"email\":\"$DEMAIL\",\"password\":\"Str0ng!Pass\",\"role\":\"delivery_man\"}"
+curl -s -o "$DTOK" -X POST $U/login -H 'Content-Type: application/json' \
+  -d "{\"email\":\"$DEMAIL\",\"password\":\"Str0ng!Pass\"}"
+DT=$(cat "$DTOK" | body token); DID=$(echo "$DT" | did)
+DL=$(curl -s -X GET $O -H "Authorization: Bearer $DT")
+DCOUNT=$(echo "$DL" | body 'length')
+verdict "delivery GET /orders hides customer carts (only pipeline statuses)" "0" "$DCOUNT"
+note "   code path: role='delivery_man' → status ⊆ [preparing, ready, delivered]"
+rm -f "$DREG" "$DTOK"
+
+# (b) Logout rotates the session server-side: the JWT becomes dead on BOTH the
+#   identity plane (user-service /me) and order-service (introspection), even
+#   if the cookie/token is replayed. The account is deleted first so no
+#   demo residue is left behind, then the token is revoked.
+REMAIL="demo-rev-$(uuidgen)@demo.com"
+RREG=$(mktemp); RTOK=$(mktemp)
+curl -s -o "$RREG" -X POST $U/register -H 'Content-Type: application/json' \
+  -d "{\"name\":\"Demo Rev\",\"email\":\"$REMAIL\",\"password\":\"Str0ng!Pass\",\"role\":\"user\"}"
+curl -s -o "$RTOK" -X POST $U/login -H 'Content-Type: application/json' \
+  -d "{\"email\":\"$REMAIL\",\"password\":\"Str0ng!Pass\"}"
+RT=$(cat "$RTOK" | body token); RID=$(echo "$RT" | did)
+BEFORE=$(curl -s -o /dev/null -w '%{http_code}' $U/me -H "Authorization: Bearer $RT")
+verdict "pre-revoke: /me succeeds (200)" "200" "$BEFORE"
+curl -s -o /dev/null -X DELETE $U/delete/$RID -H "Authorization: Bearer $RT"
+LO=$(curl -s -o /dev/null -w '%{http_code}' -X POST $U/logout -H "Authorization: Bearer $RT")
+verdict "POST /api/auth/logout → 200 (token blacklisted)" "200" "$LO"
+AFTERU=$(curl -s -o /dev/null -w '%{http_code}' $U/me -H "Authorization: Bearer $RT")
+verdict "post-revoke: user-service /me → 401" "401" "$AFTERU"
+AFTERO=$(curl -s -o /dev/null -w '%{http_code}' $O/history/$RID -H "Authorization: Bearer $RT")
+verdict "post-revoke: order-service rejects via introspection → 401" "401" "$AFTERO"
+note "   code path: POST /api/auth/logout → user-service blacklist + per-request introspection"
+rm -f "$RREG" "$RTOK"
+
+# ================================================================  slide 9  (LAST — burns the order budget)
+sec "9 · RATE LIMITING — order creation is throttled at the box"
+echo "  firing POST /api/orders (invalid bodies — they still count, nothing is created)..."
 FIRST429=""
 for i in $(seq 1 40); do
   C=$(curl -s -o /dev/null -w '%{http_code}' -X POST $O -H 'Content-Type: application/json' \
-    -H "Authorization: Bearer $AT" -H "Idempotency-Key: demo-rl-$i-$(uuidgen)" -d "$ORDER_BODY")
+    -H "Authorization: Bearer $AT" -d '{}')
   if [ "$C" = "429" ]; then FIRST429="429"; echo "  429 after $i attempts"; break; fi
 done
 verdict "order creation returns 429 when the budget is spent" "429" "$FIRST429"
+note "   invalid-body POSTs count toward the 30/min per-IP budget but create no orders"
 
 # ================================================================  summary
 hr; echo
@@ -282,9 +325,10 @@ echo "  ${G}PASS ${PASS}${N}   ${Y}SKIP ${SKIP}${N}   ${R}FAIL ${FAIL}${N}   tot
 hr
 echo "  Closing proof — automated suites (run anytime):"
 echo "    order   : cd backend/order-service   && npm run test:security   →  12/12"
-echo "    payment : cd backend/payment-service && JAVA_HOME=jdk-17 mvn -o compile"
-echo "    user    : cd backend/user-service    && npx tsc --noEmit         (no test suite yet —"
-echo "                                                                    covered live by slide 1)"
+  echo "    payment : cd backend/payment-service && JAVA_HOME=jdk-17 mvn -o compile"
+  echo "    user    : cd backend/user-service    && npx tsc --noEmit         (no test suite yet —"
+  echo "                                                                    covered live by slide 1)"
+  echo "    residuals: role-scoped GET /orders + JWT revocation now closed (slide 8)"
 echo
 
 # Cleanup runs by default so demo users/orders don't linger in the DB.
@@ -301,6 +345,10 @@ if [ "${1:-}" != "--keep" ]; then
   if [ -n "${BT:-}" ]; then
     printf "  deleted demo user B (%s) → %s\n" "$BID" \
       "$(curl -s -o /dev/null -w '%{http_code}' -X DELETE $U/delete/$BID -H "Authorization: Bearer $BT")"
+  fi
+  if [ -n "${DT:-}" ] && [ -n "${DID:-}" ]; then
+    printf "  deleted demo delivery user (%s) → %s\n" "$DID" \
+      "$(curl -s -o /dev/null -w '%{http_code}' -X DELETE $U/delete/$DID -H "Authorization: Bearer $DT")"
   fi
 
   # Order deletes run right after slide 8 exhausted the 30/min order budget,

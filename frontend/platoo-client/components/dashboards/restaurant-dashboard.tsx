@@ -97,13 +97,14 @@ export default function RestaurantDashboardLayout({
     fetchOwnerData(ownerId)
   }, [router])
 
-  const handleSignOut = () => {
+  const handleSignOut = async () => {
     localStorage.removeItem("adminId")
     localStorage.removeItem("restaurantOwnerId")
     localStorage.removeItem("deliveryManId")
     localStorage.removeItem("userId")
     localStorage.removeItem("token")
-    router.push("/api/auth/logout")
+    await fetch("/api/auth/logout", { method: "POST" })
+    router.push("/login")
   }
 
   const navItems = [

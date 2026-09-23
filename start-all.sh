@@ -16,7 +16,29 @@ mkdir -p "$LOGS"
 # All Node backend services (order matters only for readability)
 SERVICES=(user-service menu-service search-service delevery-service cart-service geo-location-service order-service ratings-service admin-service notification-service)
 
+# Ports our stack listens on (plus frontend 3000 and payment 8081). Used to sweep
+# stale processes from a previous run, because killing the npm/mvn wrapper does NOT
+# kill the nodemon/ts-node-dev/next children it spawned.
+APP_PORTS=(3000 3001 3002 3003 3005 3007 3008 5000 4000 4005 4006 8081)
+
 PIDS=()
+
+kill_leftovers() {
+  local pids quiet
+  quiet="${1:-}"
+  for port in "${APP_PORTS[@]}"; do
+    pids="$(lsof -tiTCP:"$port" -sTCP:LISTEN 2>/dev/null || true)"
+    if [ -n "$pids" ]; then
+      [ -z "$quiet" ] && echo "  port $port busy -> killing: $(echo "$pids" | tr '\n' ' ')"
+      kill $pids 2>/dev/null || true
+    fi
+  done
+  # Stray watchers that haven't bound a port yet (scoped to this repo's backend tree)
+  pkill -f "$BACKEND/" 2>/dev/null || true
+  pkill -f "ts-node-dev" 2>/dev/null || true  # dev-machine assumption: only been this repo
+  pkill -f "nodemon" 2>/dev/null || true
+  [ -z "$quiet" ] && sleep 1 || sleep 0
+}
 
 cleanup() {
   echo ""
@@ -25,9 +47,18 @@ cleanup() {
     kill "$pid" 2>/dev/null || true
   done
   pkill -P $$ 2>/dev/null || true
+  echo "=== Removing stale watcher children / freeing ports ==="
+  kill_leftovers quiet
+  echo "Done."
   exit 0
 }
 trap cleanup INT TERM
+
+# ----------------------------------------------------------------------------
+# 0. Kill leftover services from a previous run (Ctrl-C used to orphan them)
+# ----------------------------------------------------------------------------
+echo "=== Stopping leftover services from previous runs ==="
+kill_leftovers
 
 # ----------------------------------------------------------------------------
 # 1. Redis (required by ratings-service)

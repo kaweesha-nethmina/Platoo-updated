@@ -1,7 +1,7 @@
 import { Router, Response } from "express";
 import { AuthRequest } from "../middleware/authMiddleware"; // Import AuthRequest
 import { UserRole } from "../models/User"; // Ensure UserRole is correctly imported
-import { register, login, updateUser, deleteUser, getAllUsers, getUserById, getRestaurantOwnerByIdPublic, getCurrentUser, googleAuth } from "../controllers/authController";
+import { register, login, updateUser, deleteUser, getAllUsers, getUserById, getRestaurantOwnerByIdPublic, getCurrentUser, googleAuth, logout } from "../controllers/authController";
 import { protect } from "../middleware/authMiddleware";
 import { rejectNoSqlOperators } from "../middleware/noSqlAntiInjection";
 
@@ -26,6 +26,20 @@ router.post("/google", async (req: AuthRequest, res: Response) => {
   await googleAuth(req, res); // Call the googleAuth function directly
 });
 
+// V-14: server-side logout — revokes the presented JWT so it can no longer
+// call user-service routes, even if the cookie/header is later replayed.
+router.post(
+  "/logout",
+  protect([UserRole.ADMIN, UserRole.RESTAURANT_OWNER, UserRole.USER, UserRole.DELIVERY_MAN]),
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      await logout(req, res);
+    } catch (error) {
+      res.status(500).json({ msg: "Error during logout" });
+    }
+  }
+);
+
 // V-08: current session (used by the httpOnly-cookie BFF). Requires auth like
 // every protected route; anyone with a valid token may query their own profile.
 router.get(
@@ -37,6 +51,17 @@ router.get(
     } catch (error) {
       res.status(500).json({ msg: "Internal server error" });
     }
+  }
+);
+
+// V-14: token introspection for sibling services (e.g. order-service). Lets
+// them confirm a JWT is still valid — and not revoked — against the identity
+// plane before honoring it, without sharing the blacklist collection.
+router.get(
+  "/verify",
+  protect([UserRole.ADMIN, UserRole.RESTAURANT_OWNER, UserRole.USER, UserRole.DELIVERY_MAN]),
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    res.status(200).json({ valid: true, user: { id: req.user?.id, role: req.user?.role } });
   }
 );
 

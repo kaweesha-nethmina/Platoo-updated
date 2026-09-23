@@ -57,20 +57,24 @@ app.use(
   })
 );
 
-// Tight budget on credential endpoints to slow automated guessing/resource
-// flooding (default 20 req / 10 min per IP).
+// Tight budget on CREDENTIAL endpoints (login/register/google) to slow
+// automated guessing and account flooding (default 20 req / 10 min per IP).
+// Bearer-token endpoints (/me, /verify, /logout, /user/*, ...) are governed
+// only by the global limit so a legitimate auth check can never exhaust the
+// brute-force budget — that would otherwise break server-side verification
+// (e.g. order-service token introspection) under normal traffic.
 const authWindowMs = Number(process.env.RATE_LIMIT_AUTH_WINDOW_MS ?? 10 * 60 * 1000);
 const authMax = Number(process.env.RATE_LIMIT_AUTH_MAX ?? 20);
-app.use(
-  "/api/auth",
-  rateLimit({
-    windowMs: authWindowMs,
-    max: authMax,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { message: "Too many authentication attempts, please try again later." },
-  })
-);
+const credentialLimiter = rateLimit({
+  windowMs: authWindowMs,
+  max: authMax,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Too many authentication attempts, please try again later." },
+});
+app.use("/api/auth/login", credentialLimiter);
+app.use("/api/auth/register", credentialLimiter);
+app.use("/api/auth/google", credentialLimiter);
 
 app.use("/api/auth", authRoutes);
 

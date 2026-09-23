@@ -77,17 +77,19 @@ meaningful 404; idempotent replay (`201` → `200 idempotent:true`, same `_id`);
 - `menu-service` CRUD endpoints remain unauthenticated (they are the server-side price source);
   expose them to trusted services only in production — protecting the write routes requires the
   frontend dashboards + order-service to send credentials first.
-- `GET /api/orders` returns the whole collection to *any* privileged role; customer dashboards
-  use the IDOR-guarded `/orders/history/:userId`. A map restaurant-owner→restaurant /
-  delivery-man→assignment is needed before exposing per-role listings.
-- Tokens live in `localStorage` (XSS-exposed); an httpOnly-cookie/BFF session is the follow-up
-  (V-08).
 - `GET /api/auth/user/:userId` is authenticated but not per-role IDOR-scoped: any signed-in user
   can read another user's profile card (admin/owner/delivery flows legitimately need this; add
   explicit role rules in production).
-- Dependency audits (user-service, order-service, payment-service) and JWT expiry/refresh + the
-  old committed OpenRouteService key rotation remain open operational items.
+- JWT expiry/refresh-token mechanism not yet chosen (server-side **revocation** is shipped:
+  `TokenBlacklist` + `POST /api/auth/logout` + order-service introspection via
+  `JWT_INTROSPECT_URL`).
+- Old committed OpenRouteService key still needs **revocation in the ORS console** (user action).
 
-Verified end-to-end on 2026-09-22: `npx tsc --noEmit` (order/user/menu), `mvn -o -q compile`
-(payment), suite 12/12, and a live checkout produced a real Stripe Test session for an order
-whose stored payable was `subtotal + fee + tax`.
+Closed residuals (2026-09-23): `GET /api/orders` is now role-scoped server-side
+(restaurant-owner → own restaurants, delivery → pipeline statuses, `403` on non-owned ids);
+tokens moved out of `localStorage` into the HttpOnly BFF cookie (V-08); dependency audits are
+clean (user/order `0` vulnerabilities, `stripe-java` 24.24.0 under JDK 17).
+
+Verified end-to-end on 2026-09-22/23: `npx tsc --noEmit` (order/user/menu), `mvn -o -q compile`
+(payment), suite 12/12, demo **38/38**, and a live checkout produced a real Stripe Test session
+for an order whose stored payable was `subtotal + fee + tax`.

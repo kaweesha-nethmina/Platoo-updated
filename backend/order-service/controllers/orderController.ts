@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { OrderService } from '../services/orderService';
 import { AuthRequest, isOwnerOrPrivileged, USER_ROLE } from '../middleware/authenticate';
 import { IDEMPOTENCY_KEY } from '../validators/order.schemas';
@@ -67,11 +67,60 @@ export const createOrder = async (req: AuthRequest, res: Response): Promise<Resp
   }
 };
 
-// Get all orders
-export const getAllOrders = async (req: Request, res: Response): Promise<Response> => {
+// Get all orders (route gated to admin / restaurant owner / delivery person).
+// V-14: the result set is scoped server-side to the caller's role so a
+// privileged user can never pull the entire order store:
+// - admin / trusted internal service: full visibility, optionally narrowed to
+//   one restaurant via ?restaurant_id=;
+// - restaurant owner: only orders for restaurants they own (ownership proven
+//   against the menu service);
+// - delivery person: only orders in the delivery pipeline (preparing/ready/
+//   delivered) — not every customer's history.
+export const getAllOrders = async (req: AuthRequest, res: Response): Promise<Response> => {
   try {
-    const orders = await OrderService.getAllOrders();
-    return res.status(200).json(orders);
+    const role = req.user?.role;
+
+    const restaurantIdQuery =
+      typeof req.query.restaurant_id === 'string' ? req.query.restaurant_id : undefined;
+
+    if (req.internal || role === USER_ROLE.ADMIN) {
+      const orders = await OrderService.getAllOrders(
+        restaurantIdQuery ? { restaurant_id: restaurantIdQuery } : undefined
+      );
+      return res.status(200).json(orders);
+    }
+
+    if (role === USER_ROLE.RESTAURANT_OWNER) {
+      const ownerId = String(req.user?.id);
+
+      if (restaurantIdQuery) {
+        const owningId = await OrderService.getRestaurantOwnerId(restaurantIdQuery);
+        if (!owningId || owningId !== ownerId) {
+          return res.status(403).json({ message: 'Forbidden: You do not manage this restaurant' });
+        }
+        const orders = await OrderService.getAllOrders({ restaurant_id: restaurantIdQuery });
+        return res.status(200).json(orders);
+      }
+
+      const ownRestaurantIds = await OrderService.getRestaurantsByOwnerId(ownerId);
+      if (ownRestaurantIds.length === 0) {
+        return res.status(200).json([]);
+      }
+      const orders = await OrderService.getAllOrders({
+        restaurant_id: { $in: ownRestaurantIds },
+      });
+      return res.status(200).json(orders);
+    }
+
+    if (role === USER_ROLE.DELIVERY_MAN) {
+      const orders = await OrderService.getAllOrders({
+        status: { $in: ['preparing', 'ready', 'delivered'] },
+      });
+      return res.status(200).json(orders);
+    }
+
+    // Unreachable given the route-level role gate, but never leak data by default.
+    return res.status(403).json({ message: 'Forbidden' });
   } catch (error) {
     logError('Error retrieving orders', error);
     return res.status(500).json({ message: 'Error retrieving orders' });
