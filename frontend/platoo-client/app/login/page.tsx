@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import Script from "next/script";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,66 +26,112 @@ export default function LoginPage() {
   const { toast } = useToast();
   const router = useRouter();
   const { setUser } = useUser();
+  const googleInitializedRef = useRef(false);
+  const [formErrors, setFormErrors] = useState({ email: "", password: "" });
+
+  const validateForm = () => {
+    const errors = { email: "", password: "" };
+    let isValid = true;
+    const trimmedEmail = email.trim();
+
+    if (!trimmedEmail) {
+      errors.email = "Email is required";
+      isValid = false;
+    } else if (trimmedEmail.length > 254) {
+      errors.email = "Email is too long (max 254 characters)";
+      isValid = false;
+    } else if (
+      !/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(trimmedEmail)
+    ) {
+      errors.email = "Please enter a valid email address";
+      isValid = false;
+    }
+
+    if (!password) {
+      errors.password = "Password is required";
+      isValid = false;
+    } else if (password.length < 8) {
+      errors.password = "Password must be at least 8 characters";
+      isValid = false;
+    } else if (password.length > 128) {
+      errors.password = "Password is too long (max 128 characters)";
+      isValid = false;
+    }
+
+    setFormErrors(errors);
+    return isValid;
+  };
+
+  // Shared post-login success path — used by BOTH email/password login and
+  // Google sign-in. The JWT itself only ever lives in an httpOnly Cookie set by
+  // the BFF (`/api/auth/login|google`); it is never stored in localStorage.
+  // Here we only persist the non-secret identity claims (id + role) the pages
+  // use, and update the auth context with the validated claims.
+  const applyAuthSuccess = (claims: { id?: string; role?: string }) => {
+    const id = claims?.id;
+    const role = claims?.role;
+
+    if (id && role) {
+      // Clear old role-based IDs
+      localStorage.removeItem("adminId");
+      localStorage.removeItem("restaurantOwnerId");
+      localStorage.removeItem("deliveryManId");
+      localStorage.removeItem("userId");
+
+      // Set role-based ID key
+      switch (role) {
+        case "admin":
+          localStorage.setItem("adminId", id);
+          break;
+        case "restaurant_owner":
+          localStorage.setItem("restaurantOwnerId", id);
+          break;
+        case "delivery_man":
+          localStorage.setItem("deliveryManId", id);
+          break;
+        case "user":
+        default:
+          localStorage.setItem("userId", id);
+          break;
+      }
+    }
+
+    // Set identity in context (no token — it is in the httpOnly Cookie)
+    setUser(claims);
+
+    toast({
+      title: "Login successful",
+      description: "You have been logged in successfully.",
+    });
+
+    router.push("/dashboard");
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!validateForm()) {
+      return;
+    }
+
     setIsLoading(true);
-  
+
     try {
-      const response = await fetch("http://localhost:4000/api/auth/login", {
+      const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: email.trim(), password }),
       });
-  
+
       const data = await response.json();
-  
-      if (!response.ok) {
+
+      if (!response.ok || !data?.user) {
         throw new Error(data.msg || "Login failed");
       }
-  
-      const token = data.token;
-      const decoded = decodeToken(token);
-  
-      if (decoded?.id && decoded?.role) {
-        // Clear old role-based IDs
-        localStorage.removeItem("adminId");
-        localStorage.removeItem("restaurantOwnerId");
-        localStorage.removeItem("deliveryManId");
-        localStorage.removeItem("userId");
-  
-        // Set role-based ID key
-        switch (decoded.role) {
-          case "admin":
-            localStorage.setItem("adminId", decoded.id);
-            break;
-          case "restaurant_owner":
-            localStorage.setItem("restaurantOwnerId", decoded.id);
-            break;
-          case "delivery_man":
-            localStorage.setItem("deliveryManId", decoded.id);
-            break;
-          case "user":
-          default:
-            localStorage.setItem("userId", decoded.id);
-            break;
-        }
-      }
-  
-      // Set token in localStorage
-      localStorage.setItem("jwtToken", token);
-  
-      // Set token in context
-      setUser({ token });
-  
-      toast({
-        title: "Login successful",
-        description: "You have been logged in successfully.",
-      });
-  
-      router.push("/dashboard");
+
+      applyAuthSuccess(data.user);
     } catch (error) {
       toast({
         title: "Login failed",
@@ -96,17 +143,62 @@ export default function LoginPage() {
       setIsLoading(false);
     }
   };
-  
-  
 
-  const decodeToken = (token: string) => {
+  // Google Identity Services (GSI) — forward the raw ID token to the BFF. The
+  // browser still sees only the validated claims; the app JWT is placed in an
+  // httpOnly Cookie the BFF set.
+  const handleGoogleCredentialResponse = async (
+    response: GsiCredentialResponse
+  ) => {
+    setIsLoading(true);
     try {
-      return JSON.parse(atob(token.split(".")[1]));
+      const res = await fetch("/api/auth/google", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ idToken: response.credential }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data?.user) {
+        throw new Error(data.msg || "Google sign-in failed");
+      }
+
+      applyAuthSuccess(data.user);
     } catch (error) {
-      console.error("Error decoding token", error);
-      return {};
+      toast({
+        title: "Login failed",
+        description:
+          error instanceof Error ? error.message : "An unknown error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
+
+  // Initialize the Google sign-in button once the GSI script has loaded and
+  // the container node is in the DOM. Guarded so it only runs once.
+  const initGoogleSignIn = () => {
+    if (googleInitializedRef.current) return;
+    if (!window.google?.accounts?.id) return;
+    googleInitializedRef.current = true;
+
+    window.google.accounts.id.initialize({
+      client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "",
+      callback: handleGoogleCredentialResponse,
+    });
+    window.google.accounts.id.renderButton(
+      document.getElementById("google-signin-button"),
+      { theme: "outline", size: "large", width: "100%" }
+    );
+  };
+
+  useEffect(() => {
+    initGoogleSignIn();
+  }, []);
 
   return (
     <div
@@ -138,10 +230,18 @@ export default function LoginPage() {
                 type="email"
                 placeholder="your.email@example.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setFormErrors((prev) => ({ ...prev, email: "" }));
+                }}
                 required
+                maxLength={254}
+                autoComplete="email"
                 className="bg-white/30 border-white/30 text-white placeholder:text-white/60 focus:border-orange-400 focus:ring-orange-400"
               />
+              {formErrors.email && (
+                <p className="text-red-500 text-sm">{formErrors.email}</p>
+              )}
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
@@ -159,10 +259,18 @@ export default function LoginPage() {
                 id="password"
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setFormErrors((prev) => ({ ...prev, password: "" }));
+                }}
                 required
+                maxLength={128}
+                autoComplete="current-password"
                 className="bg-white/30 border-white/30 text-white placeholder:text-white/60 focus:border-orange-400 focus:ring-orange-400"
               />
+              {formErrors.password && (
+                <p className="text-red-500 text-sm">{formErrors.password}</p>
+              )}
             </div>
             <Button
               type="submit"
@@ -179,6 +287,19 @@ export default function LoginPage() {
               )}
             </Button>
           </form>
+
+          {/* Google sign-in — a second way to get a token, same post-login path */}
+          <div className="relative my-5">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-white/30" />
+            </div>
+            <div className="relative flex justify-center">
+              <span className="bg-white/20 px-3 text-xs uppercase tracking-wider text-white/70">
+                or
+              </span>
+            </div>
+          </div>
+          <div id="google-signin-button" className="w-full" />
         </CardContent>
         <CardFooter className="flex flex-col space-y-4 relative">
           <div className="text-center text-sm text-white">
@@ -192,6 +313,12 @@ export default function LoginPage() {
           </div>
         </CardFooter>
       </Card>
+
+      <Script
+        src="https://accounts.google.com/gsi/client"
+        strategy="afterInteractive"
+        onLoad={initGoogleSignIn}
+      />
     </div>
   );
 }

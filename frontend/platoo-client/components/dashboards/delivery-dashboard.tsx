@@ -95,6 +95,8 @@ export default function DeliveryDashboard() {
     }
   };
 
+  const ORS_API_KEY = process.env.NEXT_PUBLIC_ORS_API_KEY;
+
   const fetchRoute = async (start: { lat: number; lng: number }, end: { lat: number; lng: number }) => {
     try {
       const res = await fetch(
@@ -102,7 +104,7 @@ export default function DeliveryDashboard() {
         {
           method: "POST",
           headers: {
-            "Authorization": `5b3ce3597851110001cf6248dc268f1e36654c6b82014bc0e02c4fa0`,
+            ...(ORS_API_KEY ? { Authorization: ORS_API_KEY } : {}),
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
@@ -172,9 +174,12 @@ export default function DeliveryDashboard() {
         }),
       });
 
-      await fetch(`http://localhost:3008/api/orders/${activeOrder.id}/status`, {
+      await fetch(`/api/proxy/order/orders/${activeOrder.id}/status`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          // (V-08) Authorization removed — BFF proxy injects Bearer from the httpOnly cookie
+        },
         body: JSON.stringify({ status: "delivered" }),
       });
 

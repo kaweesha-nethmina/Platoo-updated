@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Loader2 } from "lucide-react"
-import { jwtDecode } from "jwt-decode"
 import UserDashboard from "@/components/dashboards/user-dashboard"
 import AdminDashboard from "@/components/dashboards/admin-dashboard"
 import DeliveryDashboard from "@/components/dashboards/delivery-dashboard"
@@ -17,13 +16,6 @@ export enum UserRole {
   DELIVERY_MAN = "delivery_man",
 }
 
-interface JwtPayload {
-  id: string
-  role: UserRole
-  iat: number
-  exp: number
-}
-
 export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [userRole, setUserRole] = useState<UserRole | null>(null)
@@ -31,26 +23,33 @@ export default function DashboardPage() {
   const router = useRouter()
 
   useEffect(() => {
-    // Check if user is authenticated
-    const token = localStorage.getItem("token")
+    // Role is resolved from the non-secret identity keys written at login.
+    // The JWT itself only lives in an httpOnly cookie (V-08).
+    const adminId = typeof window !== "undefined" ? localStorage.getItem("adminId") : null
+    const ownerId = typeof window !== "undefined" ? localStorage.getItem("restaurantOwnerId") : null
+    const deliveryId = typeof window !== "undefined" ? localStorage.getItem("deliveryManId") : null
+    const uid = typeof window !== "undefined" ? localStorage.getItem("userId") : null
 
-    if (!token) {
+    if (!adminId && !ownerId && !deliveryId && !uid) {
       router.push("/login")
       return
     }
 
-    try {
-      // Decode the JWT token to get user role
-      const decoded = jwtDecode<JwtPayload>(token)
-      setUserRole(decoded.role)
-      setUserId(decoded.id)
-    } catch (error) {
-      console.error("Invalid token:", error)
-      localStorage.removeItem("token")
-      router.push("/login")
-    } finally {
-      setIsLoading(false)
+    if (adminId) {
+      setUserRole(UserRole.ADMIN)
+      setUserId(adminId)
+    } else if (ownerId) {
+      setUserRole(UserRole.RESTAURANT_OWNER)
+      setUserId(ownerId)
+    } else if (deliveryId) {
+      setUserRole(UserRole.DELIVERY_MAN)
+      setUserId(deliveryId)
+    } else {
+      setUserRole(UserRole.USER)
+      setUserId(uid)
     }
+
+    setIsLoading(false)
   }, [router])
 
   if (isLoading) {

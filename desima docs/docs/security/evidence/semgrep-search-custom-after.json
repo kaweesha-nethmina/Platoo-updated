@@ -1,0 +1,1 @@
+{"version":"1.110.0","results":[],"errors":[],"paths":{"scanned":["/src/src/app.ts","/src/src/controllers/search.controller.ts","/src/src/models/restaurant.model.ts","/src/src/routes/search.routes.ts","/src/src/server.ts","/src/src/services/search.service.ts","/src/src/types/restaurant.types.ts","/src/src/utils/db.ts","/src/src/utils/sanitize.ts"]},"skipped_rules":[]}

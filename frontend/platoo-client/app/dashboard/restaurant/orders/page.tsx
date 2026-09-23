@@ -104,7 +104,7 @@ export default function OrdersPage() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch("http://localhost:3008/api/orders");
+        const res = await fetch("/api/proxy/order/orders");
         if (!res.ok) throw new Error("Failed to fetch orders");
         const data = await res.json();
         const mappedOrders: Order[] = data
@@ -143,8 +143,7 @@ export default function OrdersPage() {
   // Fetch customer names for each unique user_id in orders
   useEffect(() => {
     const fetchCustomerNames = async () => {
-      const token = localStorage.getItem("jwtToken");
-      if (!token || orders.length === 0) return;
+      if (orders.length === 0) return;
 
       const uniqueUserIds = Array.from(new Set(orders.map(order => order.user_id).filter(Boolean)));
       const nameMap: { [key: string]: string } = {};
@@ -152,11 +151,7 @@ export default function OrdersPage() {
       await Promise.all(
         uniqueUserIds.map(async (uid) => {
           try {
-            const res = await fetch(`http://localhost:4000/api/auth/user/${uid}`, {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            });
+            const res = await fetch(`/api/proxy/user/auth/user/${uid}`);
             if (!res.ok) throw new Error("Failed to fetch user");
             const userData = await res.json();
             nameMap[uid] = userData.name || "Customer";
@@ -239,9 +234,12 @@ export default function OrdersPage() {
 
   const handleUpdateStatus = async (orderId: string, newStatus: string) => {
     try {
-      const res = await fetch(`http://localhost:3008/api/orders/${orderId}/status`, {
+      const res = await fetch(`/api/proxy/order/orders/${orderId}/status`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          // (V-08) Authorization removed — BFF proxy injects Bearer from the httpOnly cookie
+        },
         body: JSON.stringify({ status: newStatus }),
       });
       if (!res.ok) throw new Error("Failed to update status");
@@ -258,15 +256,22 @@ export default function OrdersPage() {
   const handleSentDelivery = async (order: Order) => {
     try {
       const statusRes = await fetch(
-        `http://localhost:3008/api/orders/${order.id}/status`,
+        `/api/proxy/order/orders/${order.id}/status`,
         {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            // (V-08) Authorization removed — BFF proxy injects Bearer from the httpOnly cookie
+          },
           body: JSON.stringify({ status: "ready" }),
         }
       );
       if (!statusRes.ok) throw new Error("Failed to update order status");
-      const usersRes = await fetch("http://localhost:4000/api/auth/users");
+      const usersRes = await fetch("/api/proxy/user/auth/users", {
+        headers: {
+          // (V-08) Authorization removed — BFF proxy injects Bearer from the httpOnly cookie
+        },
+      });
       if (!usersRes.ok) throw new Error("Failed to fetch users");
       const users = await usersRes.json();
 
@@ -290,7 +295,10 @@ export default function OrdersPage() {
         "http://localhost:4006/api/notifications/send-delivery-notification",
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("jwtToken") || ""}`,
+          },
           body: JSON.stringify({ orderDetails }),
         }
       );
@@ -318,10 +326,13 @@ export default function OrdersPage() {
   const handleMarkDelivered = async (order: Order) => {
     try {
       const res = await fetch(
-        `http://localhost:3008/api/orders/${order.id}/status`,
+        `/api/proxy/order/orders/${order.id}/status`,
         {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            // (V-08) Authorization removed — BFF proxy injects Bearer from the httpOnly cookie
+          },
           body: JSON.stringify({ status: "delivered" }),
         }
       );
@@ -606,6 +617,7 @@ export default function OrdersPage() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

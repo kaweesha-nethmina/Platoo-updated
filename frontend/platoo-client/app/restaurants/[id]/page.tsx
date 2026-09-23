@@ -56,6 +56,7 @@ interface CartItem {
 
 export default function RestaurantPage() {
   const { id } = useParams()
+  const restaurantId = typeof id === "string" ? id : Array.isArray(id) ? id[0] : ""
   const router = useRouter()
   const { cartItems } = useCart()
   const cartCount = cartItems.length;
@@ -144,6 +145,12 @@ export default function RestaurantPage() {
       if (response.ok) {
         const cartData = await response.json();
         console.log("Item added to cart:", cartData);
+
+        // The cart only stores menuItemId, so remember which restaurant its
+        // items came from. checkout/page.tsx builds restaurant_id from this key;
+        // without it order-service rejects the order with 400 "restaurant_id is
+        // required" even when the checkout form looks complete.
+        localStorage.setItem("restaurantId", restaurantId);
   
         // Update local state for cart
         setCart((prevCart) => [
@@ -180,6 +187,12 @@ const orderNow = (item: MenuItem) => {
   // Store the selected item in localStorage
   localStorage.setItem('selectedItem', JSON.stringify(item));
   localStorage.setItem('selectedQuantity', '1'); // Optionally store the quantity
+
+  // Persist the restaurant id too: checkout builds restaurant_id from this
+  // key (checkout/page.tsx reads localStorage.getItem("restaurantId")). Without
+  // it, order-service's createOrder rejects with 400 "restaurant_id must be
+  // provided" even though the form looks fully filled.
+  localStorage.setItem('restaurantId', restaurantId);
 
   // Navigate to the checkout page
   router.push("/checkout"); // Navigate to checkout page
