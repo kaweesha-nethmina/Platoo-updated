@@ -290,7 +290,10 @@ export default function OrdersPage() {
         "http://localhost:4006/api/notifications/send-delivery-notification",
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("jwtToken") || ""}`,
+          },
           body: JSON.stringify({ orderDetails }),
         }
       );

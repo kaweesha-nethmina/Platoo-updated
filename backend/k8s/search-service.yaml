@@ -1,11 +1,14 @@
 ---
+# SECURITY (SRCH-08, CWE-798): a real MongoDB URI was committed here in
+# plaintext base64. Never commit secrets. Populate this Secret out-of-band
+# (kubectl create secret / Helm / a secret manager) and reference only names.
 apiVersion: v1
 kind: Secret
 metadata:
   name: search-service-secrets
 type: Opaque
-data:
-  mongo-uri: bW9uZ29kYitzcnY6Ly9oMXJ1bmljaGFtYXRoa2EyMzA6MTIzNEBjbHVzdGVyMC51eG1rOWltLm1vbmdvZGIubmV0L21lbnVfZGI=  # Base64 encoded MONGO_URI (already created)
+stringData:
+  mongo-uri: '<replace-with-rotated-mongo-uri>'
 ---
 apiVersion: apps/v1
 kind: Deployment
