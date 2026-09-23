@@ -1,6 +1,7 @@
 // src/routes/email.ts
 import express, { Request, Response } from 'express';
 import nodemailer from 'nodemailer';
+import { requireAdmin } from '../middleware/auth';
 
 interface AdminInviteRequest {
   email: string;
@@ -10,7 +11,7 @@ interface AdminInviteRequest {
 
 const router = express.Router();
 
-router.post('/send-admin-invite', async (req: Request<{}, {}, AdminInviteRequest>, res: Response) => {
+router.post('/send-admin-invite', requireAdmin, async (req: Request<{}, {}, AdminInviteRequest>, res: Response) => {
   const { email, name, password } = req.body;
 
   // Configure transporter with environment variables

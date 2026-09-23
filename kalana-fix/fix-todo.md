@@ -1,6 +1,6 @@
 # Fix To-Do (planning + progress)
 
-Order is dependency-first: a finding that other items rely on is listed before them (e.g. real auth middleware before any role/ownership check). Status: **K-13 + geo-location-service (K-10/K-09/K-11/K-12 + deps) + delevery-service K-05/K-06/K-07/K-08 + delevery deps DONE (2026-09-23)**; the rest remain unchecked/planned.
+Order is dependency-first: a finding that other items rely on is listed before them (e.g. real auth middleware before any role/ownership check). Status: **K-13 + geo-location-service (K-10/K-09/K-11/K-12 + deps) + delevery-service K-05/K-06/K-07/K-08 + delevery deps + admin-service K-01 DONE (2026-09-23)**; the rest remain unchecked/planned.
 
 ## Cross-cutting (do first)
 
@@ -25,7 +25,7 @@ Order is dependency-first: a finding that other items rely on is listed before t
 
 ## admin-service
 
-- [ ] K-01: Authorize the email endpoint — admin-service — add an auth middleware that requires a verified user-service JWT with role `admin` on `POST /api/email/send-admin-invite`; start rejecting anonymous callers (the V-04-class bug). This is the foundation for CORS and validation hardening on this route.
+- [x] K-01: Authorize the email endpoint — admin-service — **DONE (2026-09-23):** added `jsonwebtoken` (+`@types/jsonwebtoken`) as a direct dependency; new `src/middleware/auth.ts` exports `requireAdmin`, which verifies the user-service HS256 `JWT_SECRET` Bearer token, requires `role === "admin"` (403 otherwise), attaches `req.user={id,role}` (`AuthRequest` exported for future use), and returns 401 on missing/invalid tokens (server-side `console.error` on verify failure). Applied to `POST /api/email/send-admin-invite` in `src/routes/email.ts:13`, so anonymous/foreign-role callers are rejected (V-04-class bug closed). `JWT_SECRET` (matching user-service) added to `admin-service/.env`. Unblocks K-03 (CORS) and K-04 (validation) on this route. `tsc --noEmit` passes. Not committed.
 - [ ] K-03: Restrict CORS — admin-service — replace the open `app.use(cors())` with an allowlist of the admin-dashboard origins. Depends on K-01 (so CORS and auth apply to the same protected surface).
 - [ ] K-04: Validate + rate-limit the invite path — admin-service — enforce `email`/`name`/`password` schema checks and add per-IP/per-recipient rate limiting and an outgoing-mail queue. Depends on K-01.
 - [ ] Deps (admin-service): upgrade `nodemailer` (→10.x per audit), `mongoose` (≥8.24), and review `axios`/`form-data`/`jws`/`minimatch`/`brace-expansion`/`path-to-regexp` transitive findings (via `twilio`).
