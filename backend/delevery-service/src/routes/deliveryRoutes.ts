@@ -1,5 +1,6 @@
 import express from "express";
 import { DeliveryController } from "../controllers/deliveryController";
+import { authMiddleware } from "../middleware/auth";
 
 const router = express.Router();
 
@@ -35,15 +36,15 @@ const router = express.Router();
 
 
 // Main CRUD
-router.post("/", DeliveryController.createDelivery);
-router.get("/", DeliveryController.getAllDeliveries);
-router.get("/unassigned", DeliveryController.getUnassignedDeliveries);
-router.get("/assigned/:driverId", DeliveryController.getAssignedDelivery);
-router.delete("/:id", DeliveryController.deleteDelivery);
+router.post("/", authMiddleware, DeliveryController.createDelivery);
+router.get("/", authMiddleware, DeliveryController.getAllDeliveries);
+router.get("/unassigned", authMiddleware, DeliveryController.getUnassignedDeliveries);
+router.get("/assigned/:driverId", authMiddleware, DeliveryController.getAssignedDelivery);
+router.delete("/:id", authMiddleware, DeliveryController.deleteDelivery);
 
 // New API for Driver
-router.get("/driver/:driverId", DeliveryController.getDeliveriesByDriver);
-router.get("/driver/:driverId/completed", DeliveryController.getCompletedDeliveriesByDriver);
+router.get("/driver/:driverId", authMiddleware, DeliveryController.getDeliveriesByDriver);
+router.get("/driver/:driverId/completed", authMiddleware, DeliveryController.getCompletedDeliveriesByDriver);
 
 export default router;
 

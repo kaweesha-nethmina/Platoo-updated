@@ -1,6 +1,6 @@
 # Fix To-Do (planning + progress)
 
-Order is dependency-first: a finding that other items rely on is listed before them (e.g. real auth middleware before any role/ownership check). Status: **K-13 + geo-location-service K-10/K-09/K-11/K-12 + geo deps DONE (2026-09-23)**; the rest remain unchecked/planned.
+Order is dependency-first: a finding that other items rely on is listed before them (e.g. real auth middleware before any role/ownership check). Status: **K-13 + geo-location-service (K-10/K-09/K-11/K-12 + deps) + delevery-service K-05 DONE (2026-09-23)**; the rest remain unchecked/planned.
 
 ## Cross-cutting (do first)
 
@@ -17,7 +17,7 @@ Order is dependency-first: a finding that other items rely on is listed before t
 
 ## delevery-service
 
-- [ ] K-05: Add auth middleware on all delivery routes — delevery-service — require a verifiable user-service JWT on `POST /`, `GET /`, `GET /unassigned`, `GET /assigned/:driverId`, `GET /driver/:driverId*`, `DELETE /:id`; this is the root on which K-06/K-07 depend.
+- [x] K-05: Add auth middleware on all delivery routes — delevery-service — **DONE (2026-09-23):** `jsonwebtoken` (+`@types/jsonwebtoken`) added; new `src/middleware/auth.ts` verifies the user-service HS256 `JWT_SECRET` Bearer token and attaches `req.user={id,role}` (`AuthRequest` exported for use by K-06); `authMiddleware` applied to `POST /`, `GET /`, `GET /unassigned`, `GET /assigned/:driverId`, `GET /driver/:driverId`, `GET /driver/:driverId/completed`, `DELETE /:id` in `src/routes/deliveryRoutes.ts`; `JWT_SECRET` added to `.env`. Scope-limited to the K-05 item: role/ownership authorization (which routes which roles may call; binding `driverId` to the token subject) is still outstanding as **K-06**, and field-level input control as **K-07**. `tsc --noEmit` passes. Not committed.
 - [ ] K-06: Kill the IDOR — delevery-service — derive `driverId` from the verified JWT subject rather than `req.params`, and authorize customer reads to the caller's own orders only. Depends on K-05.
 - [ ] K-07: Prevent mass assignment — delevery-service — whitelist the input fields for `createDelivery`; let the server own `assignedTo`/`deliveryStatus`/`earnings`/`deliveredAt` and drive them through workflow transitions only. Depends on K-05.
 - [ ] K-08: Stop leaking raw errors — delevery-service — log the exception server-side and return a generic message instead of the `error` object. Independent of the auth work.
