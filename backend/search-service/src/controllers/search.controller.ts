@@ -49,9 +49,9 @@ export const handleRestaurantSearch = async (req: Request, res: Response): Promi
       .limit(pageInfo.limit)
       .maxTimeMS(2000);
 
-    // If no restaurants found, return empty array
+    // No restaurants found -> return an empty array (200) rather than an error.
     if (restaurants.length === 0) {
-      res.status(404).json({ message: 'No restaurants found' });
+      res.status(200).json([]);
       return;
     }
 
@@ -78,11 +78,8 @@ export const handleMenuItemSearch = async (req: Request, res: Response): Promise
     // Call the service to get the filtered menu items
     const filteredMenuItems = await searchMenuItems(safeQuery);
 
-    if (filteredMenuItems.length > 0) {
-      res.status(200).json(filteredMenuItems);
-    } else {
-      res.status(404).json({ message: 'No menu items found' });
-    }
+    // No items found -> return an empty array (200) rather than an error.
+    res.status(200).json(filteredMenuItems);
 
   } catch (error: unknown) {
     console.error(error);
