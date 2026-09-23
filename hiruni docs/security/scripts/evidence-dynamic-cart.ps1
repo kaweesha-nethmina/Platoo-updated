@@ -1,10 +1,10 @@
-﻿# =====================================================================
+# =====================================================================
 # evidence-dynamic-cart.ps1
 # SE4030 - Black-box (dynamic) reproduction of vulnerabilities in
 # cart-service. Targets a TEMP instance, default http://localhost:3105
 # (platoo_cart_scan database). Run ONLY against this temp instance.
 # Run:  powershell -ExecutionPolicy Bypass -File evidence-dynamic-cart.ps1
-# Writes evidence into <repo>/docs/security/evidence/EV-C<n>-*.txt
+# Writes evidence into <repo>/hiruni docs/security/evidence/EV-C<n>-*.txt
 # NOTE: JSON bodies are written to temp files and sent with
 # --data-binary "@file" because PowerShell 5.1 strips inner double-quotes
 # when passing inline JSON as an argument to native curl.exe.

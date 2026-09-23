@@ -135,7 +135,7 @@ All findings below were reproduced against code at the baseline commit. Test/scr
 
 | Tool | Version/Source | How it was run | Output |
 |------|----------------|----------------|--------|
-| Jest + ts-jest + Supertest | 29 / 7 | `npm run test:*` (local devDeps) | `docs/security/evidence/TEST-*.txt` |
+| Jest + ts-jest + Supertest | 29 / 7 | `npm run test:*` (local devDeps) | `hiruni docs/security/evidence/TEST-*.txt` |
 | `npm audit` | npm 10.9.3 | `npm audit --json` | `AUDIT-*.json` |
 | Semgrep | `returntocorp/semgrep:latest` | Docker | `SCAN-semgrep-*.json` |
 | Gitleaks | `zricethezav/gitleaks:latest` | Docker (git history) | `SCAN-gitleaks.json` |
@@ -258,7 +258,7 @@ Severity is assigned with CVSS-style reasoning (impact × exploitability). All i
 **Location:** `backend/menu-service/src/routes/*.routes.ts` (all routes), `src/app.ts:1-22`.
 There is no authentication middleware anywhere in the service. Every route, including `POST`, `PUT`, `PATCH`, `DELETE`, is reachable with no `Authorization` header or with an arbitrary/invalid Bearer token.
 
-**Reproduction:** `docs/security/evidence/EV-M1-menu-noauth-crud.txt`
+**Reproduction:** `hiruni docs/security/evidence/EV-M1-menu-noauth-crud.txt`
 - `POST /api/restaurants` with an expired `alg:none` JWT → **201 Created**.
 - `POST /api/restaurants` with no auth header → **201 Created**.
 - `DELETE /api/restaurants/:id` with no auth → **200** and the record is deleted.
@@ -318,7 +318,7 @@ Additionally, **read-only** endpoints may be left public if intended, but owners
 **Location:** `backend/cart-service/src/controllers/cartController.ts:5-111`, `src/routes/cartRoutes.ts`.
 The user identity is taken entirely from the request body/URL (`req.body.userId`, `req.params.userId`). No token is validated (`app.ts` registers no auth middleware).
 
-**Reproduction:** `docs/security/evidence/EV-C1-cart-idor.txt`
+**Reproduction:** `hiruni docs/security/evidence/EV-C1-cart-idor.txt`
 - `POST /api/cart/add` with `userId:"victim-100"` creates a cart **as the victim**, no auth.
 - `GET /api/cart/victim-100` returns the victim's cart contents, no auth.
 - `POST /api/cart/remove` with `userId:"victim-100"` deletes the victim's item.
@@ -361,7 +361,7 @@ The user identity is taken entirely from the request body/URL (`req.body.userId`
 
 **Location:** `backend/menu-service/src/controllers/restaurant.controller.ts:59-78` (`const updatedData = req.body;` → `updateRestaurant`), `:13-42`, `category.controller.ts:39-57`, `menuItem.controller.ts` update handler.
 
-**Reproduction:** `docs/security/evidence/EV-M2-menu-mass-assignment.txt`
+**Reproduction:** `hiruni docs/security/evidence/EV-M2-menu-mass-assignment.txt`
 - `PUT /api/restaurants/:id` with `{"owner_id":"attacker-999","is_active":false,"rating":1}` persists the attacker-chosen `owner_id` and toggles `is_active`.
 - TC-BB-015 confirms `owner_id`/`is_active` can be changed through the generic PUT.
 - TC-BB-045 confirms `is_available`, `price`, `category_id` can be changed on a menu item.
@@ -391,7 +391,7 @@ Apply the same allow-listing to category and menu-item update handlers. Ownershi
 
 **Location:** `cartController.ts:6,20` (`price`, `quantity` from body); `menu-service` menu-item create/update accepts client `price`.
 
-**Reproduction:** `docs/security/evidence/EV-C2-cart-price-tamper.txt`
+**Reproduction:** `hiruni docs/security/evidence/EV-C2-cart-price-tamper.txt`
 - `POST /api/cart/add` with `price:1` and `price:-500` — both stored verbatim.
 - TC-BB-035: negative menu-item price accepted.
 - TC-BB-057/058: cart price stored verbatim / negative accepted.
@@ -429,7 +429,7 @@ Also add `min: 0` to the menu-item `price` schema path.
 
 **Location:** `cartController.ts:9,39,65,85` — `CartModel.findOne({ userId })` where `userId` is attacker-controlled.
 
-**Reproduction:** `docs/security/evidence/EV-C3-cart-nosql-injection.txt` + direct probe.
+**Reproduction:** `hiruni docs/security/evidence/EV-C3-cart-nosql-injection.txt` + direct probe.
 - Seed a victim cart, then send `{"userId":{"$ne":null},...}` to `POST /api/cart/add`.
 - The `$ne` operator bypasses the intended exact-match filter and **matches/updates the first cart in the collection** (the victim's), appending the attacker's item.
 - When no cart exists, the same input reaches `new CartModel({ userId: {$ne:null} })` and produces a `CastError` (500).
@@ -463,7 +463,7 @@ Also cast/validate with a schema validator (e.g., `zod`) and, if using mongoose,
 
 **Location:** `backend/menu-service/src/routes/upload.routes.ts:23-37` — filter only checks the **filename extension**; no content sniffing; no auth; 2 MB limit per file but no per-user/quota limit.
 
-**Reproduction:** `docs/security/evidence/EV-M5-menu-upload-html-as-png.txt`
+**Reproduction:** `hiruni docs/security/evidence/EV-M5-menu-upload-html-as-png.txt`
 - Upload an HTML/script file renamed `evil.png` with MIME `image/png` → **201 Created**.
 - The file is stored and served back under `/uploads/<name>.png` with its original HTML body (`<script>alert(1)</script>`).
 - TC-BB-052 confirms HTML payload smuggled with an image extension is accepted.
@@ -636,7 +636,7 @@ Add a central error-handling middleware to `cart-service` and run production wit
 
 ### VULN-12 — Vulnerable & outdated dependencies (High)
 
-**Reproduction:** `docs/security/evidence/AUDIT-menu-service.json`, `AUDIT-cart-service.json`.
+**Reproduction:** `hiruni docs/security/evidence/AUDIT-menu-service.json`, `AUDIT-cart-service.json`.
 
 | Service | Low | Moderate | High | Critical | Total |
 |---------|-----|----------|------|----------|-------|
@@ -708,7 +708,7 @@ Apply the same to `cart-service`.
 
 ### VULN-15 — Committed secrets in k8s manifests (Critical, **out of scope**)
 
-**Reproduction:** `docs/security/evidence/SCAN-gitleaks.json` (21 findings across 12 commits).
+**Reproduction:** `hiruni docs/security/evidence/SCAN-gitleaks.json` (21 findings across 12 commits).
 Gitleaks flagged `kind: Secret` manifests and, in particular:
 - `backend/k8s/stripe-payment-service.yaml:8` — a live-looking Stripe **secret key** (`sk_test_...`).
 - `backend/k8s/admin-service.yaml:10` — base64 email password.
@@ -808,21 +808,21 @@ $env:PORT=3101; $env:MONGODB_URI="mongodb://127.0.0.1:27017/platoo_menu_scan"; n
 $env:PORT=3105; $env:MONGODB_URI="mongodb://127.0.0.1:27017/platoo_cart_scan"; npx ts-node src/server.ts
 
 # 2. From the repo root:
-powershell -ExecutionPolicy Bypass -File docs\security\scripts\evidence-dynamic-menu.ps1
-powershell -ExecutionPolicy Bypass -File docs\security\scripts\evidence-dynamic-cart.ps1
+powershell -ExecutionPolicy Bypass -File "hiruni docs\security\scripts\evidence-dynamic-menu.ps1"
+powershell -ExecutionPolicy Bypass -File "hiruni docs\security\scripts\evidence-dynamic-cart.ps1"
 ```
-Outputs are written to `docs/security/evidence/EV-*.txt`.
+Outputs are written to `hiruni docs/security/evidence/EV-*.txt`.
 
 ### 13.4 Scanners
 
 ```powershell
 # npm audit
-cd backend\menu-service; npm audit --json > ..\..\docs\security\evidence\AUDIT-menu-service.json
-cd ..\cart-service;      npm audit --json > ..\..\docs\security\evidence\AUDIT-cart-service.json
+cd backend\menu-service; npm audit --json > "..\..\hiruni docs\security\evidence\AUDIT-menu-service.json"
+cd ..\cart-service;      npm audit --json > "..\..\hiruni docs\security\evidence\AUDIT-cart-service.json"
 
 # gitleaks (git history)
 docker run --rm -v "${PWD}:/repo" zricethezav/gitleaks:latest detect --source=/repo `
-  --report-format=json --report-path=/repo/docs/security/evidence/SCAN-gitleaks.json --exit-code 0
+  --report-format=json --report-path="/repo/hiruni docs/security/evidence/SCAN-gitleaks.json" --exit-code 0
 
 # semgrep
 docker run --rm -v "${PWD}\backend\menu-service:/src" returntocorp/semgrep:latest `
@@ -830,7 +830,7 @@ docker run --rm -v "${PWD}\backend\menu-service:/src" returntocorp/semgrep:lates
 
 # ZAP baseline (needs the scan instances running)
 docker run --rm --add-host=host.docker.internal:host-gateway `
-  -v "${PWD}\docs\security\evidence:/zap/wrk/:rw" ghcr.io/zaproxy/zaproxy:stable `
+  -v "${PWD}\hiruni docs\security\evidence:/zap/wrk/:rw" ghcr.io/zaproxy/zaproxy:stable `
   zap-baseline.py -t http://host.docker.internal:3101 -J ZAP-menu-service.json -r ZAP-menu-service.html -m 3
 ```
 
@@ -847,7 +847,7 @@ Stop the two `ts-node` processes when done.
 
 ## 14. Evidence Index
 
-All under `docs/security/evidence/`:
+All under `hiruni docs/security/evidence/`:
 
 | File | Contents |
 |------|----------|
@@ -868,7 +868,7 @@ All under `docs/security/evidence/`:
 | `ZAP-menu-service.json/.html` / `ZAP-cart-service.json/.html` | ZAP baseline reports |
 | `TEST-whitebox-*.txt`, `TEST-blackbox-*.txt`, `TEST-coverage-*.txt` | Jest run logs |
 
-Reusable scripts live in `docs/security/scripts/`.
+Reusable scripts live in `hiruni docs/security/scripts/`.
 
 ---
 

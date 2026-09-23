@@ -4,7 +4,7 @@
 # menu-service. Targets a TEMP instance, default http://localhost:3101
 # (platoo_menu_scan database). Run ONLY against this temp instance.
 # Run:  powershell -ExecutionPolicy Bypass -File evidence-dynamic-menu.ps1
-# Writes evidence into <repo>/docs/security/evidence/EV-M<n>-*.txt
+# Writes evidence into <repo>/hiruni docs/security/evidence/EV-M<n>-*.txt
 # NOTE: JSON bodies are written to temp files and sent with
 # --data-binary "@file" because PowerShell 5.1 strips inner double-quotes
 # when passing inline JSON as an argument to native curl.exe.
