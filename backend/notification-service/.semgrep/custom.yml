@@ -1,0 +1,55 @@
+rules:
+  - id: nosql-unsafe-regex-input
+    mode: taint
+    message: >-
+      User-controlled input flows into a MongoDB $regex without being escaped
+      (CWE-943 / CWE-1333). An attacker can pass Mongo operator objects (request
+      DoS / 500s) or regex metacharacters (ReDoS). Escape with
+      escape-string-regexp (services route it through sanitizeSearchParam /
+      sanitizePlainText / sanitizePagination).
+    severity: ERROR
+    languages: [typescript, javascript]
+    pattern-sources:
+      - patterns:
+          - pattern-either:
+              - pattern: req.query.$PARAM
+              - pattern: req.body.$PARAM
+              - pattern: req.params.$PARAM
+              - pattern: req.headers.$PARAM
+    pattern-sanitizers:
+      - pattern-either:
+          - pattern: sanitizeSearchParam($X)
+          - pattern: sanitizePlainText($X)
+          - pattern: sanitizePagination($X)
+          - pattern: escapeStringRegexp($X)
+    pattern-sinks:
+      - patterns:
+          - pattern: "{ $regex: $X, $options: 'i' }"
+          - pattern-not: "escapeStringRegexp($X)"
+
+  - id: jwts-verify-no-algorithm
+    pattern: jwt.verify($TOKEN, $SECRET)
+    message: >-
+      jwt.verify() called without pinning algorithms (algorithms: ['HS256']).
+      ASVS 3.5.2 (CWE-345).
+    severity: WARNING
+    languages: [typescript, javascript]
+
+  - id: res-500-with-internals
+    mode: taint
+    message: >-
+      Internal exception data (error.message / error.response / stack) flows
+      into a res.status(500) response body (CWE-209 / CWE-200). Send a static
+      error string; log full details server-side only.
+    severity: WARNING
+    languages: [typescript, javascript]
+    pattern-sources:
+      - pattern-either:
+          - pattern: error.message
+          - pattern: error.response
+          - pattern: err.message
+          - pattern: err.response
+    pattern-sinks:
+      - pattern-either:
+          - pattern: res.status(500).json(...)
+          - pattern: res.status(500).send(...)
