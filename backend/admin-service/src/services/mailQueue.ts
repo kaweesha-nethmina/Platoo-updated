@@ -1,7 +1,7 @@
-import nodemailer from "nodemailer";
+import nodemailer, { Transporter, SendMailOptions } from "nodemailer";
 
 interface MailJob {
-  mailOptions: nodemailer.SendMailOptions;
+  mailOptions: SendMailOptions;
   resolve: () => void;
   reject: (err: Error) => void;
 }
@@ -11,7 +11,7 @@ class MailQueue {
   private processing = false;
   private readonly maxRetries = 3;
 
-  private getTransporter(): nodemailer.Transporter {
+  private getTransporter(): Transporter {
     return nodemailer.createTransport({
       service: process.env.EMAIL_SERVICE || "Gmail",
       auth: {
@@ -21,7 +21,7 @@ class MailQueue {
     });
   }
 
-  async enqueue(mailOptions: nodemailer.SendMailOptions): Promise<void> {
+  async enqueue(mailOptions: SendMailOptions): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       this.queue.push({ mailOptions, resolve, reject });
       void this.process();
