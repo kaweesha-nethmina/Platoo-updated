@@ -11,9 +11,15 @@ import {
   confirmPaymentHandler,
 } from '../controllers/orderController';
 import { AuthRequest, protect, USER_ROLE } from '../middleware/authenticate';
+import { rejectNoSqlOperators } from '../middleware/noSqlAntiInjection';
 import { createOrderSchema, orderStatusSchema, updateOrderSchema, validateBody } from '../validators/order.schemas';
 
 const router = express.Router();
+
+// (V-03 hygiene) Screen every request's params, query and body for MongoDB
+// operator injection (`$`-keys, dot-notation keys, `$`-prefixed values) before
+// any handler or Joi validation gets a chance to pass them to a query.
+router.use(rejectNoSqlOperators);
 
 const confirmPaymentSchema = Joi.object({
   sessionId: Joi.string().max(256).required(),

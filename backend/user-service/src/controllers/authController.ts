@@ -293,6 +293,33 @@ export const getUserById = async (req: Request, res: Response): Promise<void> =>
 
 
 
+// V-08: session endpoint for the httpOnly-cookie BFF. Authenticates the JWT and
+// returns the safe user profile (never the password hash / googleId). The BFF
+// (Next.js) calls this on the frontend's behalf so the JWT never reaches the
+// browser. An `id` alias is included so client pages keep using `user.id`.
+export const getCurrentUser = async (req: AuthRequest, res: Response): Promise<void> => {
+  const id = req.user?.id;
+
+  if (!id) {
+    res.status(401).json({ msg: "Unauthorized: No token provided" });
+    return;
+  }
+
+  try {
+    const user = await User.findById(id).select("-password -googleId").lean();
+
+    if (!user) {
+      res.status(401).json({ msg: "Not authenticated" });
+      return;
+    }
+
+    res.status(200).json({ user: { ...user, id: user._id.toString() } });
+  } catch (error: unknown) {
+    console.error("Error fetching current user:", error);
+    res.status(500).json({ msg: "Internal server error" });
+  }
+};
+
 // controllers/authController.ts
 // Public helper used by restaurant profile pages; returns only safe, non-secret fields.
 export const getRestaurantOwnerByIdPublic = async (req: Request, res: Response): Promise<void> => {

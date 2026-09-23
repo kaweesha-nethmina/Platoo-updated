@@ -17,7 +17,7 @@ This document is the individual write-up behind the group report. It follows the
 | `backend/user-service` (Node/Express/JWT/bcrypt/Mongoose) | Registration/login hardening, role whitelist, safe user serialisation, rate limiting, Google **OAuth/OIDC sign-in**, secret handling, generic errors |
 | `backend/order-service` (Node/Express/Mongoose) | Full authentication/authorisation layer, server-side pricing, Joi validation, rate limiting, server-side Stripe payment verification, ownership/IDOR protection, error handling |
 | `backend/payment-service` (Java/Spring Boot/Stripe) | Server-side amount re-computation, CORS allowlist, generic error bodies, verification endpoint, metadata binding |
-| Related `frontend/platoo-client` (Next.js/React) | Google Identity Services sign-in; all order/payment page callers now send `Authorization: Bearer <JWT>`; checkout payloads no longer carry client prices; ORS key removed from bundle; images load with CORP `cross-origin` |
+| Related `frontend/platoo-client` (Next.js/React) | Google Identity Services sign-in; **BFF httpOnly-cookie session** (V-08) + same-origin allowlisted `/api/proxy/*` replacing every direct `Authorization` caller; role/id identity keys shown but never the JWT; checkout payloads no longer carry client prices; ORS key removed from bundle; images load with CORP `cross-origin` |
 
 ---
 
@@ -59,7 +59,7 @@ This document is the individual write-up behind the group report. It follows the
 | V-05 | Order created on `/payment-success` without verifying Stripe | High | A04 | Success page sends `session_id`; order-service `PATCH /orders/:orderId/payment` → payment-service `GET /api/verify-payment/{sessionId}` → checks Stripe `payment_status=paid` and metadata `order_id`, then marks order paid + emails. Idempotent; failure redirects back to checkout | Only a genuinely paid, matching session flips the order to `paid` |
 | V-06 | Password hashes leaked by `/users`, `/user/:id`, `/restaurant-owner/:id` | High | A01 | `/users` → admin/restaurant-owner only; `/user/:id` → authenticated roles; owner helper stays public but safe-fields only; every response built via `.select('-password -googleId')` / `toSafeUser()` | 401 anon / 403 customer / 200 no-hash owner; no `password` key anywhere |
 | V-07 | Totals built from client `item.price` | High | A04 | Order-service resolves real prices via menu-service quote; `delivery_fee` from the restaurant record; `tax` 8% added server-side; `user_id/status/total_amount/delivery_fee/tax` forbidden or ignored; idempotency key | Client price silently overridden (server total 1496); mass-assignment → 400 with `failed[]`; replay → same order (`idempotent:true`) |
-| V-08 | JWT in `localStorage` (XSS-accessible) | Medium | A03 | **Not fixed (tracked)** — requires httpOnly Secure SameSite cookie/BFF refactor across all three services (see §6) | mitigated: generic errors + React escaping + server-side password checks |
+| V-08 | JWT in `localStorage` (XSS-accessible) | Medium | A03 | Server-only BFF session cookie: Next.js route handlers (`/api/auth/login|google`) put the user-service JWT in an **HttpOnly SameSite=Lax cookie** and never return it to JS; client pages keep only non-secret role/id identity keys; a same-origin allowlisted proxy (`/api/proxy/{user,order,pay}/*`) attaches the cookie server-side and `/api/auth/session` validates it via the new user-service `GET /api/auth/me`; `"jwtToken"`/`"token"` key duplication removed | client grep audit: **no** `localStorage` JWT reads, inline `Authorization: Bearer`, `jwtDecode`, or `atob` remaining; `tsc` passes |
 | V-09 | Services relayed internal `error.message` / Stripe internals | Medium | A05 | Central generic 404/500 handlers in all services; `authController` error paths generic (no more password logging); payment-service returns only generic `FAILED` bodies and never `StripeException.getMessage()` | order-service no-leak test; manual error-path curl checks clean |
 | V-10 | `cors()` allowed every origin | Medium | A05 | `CORS_ORIGINS` env allowlist on user-, order-, menu- and payment-service (`WebConfig`), default `http://localhost:3000,http://127.0.0.1:3000` | malicious `Origin` rejected in preflight; dev frontend still works |
 | V-11 | `PUT /auth/update/:userId` echoed the password hash | Medium | A02 | Response uses `toSafeUser(user)`; `newPassword` enforces the same server-side strength policy as register (400 on weak input) | `updateUser` response contains no `password` |
@@ -109,16 +109,40 @@ PASS 33   SKIP 0   FAIL 0   total 33
 
 The harness then **cleans up after itself** (deletes demo users and orders; waits out the order rate-limit window so the deletes actually succeed — a throttling side effect I found and fixed while verifying the delete endpoints). Use `--keep` to retain data for inspection.
 
+**Residual fixes verified (2026-09-23):**
+- V-08: `platoo_token` cookie is HttpOnly/SameSite=Lax/1-day from server route handlers and never
+  reaches JS; `grep` over `app/ components/ hooks/ lib/` confirms **no** `localStorage.getItem("token"|"jwtToken")`,
+  **no** inline `Authorization: Bearer`, **no** `jwtDecode`/`atob` in client code.
+- Dependencies: `npm audit` → **0 vulnerabilities** (user-service & order-service).
+- NoSQL hygiene: `rejectNoSqlOperators` middleware active on every order/user route.
+- Payment: `dependency-check-maven` wired; `mvn validate` passes.
+
+`npx tsc --noEmit` passes for user-service and order-service after all changes (menu-service
+unchanged, still passes).
+
 ---
 
-## 6. Not-fixed vulnerabilities and the reason
+## 6. Residuals and the reason
 
-| Item | Why not fixed |
+Items from the assessment's "not-fixed" list that **have now been fixed** (and how):
+- **V-08 (JWT in `localStorage`)** → fixed with a server-only BFF session cookie (§5 table + §8).
+- **Dependency advisories (user 10, order 23)** → `npm audit fix` brings both services to
+  **0 vulnerabilities** (unused `sequelize`/`sequelize-cli` removed; `nodemailer` 6→10 patched);
+  OWASP `dependency-check-maven` wired into payment-service `pom.xml` (opt-in, CVSS≥8 gate).
+- **NoSQL injection hygiene** → `rejectNoSqlOperators` middleware now screens `$`-keys,
+  dot-notation keys, and `$`-prefixed values on every order- and user-service route.
+- **Old OpenRouteService key** → removed from code/bundle; the **manual** revocation in the
+  OpenRouteService console remains a user action outside the repo.
+
+| Item | Why still open |
 |---|---|
-| V-08 — JWT in `localStorage` | Architectural change. Doing it *properly* means httpOnly `Secure SameSite=Strict` cookies or a Backend-for-Frontend layer, which touches auth in all three services, the Google flow, the internal service key, and every frontend caller — a full redesign outside this assignment's timeline and the group's agreed scope. Existing mitigations (generic errors, React output-escaping, server-side password policy, short auth limiter) reduce the practical XSS blast radius. Tracked in `security-todo.md` for follow-up. |
-| Some `npm audit` overrides (user 10, order 23 advisories) | The fixes to the **application logic** (V-01…V-12) are the assignment focus; sweeping dependency churn (`stripe-java`, `express`, axios downgrade incompatibilities) risks destabilising the demo. Dev-only advisories remain. Full OWASP dependency-check run on all services is prioritised next, but remains out of the demo scope. |
-| NoSQL injection hygiene | No exploitable injection found in the final code; ObjectId patterns and `$`/`.` rejection are in place. Mitigation is staying current with mongoose. |
-| Old OpenRouteService key | Fix is complete in code; the **manual** step (revoking the old key in the OpenRouteService console) is on the user outside the repo. |
+| Privileged `GET /orders` returns all orders to every admin/restaurant-owner/delivery person | Proper scoping needs restaurant-owner→restaurant and delivery-man→assignment mappings (group scope, requires the menu-service member's data model). |
+| JWT revocation/refresh | Tokens are 1-day with no server-side blacklist. Logout clears the cookie; a full revocation store was out of scope. |
+| ORS key revocation in the console | Requires login to the OpenRouteService dashboard (user action). |
+| `stripe-java` 24.3.0 → latest | Best-practice bump, no advisory on the runtime path; keeping the demo's verified Stripe session stable meanwhile. |
+
+Everything else in the assessment is fixed and reverified (§8). Details remain in
+`security-todo.md`.
 
 ---
 

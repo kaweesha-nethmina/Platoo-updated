@@ -136,12 +136,11 @@ export default function UsersPage() {
     const fetchUsersAndOrders = async () => {
       setIsLoading(true)
       try {
-        const token = localStorage.getItem("token")
-        const usersRes = await fetch("http://localhost:4000/api/auth/users", {
+        const usersRes = await fetch("/api/proxy/user/auth/users", {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
+            // (V-08) Authorization removed — BFF proxy injects Bearer from the httpOnly cookie
           },
         })
         if (!usersRes.ok) throw new Error("Failed to fetch users")
@@ -151,11 +150,11 @@ export default function UsersPage() {
           id: user._id || user.id,
         }))
 
-        const ordersRes = await fetch("http://localhost:3008/api/orders", {
+        const ordersRes = await fetch("/api/proxy/order/orders", {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("jwtToken") || localStorage.getItem("token")}`,
+            // (V-08) Authorization removed — BFF proxy injects Bearer from the httpOnly cookie
           },
         })
         if (!ordersRes.ok) throw new Error("Failed to fetch orders")
@@ -224,7 +223,7 @@ export default function UsersPage() {
     }
 
     try {
-      const res = await fetch("http://localhost:4000/api/auth/register", {
+      const res = await fetch("/api/proxy/user/auth/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -310,12 +309,11 @@ export default function UsersPage() {
       return
     }
     try {
-      const token = localStorage.getItem("token")
-      const res = await fetch(`http://localhost:4000/api/auth/delete/${selectedUser.id}`, {
+      const res = await fetch(`/api/proxy/user/auth/delete/${selectedUser.id}`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          // (V-08) Authorization removed — BFF proxy injects Bearer from the httpOnly cookie
         },
       })
 
@@ -371,12 +369,11 @@ export default function UsersPage() {
     payload.role = editUser.role
 
     try {
-      const token = localStorage.getItem("token")
-      const res = await fetch(`http://localhost:4000/api/auth/update/${editUser.id}`, {
+      const res = await fetch(`/api/proxy/user/auth/update/${editUser.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          // (V-08) Authorization removed — BFF proxy injects Bearer from the httpOnly cookie
         },
         body: JSON.stringify(payload),
       })

@@ -198,7 +198,7 @@ export default function RegisterPage() {
         vehicleNumber: dataToSend.vehicleNumber?.trim(),
       }
 
-      const response = await fetch("http://localhost:4000/api/auth/register", {
+      const response = await fetch("/api/proxy/user/auth/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -90,9 +90,7 @@ export default function OrderHistoryPage() {
       try {
         const ordersData: Order[] = [];
         for (const restaurant of restaurants) {
-          const response = await fetch(`http://localhost:3008/api/orders?restaurant_id=${restaurant._id}`, {
-            headers: { Authorization: `Bearer ${localStorage.getItem("jwtToken") || localStorage.getItem("token")}` },
-          });
+          const response = await fetch(`/api/proxy/order/orders?restaurant_id=${restaurant._id}`);
           if (!response.ok) throw new Error("Failed to fetch orders");
           const data = await response.json();
           ordersData.push(...data);

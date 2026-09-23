@@ -62,22 +62,16 @@ export default function LoginPage() {
     return isValid;
   };
 
-  const decodeToken = (token: string) => {
-    try {
-      return JSON.parse(atob(token.split(".")[1]));
-    } catch (error) {
-      console.error("Error decoding token", error);
-      return {};
-    }
-  };
-
   // Shared post-login success path — used by BOTH email/password login and
-  // Google sign-in so both flows store the JWT, update context, and redirect
-  // in exactly the same way.
-  const applyAuthSuccess = (token: string) => {
-    const decoded = decodeToken(token);
+  // Google sign-in. The JWT itself only ever lives in an httpOnly Cookie set by
+  // the BFF (`/api/auth/login|google`); it is never stored in localStorage.
+  // Here we only persist the non-secret identity claims (id + role) the pages
+  // use, and update the auth context with the validated claims.
+  const applyAuthSuccess = (claims: { id?: string; role?: string }) => {
+    const id = claims?.id;
+    const role = claims?.role;
 
-    if (decoded?.id && decoded?.role) {
+    if (id && role) {
       // Clear old role-based IDs
       localStorage.removeItem("adminId");
       localStorage.removeItem("restaurantOwnerId");
@@ -85,28 +79,25 @@ export default function LoginPage() {
       localStorage.removeItem("userId");
 
       // Set role-based ID key
-      switch (decoded.role) {
+      switch (role) {
         case "admin":
-          localStorage.setItem("adminId", decoded.id);
+          localStorage.setItem("adminId", id);
           break;
         case "restaurant_owner":
-          localStorage.setItem("restaurantOwnerId", decoded.id);
+          localStorage.setItem("restaurantOwnerId", id);
           break;
         case "delivery_man":
-          localStorage.setItem("deliveryManId", decoded.id);
+          localStorage.setItem("deliveryManId", id);
           break;
         case "user":
         default:
-          localStorage.setItem("userId", decoded.id);
+          localStorage.setItem("userId", id);
           break;
       }
     }
 
-    // Set token in localStorage
-    localStorage.setItem("jwtToken", token);
-
-    // Set token in context
-    setUser({ token });
+    // Set identity in context (no token — it is in the httpOnly Cookie)
+    setUser(claims);
 
     toast({
       title: "Login successful",
@@ -126,7 +117,7 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch("http://localhost:4000/api/auth/login", {
+      const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -136,11 +127,11 @@ export default function LoginPage() {
 
       const data = await response.json();
 
-      if (!response.ok) {
+      if (!response.ok || !data?.user) {
         throw new Error(data.msg || "Login failed");
       }
 
-      applyAuthSuccess(data.token);
+      applyAuthSuccess(data.user);
     } catch (error) {
       toast({
         title: "Login failed",
@@ -153,15 +144,15 @@ export default function LoginPage() {
     }
   };
 
-  // Google Identity Services (GSI) — forward the raw ID token to the backend
-  // and run the same post-login path. The token is never decoded or trusted
-  // client-side; it is only a credential to pass through.
+  // Google Identity Services (GSI) — forward the raw ID token to the BFF. The
+  // browser still sees only the validated claims; the app JWT is placed in an
+  // httpOnly Cookie the BFF set.
   const handleGoogleCredentialResponse = async (
     response: GsiCredentialResponse
   ) => {
     setIsLoading(true);
     try {
-      const res = await fetch("http://localhost:4000/api/auth/google", {
+      const res = await fetch("/api/auth/google", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -171,11 +162,11 @@ export default function LoginPage() {
 
       const data = await res.json();
 
-      if (!res.ok) {
+      if (!res.ok || !data?.user) {
         throw new Error(data.msg || "Google sign-in failed");
       }
 
-      applyAuthSuccess(data.token);
+      applyAuthSuccess(data.user);
     } catch (error) {
       toast({
         title: "Login failed",

@@ -29,12 +29,12 @@ export default function PaymentSuccessPage() {
       // trust localStorage alone.
       try {
         const response = await fetch(
-          `http://localhost:3008/api/orders/${orderId}/payment`,
+          `/api/proxy/order/orders/${orderId}/payment`,
           {
             method: "PATCH",
             headers: {
               "Content-Type": "application/json",
-              Authorization: `Bearer ${localStorage.getItem("jwtToken") || localStorage.getItem("token")}`,
+              // (V-08) Authorization removed — BFF proxy injects Bearer from the httpOnly cookie
             },
             body: JSON.stringify({ sessionId }),
           }

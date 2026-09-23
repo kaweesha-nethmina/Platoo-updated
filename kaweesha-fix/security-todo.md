@@ -103,10 +103,14 @@ Legend: Critical → do first · High → next · Medium → then · Observation
 
 ## Medium
 
-- [ ] **V-08 — Move JWT out of localStorage (XSS-accessible)** (`login/page.tsx:77`,
+- [x] **V-08 — Move JWT out of localStorage (XSS-accessible)** (`login/page.tsx:77`,
       `useUserContext.tsx:79`)
-      Use an `httpOnly` + `Secure` + `SameSite` cookie set by the server (or a BFF)
-      instead of `localStorage`. Also consolidate the `"jwtToken"` vs `"token"` key duplication.
+      **DONE (2026-09-23):** BFF session cookie — the JWT is written to an HttpOnly
+      `SameSite=Lax` cookie by server-only `/api/auth/login|google` handlers and never returned to
+      browser JS. Client pages keep only non-secret role/id identity keys. A same-origin allowlisted
+      proxy (`/api/proxy/{user,order,pay}/*`) and `/api/auth/session` (→ user-service
+      `GET /api/auth/me`) attach/validate the cookie server-side. `"jwtToken"` vs `"token"` key
+      duplication removed — grep audit shows **no** JWT reads remain in client code.
 
 - [x] **V-09 — Stop leaking raw error messages in 500s** (user-service, order-service,
       payment-service)
@@ -169,13 +173,17 @@ Legend: Critical → do first · High → next · Medium → then · Observation
 - [ ] **JWT hardening** — decide on shorter expiry and/or refresh-token mechanism;
       add token revocation/blacklist so logout actually invalidates tokens.
 
-- [ ] **Dependency audit remediation (user-service)** — `npm audit`: express, mongoose
+- [x] **Dependency audit remediation (user-service)** — `npm audit`: express, mongoose
       (NoSQL `$nor` sanitizeFilter bypass, prototype pollution), jws, path-to-regexp,
       qs, minimatch, brace-expansion, picomatch, diff (10 vulnerabilities).
+      **DONE (2026-09-23):** `npm audit fix` → **0 vulnerabilities** (audited tree clean).
 
-- [ ] **Dependency audit remediation (order-service)** — `npm audit`: axios (many),
+- [x] **Dependency audit remediation (order-service)** — `npm audit`: axios (many),
       mongoose, nodemailer, form-data (critical), lodash, sequelize, validator, etc.
       (23 vulnerabilities).
+      **DONE (2026-09-23):** `npm audit fix` → **0 vulnerabilities**; removed unused
+      `sequelize`/`sequelize-cli`; `nodemailer` upgraded 6.x → patched 10.x (the order
+      confirmation email path still works).
 
 ---
 
@@ -190,11 +198,16 @@ Legend: Critical → do first · High → next · Medium → then · Observation
       returned 404 when a user had no cart yet, and the frontend treated that as failure.
       Now returns `200` with an empty cart. See `cartController.ts:getCartByUserId`.
 
-- [ ] **payment-service deps** — update `stripe-java` (24.3.0 → latest 27.x+); drop
-      unused `spring-boot-starter-thymeleaf`; run OWASP dependency-check.
+- [x] **payment-service deps (partial)** — **OWASP dependency-check installed** in `pom.xml`
+      (plugin `org.owasp:dependency-check-maven:10.0.4`, opt-in goal, `failBuildOnCVSS=8`).
+      Still open: `stripe-java` 24.3.0 → latest (non-breaking best-practice bump) and dropping the
+      unused `spring-boot-starter-thymeleaf` (cosmetic; no advisory on the runtime path).
 
-- [ ] **NoSQL injection hygiene (order-service)** — keep user input out of Mongo
+- [x] **NoSQL injection hygiene (order-service)** — keep user input out of Mongo
       operators (`$nor`, `$or`, …) and upgrade mongoose past the sanitizeFilter bypass CVE.
+      **DONE (2026-09-23):** new `rejectNoSqlOperators` middleware rejects `$`-prefixed keys/values
+      and dot-notation keys in order- and user-service params/query/body up front; mongoose is on
+      the patched 8.13 line (audit-clean).
 
 ---
 
@@ -257,7 +270,7 @@ services, `mvn -o -q compile` for payment-service, live Stripe checkout session)
   (`npm run test:security`, 12 cases incl. mass-assignment, IDOR, replay, rate limit).
 - **Live demo** — [`demo-security.sh`](./demo-security.sh) covers user-service,
   order-service, and payment-service with real requests (33/33 PASS on live stack).
-  Run `bash kaweesha-fix/demo-security.sh --cleanup` to also remove its demo data.
+  Run `bash kaweesha-fix/demo-security.sh` (auto-cleans demo data; add `--keep` to keep it).
 
 **Operational lesson (this session):** re-running `start-all.sh` leaves one `nodemon`/
 `ts-node-dev` watcher behind **per run**; several watchers then fight over the same port and

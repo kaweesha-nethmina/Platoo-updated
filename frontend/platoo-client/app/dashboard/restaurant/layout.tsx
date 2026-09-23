@@ -5,7 +5,6 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
-import { jwtDecode } from "jwt-decode"
 import {
   SidebarProvider,
   Sidebar,
@@ -40,16 +39,6 @@ import {
   Settings,
 } from "lucide-react"
 
-interface JwtPayload {
-  id: string
-  role: string
-  name?: string
-  email?: string
-  restaurantName?: string
-  iat: number
-  exp: number
-}
-
 export default function RestaurantDashboardLayout({
   children,
 }: {
@@ -70,14 +59,13 @@ export default function RestaurantDashboardLayout({
 
   // Fetch user data
   useEffect(() => {
-    const fetchUserData = async (token: string) => {
+    const fetchUserData = async (ownerId: string) => {
       try {
-        const decoded = jwtDecode<JwtPayload>(token)
         const response = await fetch(
-          `http://localhost:4000/api/auth/restaurant-owner/${decoded.id}`,
+          `/api/proxy/user/auth/restaurant-owner/${ownerId}`,
           {
             headers: {
-              Authorization: `Bearer ${token}`,
+              // (V-08) Authorization removed — BFF proxy injects Bearer from the httpOnly cookie
               "Content-Type": "application/json",
             },
           }
@@ -102,13 +90,13 @@ export default function RestaurantDashboardLayout({
       }
     }
 
-    const token = localStorage.getItem("token")
-    if (!token) {
+    const ownerId = localStorage.getItem("restaurantOwnerId")
+    if (!ownerId) {
       router.push("/login")
       return
     }
 
-    fetchUserData(token)
+    fetchUserData(ownerId)
   }, [router])
 
   // Fetch ALL orders count for this restaurant
@@ -117,15 +105,9 @@ export default function RestaurantDashboardLayout({
       if (!userData?.id) return
 
       try {
-        const token = localStorage.getItem("token")
-        if (!token) {
-          router.push("/login")
-          return
-        }
-
-        const response = await fetch("http://localhost:3008/api/orders", {
+        const response = await fetch("/api/proxy/order/orders", {
           headers: {
-            Authorization: `Bearer ${token}`,
+            // (V-08) Authorization removed — BFF proxy injects Bearer from the httpOnly cookie
             "Content-Type": "application/json",
           },
         })

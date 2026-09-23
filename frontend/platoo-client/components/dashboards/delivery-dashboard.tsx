@@ -174,11 +174,11 @@ export default function DeliveryDashboard() {
         }),
       });
 
-      await fetch(`http://localhost:3008/api/orders/${activeOrder.id}/status`, {
+      await fetch(`/api/proxy/order/orders/${activeOrder.id}/status`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("jwtToken") || localStorage.getItem("token")}`,
+          // (V-08) Authorization removed — BFF proxy injects Bearer from the httpOnly cookie
         },
         body: JSON.stringify({ status: "delivered" }),
       });

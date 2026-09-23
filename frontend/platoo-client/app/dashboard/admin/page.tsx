@@ -123,12 +123,11 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     const fetchTotalUsers = async () => {
       try {
-        const token = localStorage.getItem("token")
-        const res = await fetch("http://localhost:4000/api/auth/users", {
+        const res = await fetch("/api/proxy/user/auth/users", {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
+            // (V-08) Authorization removed — BFF proxy injects Bearer from the httpOnly cookie
           },
         })
         if (!res.ok) throw new Error("Failed to fetch users")
@@ -154,9 +153,7 @@ export default function AdminDashboardPage() {
       try {
         // Fetch orders and restaurants from endpoints
         const [ordersRes, restaurantsRes] = await Promise.all([
-          fetch("http://localhost:3008/api/orders", {
-            headers: { Authorization: `Bearer ${localStorage.getItem("jwtToken") || localStorage.getItem("token")}` },
-          }),
+          fetch("/api/proxy/order/orders"),
           fetch("http://localhost:3001/api/restaurants"),
         ])
         const ordersRaw = await ordersRes.json()
@@ -228,14 +225,13 @@ export default function AdminDashboardPage() {
     const fetchAdminProfile = async () => {
       setIsAdminProfileLoading(true);
       try {
-        const token = localStorage.getItem("token");
-        if (!token) throw new Error("No authentication token found");
-        const decodedToken = JSON.parse(atob(token.split('.')[1]));
-        const userId = decodedToken.id;
-        const response = await fetch(`http://localhost:4000/api/auth/user/${userId}`, {
+        const adminId = localStorage.getItem("adminId");
+        if (!adminId) throw new Error("No authentication found");
+        const userId = adminId;
+        const response = await fetch(`/api/proxy/user/auth/user/${userId}`, {
           method: "GET",
           headers: {
-            Authorization: `Bearer ${token}`,
+            // (V-08) Authorization removed — BFF proxy injects Bearer from the httpOnly cookie
             "Content-Type": "application/json"
           }
         });
@@ -276,10 +272,9 @@ export default function AdminDashboardPage() {
     setPasswordError("");
   
     try {
-      const token = localStorage.getItem("token");
-      if (!token) throw new Error("No authentication token found");
-      const decodedToken = JSON.parse(atob(token.split('.')[1]));
-      const userId = decodedToken.id;
+      const adminId = localStorage.getItem("adminId");
+      if (!adminId) throw new Error("No authentication found");
+      const userId = adminId;
   
       // Build payload for update
       const payload: any = {
@@ -293,10 +288,10 @@ export default function AdminDashboardPage() {
         payload.password = newPassword;
       }
   
-      const response = await fetch(`http://localhost:4000/api/auth/update/${userId}`, {
+      const response = await fetch(`/api/proxy/user/auth/update/${userId}`, {
         method: "PUT",
         headers: {
-          Authorization: `Bearer ${token}`,
+          // (V-08) Authorization removed — BFF proxy injects Bearer from the httpOnly cookie
           "Content-Type": "application/json"
         },
         body: JSON.stringify(payload)
@@ -349,14 +344,13 @@ export default function AdminDashboardPage() {
  const handleDeleteAccount = async () => {
   setIsDeleting(true)
   try {
-    const token = localStorage.getItem("token")
-    if (!token) throw new Error("No authentication token found")
-    const decodedToken = JSON.parse(atob(token.split('.')[1]))
-    const userId = decodedToken.id
-    const response = await fetch(`http://localhost:4000/api/auth/delete/${userId}`, {
+    const adminId = localStorage.getItem("adminId")
+    if (!adminId) throw new Error("No authentication found")
+    const userId = adminId
+    const response = await fetch(`/api/proxy/user/auth/delete/${userId}`, {
       method: "DELETE",
       headers: {
-        Authorization: `Bearer ${token}`,
+        // (V-08) Authorization removed — BFF proxy injects Bearer from the httpOnly cookie
         "Content-Type": "application/json"
       }
     })
@@ -642,9 +636,7 @@ function OrderHistoryPage() {
     const fetchOrders = async () => {
       setIsLoading(true)
       try {
-        const response = await fetch(`http://localhost:3008/api/orders?restaurant_id=${restaurantId}`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem("jwtToken") || localStorage.getItem("token")}` },
-        })
+        const response = await fetch(`/api/proxy/order/orders?restaurant_id=${restaurantId}`)
         if (!response.ok) throw new Error("Failed to fetch orders")
         const data = await response.json()
         setOrders(data)

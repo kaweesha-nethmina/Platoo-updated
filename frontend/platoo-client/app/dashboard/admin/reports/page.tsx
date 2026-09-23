@@ -105,9 +105,7 @@ export default function ReportsPage() {
           : []
         setRestaurants(allRestaurants)
 
-        const ordersRes = await fetch("http://localhost:3008/api/orders", {
-          headers: { Authorization: `Bearer ${localStorage.getItem("jwtToken") || localStorage.getItem("token")}` },
-        })
+        const ordersRes = await fetch("/api/proxy/order/orders")
         const ordersRaw = await ordersRes.json()
         const ordersData: Order[] = Array.isArray(ordersRaw)
           ? ordersRaw.map((order: any) => ({

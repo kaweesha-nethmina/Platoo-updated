@@ -145,8 +145,7 @@ export default function RestaurantAnalytics() {
         orderQuery += `&end=${dateRange.to.toISOString()}`;
       }
       const ordersRes = await fetch(
-        `http://localhost:3008/api/orders${orderQuery}`,
-        { headers: { Authorization: `Bearer ${localStorage.getItem("jwtToken") || localStorage.getItem("token")}` } }
+        `/api/proxy/order/orders${orderQuery}`
       );
       const allOrders: Order[] = await ordersRes.json();
 

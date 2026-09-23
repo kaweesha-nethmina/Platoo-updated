@@ -4,7 +4,6 @@ import type React from "react"
 import { useState, useEffect, useRef } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
-import { jwtDecode } from "jwt-decode"
 import {
   SidebarProvider,
   Sidebar,
@@ -39,16 +38,6 @@ import {
   BarChart2,
 } from "lucide-react"
 
-interface JwtPayload {
-  id: string
-  role: string
-  name?: string
-  email?: string
-  restaurantName?: string
-  iat: number
-  exp: number
-}
-
 export default function RestaurantDashboardLayout({
   children,
 }: {
@@ -74,43 +63,47 @@ export default function RestaurantDashboardLayout({
     if (hasCheckedAuth.current) return // If we have already checked authentication, skip this effect
     hasCheckedAuth.current = true
 
-    // Check if user is authenticated and is a restaurant owner/manager
-    const token = localStorage.getItem("token")
+    const fetchOwnerData = async (ownerId: string) => {
+      try {
+        const response = await fetch(`/api/proxy/user/auth/restaurant-owner/${ownerId}`, {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        })
+        if (!response.ok) throw new Error("Failed to fetch user data")
+        const data = await response.json()
+        setUserData({
+          id: data._id,
+          name: data.name || "Restaurant Manager",
+          email: data.email || "restaurant@example.com",
+          role: data.role,
+          restaurantName: data.restaurantName || "Burger Palace",
+        })
+      } catch (error) {
+        console.error("Error fetching owner data:", error)
+        localStorage.removeItem("token")
+        router.push("/login")
+      } finally {
+        setIsLoading(false)
+      }
+    }
 
-    if (!token) {
+    const ownerId = localStorage.getItem("restaurantOwnerId")
+    if (!ownerId) {
       router.push("/login")
       return
     }
 
-    try {
-      // Decode the JWT token to get user role
-      const decoded = jwtDecode<JwtPayload>(token)
-
-      if (decoded.role !== "restaurant") {
-        // Redirect non-restaurant users
-        router.push("/dashboard")
-        return
-      }
-
-      setUserData({
-        id: decoded.id,
-        name: decoded.name || "Restaurant Manager",
-        email: decoded.email || "restaurant@example.com",
-        role: decoded.role,
-        restaurantName: decoded.restaurantName || "Burger Palace",
-      })
-    } catch (error) {
-      console.error("Invalid token:", error)
-      localStorage.removeItem("token")
-      router.push("/login")
-    } finally {
-      setIsLoading(false)
-    }
+    fetchOwnerData(ownerId)
   }, [router])
 
   const handleSignOut = () => {
+    localStorage.removeItem("adminId")
+    localStorage.removeItem("restaurantOwnerId")
+    localStorage.removeItem("deliveryManId")
+    localStorage.removeItem("userId")
     localStorage.removeItem("token")
-    router.push("/login")
+    router.push("/api/auth/logout")
   }
 
   const navItems = [

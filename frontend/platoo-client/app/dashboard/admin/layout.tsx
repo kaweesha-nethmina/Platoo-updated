@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
-import { jwtDecode } from "jwt-decode"
 import {
   SidebarProvider,
   Sidebar,
@@ -31,15 +30,6 @@ import LogoutIcon from "@mui/icons-material/Logout"
 import SearchIcon from "@mui/icons-material/Search"
 import AccountCircleIcon from "@mui/icons-material/AccountCircle"
 
-interface JwtPayload {
-  id: string
-  role: string
-  name?: string
-  email?: string
-  iat: number
-  exp: number
-}
-
 export default function AdminDashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -53,40 +43,23 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
   const [ordersCount, setOrdersCount] = useState<number | null>(null)
 
   useEffect(() => {
-    const token = localStorage.getItem("token")
-    if (!token) {
+    // V-08: the JWT only lives in an httpOnly cookie; the admin dashboard is
+    // gated by the non-secret identity key written at login.
+    const adminId = localStorage.getItem("adminId")
+    if (!adminId) {
       router.push("/login")
       return
     }
 
-    let decoded: JwtPayload
-    try {
-      decoded = jwtDecode<JwtPayload>(token)
-      if (decoded.role !== "admin") {
-        router.push("/dashboard")
-        return
-      }
-    } catch (error) {
-      console.warn("Invalid token:", error)
-      localStorage.removeItem("token")
-      router.push("/login")
-      return
-    }
-
-    // Fetch real user data from backend using user ID from token
-    fetch(`http://localhost:4000/api/auth/user/${decoded.id}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    })
+    // Fetch real user data from backend using the admin id
+    fetch(`/api/proxy/user/auth/user/${adminId}`)
       .then(async (res) => {
         if (!res.ok) throw new Error("Failed to fetch user data")
         return res.json()
       })
       .then((data) => {
         setUserData({
-          id: data.id,
+          id: data.id ?? data._id,
           name: data.name,
           email: data.email,
           role: data.role,
@@ -95,10 +68,10 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
       .catch((err) => {
         console.warn(err)
         setUserData({
-          id: decoded.id,
-          name: decoded.name || "Admin User",
-          email: decoded.email || "admin@example.com",
-          role: decoded.role,
+          id: adminId,
+          name: "Admin User",
+          email: "admin@example.com",
+          role: "admin",
         })
       })
       .finally(() => setIsLoading(false))
@@ -106,9 +79,7 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
 
   // Fetch orders count
   useEffect(() => {
-    fetch("http://localhost:3008/api/orders", {
-      headers: { Authorization: `Bearer ${localStorage.getItem("jwtToken") || localStorage.getItem("token")}` },
-    })
+    fetch("/api/proxy/order/orders")
       .then(async (res) => {
         if (!res.ok) throw new Error("Failed to fetch orders")
         return res.json()
@@ -122,8 +93,15 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
       })
   }, [])
 
-  const handleSignOut = () => {
-    localStorage.removeItem("token")
+  const handleSignOut = async () => {
+    ["adminId", "restaurantOwnerId", "deliveryManId", "userId", "user"].forEach((k) =>
+      localStorage.removeItem(k)
+    )
+    try {
+      await fetch("/api/auth/logout", { method: "POST" })
+    } catch (err) {
+      console.warn(err)
+    }
     router.push("/login")
   }
 

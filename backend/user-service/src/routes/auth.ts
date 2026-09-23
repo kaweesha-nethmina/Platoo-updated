@@ -1,10 +1,15 @@
 import { Router, Response } from "express";
 import { AuthRequest } from "../middleware/authMiddleware"; // Import AuthRequest
 import { UserRole } from "../models/User"; // Ensure UserRole is correctly imported
-import { register, login, updateUser, deleteUser, getAllUsers, getUserById, getRestaurantOwnerByIdPublic, googleAuth } from "../controllers/authController";
+import { register, login, updateUser, deleteUser, getAllUsers, getUserById, getRestaurantOwnerByIdPublic, getCurrentUser, googleAuth } from "../controllers/authController";
 import { protect } from "../middleware/authMiddleware";
+import { rejectNoSqlOperators } from "../middleware/noSqlAntiInjection";
 
 const router = Router();
+
+// (V-03 hygiene) Screen route params / query / body for MongoDB operator
+// injection (`$`-keys, dot-notation keys, `$`-prefixed values) up front.
+router.use(rejectNoSqlOperators);
 
 // Register route
 router.post("/register", async (req: AuthRequest, res: Response) => {
@@ -20,6 +25,20 @@ router.post("/login", async (req: AuthRequest, res: Response) => {
 router.post("/google", async (req: AuthRequest, res: Response) => {
   await googleAuth(req, res); // Call the googleAuth function directly
 });
+
+// V-08: current session (used by the httpOnly-cookie BFF). Requires auth like
+// every protected route; anyone with a valid token may query their own profile.
+router.get(
+  "/me",
+  protect([UserRole.ADMIN, UserRole.RESTAURANT_OWNER, UserRole.USER, UserRole.DELIVERY_MAN]),
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      await getCurrentUser(req, res);
+    } catch (error) {
+      res.status(500).json({ msg: "Internal server error" });
+    }
+  }
+);
 
 // Update user route
 router.put(

@@ -663,11 +663,8 @@ export default function CheckoutPage() {
 
     // Try to fetch the freshest profile from user-service
     try {
-      const token = localStorage.getItem("jwtToken") || localStorage.getItem("token");
-      if (userId && token) {
-        const res = await fetch(`http://localhost:4000/api/auth/user/${userId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+      if (userId) {
+        const res = await fetch(`/api/proxy/user/auth/user/${userId}`);
         if (res.ok) {
           user = await res.json();
         }
@@ -795,12 +792,12 @@ export default function CheckoutPage() {
 
       // Persist the order first so the payment amount can be recomputed
       // server-side from the stored order (never trust the client's amount).
-      const orderResponse = await fetch("http://localhost:3008/api/orders", {
+      const orderResponse = await fetch("/api/proxy/order/orders", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Idempotency-Key": getOrCreateIdempotencyKey(),
-          Authorization: `Bearer ${localStorage.getItem("jwtToken") || localStorage.getItem("token")}`,
+          // (V-08) Authorization removed — BFF proxy injects Bearer from the httpOnly cookie
         },
         body: JSON.stringify(orderPayload),
       });
@@ -829,7 +826,7 @@ export default function CheckoutPage() {
         currency: "USD",
       };
 
-      const response = await fetch("http://localhost:8081/product/v1/checkout", {
+      const response = await fetch("/api/proxy/pay/product/v1/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(paymentData),
