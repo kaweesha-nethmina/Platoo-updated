@@ -1,20 +1,22 @@
 /**
  * BLACK-BOX functional tests - menu-service /api/menu-items (SE4030).
- * Treats the API as a black-box spec. Expectation = spec-correct behaviour;
- * a FAILING test documents a functional defect.
+ * POST-FIX verification suite: asserts secure behaviour after the fixes,
+ * including the price min:0 validation (VULN-04) and authenticated writes (VULN-01).
  */
 import request from 'supertest';
 import app from '../../src/app';
 import { connectAndReset, disconnectDb } from '../helpers/db';
+import { validUserToken } from '../helpers/tokens';
 
 const api = request(app);
+const AUTH = { Authorization: 'Bearer ' + validUserToken('it-menu-user-1') };
 
 let restaurantId = '';
 let categoryId = '';
 
 beforeAll(async () => {
   await connectAndReset();
-  const r = await api.post('/api/restaurants').send({
+  const r = await api.post('/api/restaurants').set(AUTH).send({
     owner_id: 'owner-123',
     name: 'ItemTest Restaurant',
     image: 'http://localhost:3001/uploads/test.png',
@@ -28,7 +30,7 @@ beforeAll(async () => {
     location: { type: 'Point', coordinates: [79.86, 6.92], tag: 'area' },
   });
   restaurantId = r.body._id;
-  const c = await api.post('/api/category').send({
+  const c = await api.post('/api/category').set(AUTH).send({
     restaurant_id: restaurantId,
     name: 'Pizza',
     description: 'Pizza options',
@@ -53,33 +55,30 @@ const validItem = () => ({
 
 describe('BLACK-BOX /api/menu-items', () => {
   describe('POST /', () => {
-    it('TC-BB-033 valid menu item -> 201', async () => {
-      const res = await api.post('/api/menu-items').send(validItem());
+    it('TC-BB-033 valid menu item (with auth) -> 201', async () => {
+      const res = await api.post('/api/menu-items').set(AUTH).send(validItem());
       expect(res.status).toBe(201);
       expect(res.body).toHaveProperty('_id');
     });
 
-    it('TC-BB-034 price as string "1200" is coerced to number', async () => {
-      const res = await api.post('/api/menu-items').send({ ...validItem(), price: '1200' });
-      console.log('[BB-034] string price returned:', res.status, JSON.stringify(res.body).slice(0, 150));
+    it('TC-BB-034 price as string "1200" is coerced to number 1200 (VULN-04 fix keeps coercion)', async () => {
+      const res = await api.post('/api/menu-items').set(AUTH).send({ ...validItem(), price: '1200' });
       expect(res.status).toBe(201);
+      expect(res.body.price).toBe(1200);
     });
 
-    it('TC-BB-035 NEGATIVE price accepted -> price tampering (no min validation)', async () => {
-      const res = await api.post('/api/menu-items').send({ ...validItem(), price: -500 });
-      console.log('[BB-035] negative price returned:', res.status, JSON.stringify(res.body).slice(0, 150));
-      expect(res.status).toBe(201);
-      expect(res.body.price).toBe(-500);
+    it('TC-BB-035 NEGATIVE price REJECTED -> 400 (VULN-04 min:0 enforced)', async () => {
+      const res = await api.post('/api/menu-items').set(AUTH).send({ ...validItem(), price: -500 });
+      expect(res.status).toBe(400);
     });
 
-    it('TC-BB-036 empty body -> expect 400 (defect: likely 500)', async () => {
-      const res = await api.post('/api/menu-items').send({});
-      console.log('[BB-036] empty item returned:', res.status, JSON.stringify(res.body).slice(0, 200));
-      expect([400, 500]).toContain(res.status);
+    it('TC-BB-036 empty body -> 400 (ValidationError handled centrally)', async () => {
+      const res = await api.post('/api/menu-items').set(AUTH).send({});
+      expect(res.status).toBe(400);
     });
 
-    it('TC-BB-037 XSS payload in name/description stored verbatim', async () => {
-      const res = await api.post('/api/menu-items').send({
+    it('TC-BB-037 XSS payload in name/description stored verbatim (VULN-14 XSS still open)', async () => {
+      const res = await api.post('/api/menu-items').set(AUTH).send({
         ...validItem(),
         name: '<img src=x onerror=alert(1)>',
         description: '<script>document.cookie</script>',
@@ -89,15 +88,14 @@ describe('BLACK-BOX /api/menu-items', () => {
       expect(res.body.description).toContain('<script>');
     });
 
-    it('TC-BB-038 non-ObjectId category_id -> expect 400 (defect: likely 500 CastError)', async () => {
-      const res = await api.post('/api/menu-items').send({ ...validItem(), category_id: 'nope' });
-      console.log('[BB-038] invalid category_id returned:', res.status, JSON.stringify(res.body).slice(0, 250));
+    it('TC-BB-038 non-ObjectId category_id -> 400 (CastError, no 500 leak)', async () => {
+      const res = await api.post('/api/menu-items').set(AUTH).send({ ...validItem(), category_id: 'nope' });
       expect(res.status).toBe(400);
     });
   });
 
   describe('GET /', () => {
-    it('TC-BB-039 returns 200 + array', async () => {
+    it('TC-BB-039 returns 200 + array (public read)', async () => {
       const res = await api.get('/api/menu-items');
       expect(res.status).toBe(200);
       expect(Array.isArray(res.body)).toBe(true);
@@ -105,7 +103,7 @@ describe('BLACK-BOX /api/menu-items', () => {
   });
 
   describe('GET /category/:categoryId', () => {
-    it('TC-BB-040 valid category -> 200 + array', async () => {
+    it('TC-BB-040 valid category -> 200 + array (public read)', async () => {
       const res = await api.get(`/api/menu-items/category/${categoryId}`);
       expect(res.status).toBe(200);
       expect(Array.isArray(res.body)).toBe(true);
@@ -113,7 +111,7 @@ describe('BLACK-BOX /api/menu-items', () => {
   });
 
   describe('GET /restaurant/:restaurantId', () => {
-    it('TC-BB-041 valid restaurant -> 200 + array', async () => {
+    it('TC-BB-041 valid restaurant -> 200 + array (public read)', async () => {
       const res = await api.get(`/api/menu-items/restaurant/${restaurantId}`);
       expect(res.status).toBe(200);
       expect(Array.isArray(res.body)).toBe(true);
@@ -121,47 +119,49 @@ describe('BLACK-BOX /api/menu-items', () => {
   });
 
   describe('GET /:menuItemId/image', () => {
-    it('TC-BB-042 returns image_url wrapper', async () => {
-      const created = (await api.post('/api/menu-items').send(validItem())).body;
+    it('TC-BB-042 returns image_url wrapper (public read)', async () => {
+      const created = (await api.post('/api/menu-items').set(AUTH).send(validItem())).body;
       const res = await api.get(`/api/menu-items/${created._id}/image`);
       expect(res.status).toBe(200);
       expect(res.body).toHaveProperty('image_url');
     });
 
-    it('TC-BB-043 missing item -> expect 404', async () => {
+    it('TC-BB-043 missing item -> 404', async () => {
       const res = await api.get('/api/menu-items/665f00000000000000000000/image');
       expect(res.status).toBe(404);
     });
   });
 
   describe('PUT /:menuItemId', () => {
-    it('TC-BB-044 update valid item -> 200', async () => {
-      const created = (await api.post('/api/menu-items').send(validItem())).body;
-      const res = await api.put(`/api/menu-items/${created._id}`).send({ price: 500 });
+    it('TC-BB-044 update valid item (with auth) -> 200', async () => {
+      const created = (await api.post('/api/menu-items').set(AUTH).send(validItem())).body;
+      const res = await api.put(`/api/menu-items/${created._id}`).set(AUTH).send({ price: 500 });
       expect(res.status).toBe(200);
       expect(res.body.price).toBe(500);
     });
 
-    it('TC-BB-045 MASS ASSIGNMENT: PUT can change is_available, price, category_id', async () => {
-      const created = (await api.post('/api/menu-items').send(validItem())).body;
+    it('TC-BB-045 MASS ASSIGNMENT blocked: legit fields editable, unknown fields stripped', async () => {
+      const created = (await api.post('/api/menu-items').set(AUTH).send(validItem())).body;
       const res = await api
         .put(`/api/menu-items/${created._id}`)
-        .send({ price: 1, is_available: false, category_id: '665f00000000000000000000' });
-      console.log('[BB-045] mass-assign PUT returned:', res.status, JSON.stringify(res.body).slice(0, 200));
+        .set(AUTH)
+        .send({ price: 1, is_available: false, evil_owner: 'attacker' });
       expect(res.status).toBe(200);
+      expect(res.body.price).toBe(1);
+      expect(res.body.is_available).toBe(false);
+      expect(res.body.evil_owner).toBeUndefined();
     });
   });
 
   describe('DELETE /:menuItemId', () => {
-    it('TC-BB-046 delete non-existent item -> expect 404 (defect: currently 200 with success message)', async () => {
-      const res = await api.delete('/api/menu-items/665f00000000000000000000');
-      console.log('[BB-046] delete missing item returned:', res.status, JSON.stringify(res.body).slice(0, 200));
+    it('TC-BB-046 delete non-existent item -> 404 (previously 200 with success message)', async () => {
+      const res = await api.delete('/api/menu-items/665f00000000000000000000').set(AUTH);
       expect(res.status).toBe(404);
     });
 
-    it('TC-BB-047 delete valid item -> 200', async () => {
-      const created = (await api.post('/api/menu-items').send(validItem())).body;
-      const res = await api.delete(`/api/menu-items/${created._id}`);
+    it('TC-BB-047 delete valid item (with auth) -> 200', async () => {
+      const created = (await api.post('/api/menu-items').set(AUTH).send(validItem())).body;
+      const res = await api.delete(`/api/menu-items/${created._id}`).set(AUTH);
       expect(res.status).toBe(200);
     });
   });

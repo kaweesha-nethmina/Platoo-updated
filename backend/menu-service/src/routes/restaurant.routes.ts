@@ -9,23 +9,24 @@ import {
   getRestaurantWithCategoriesAndMenuItemsHandler,
   getRestaurantsByOwnerIdHandler
 } from '../controllers/restaurant.controller';
+import { requireAuth } from '../middleware/auth'; // [FIX VULN-01]
 
 const router = express.Router();
 
-// Create a new restaurant
-router.post('/', createRestaurantHandler);
+// Create a new restaurant  [FIX VULN-01] WAS: no auth on any mutation
+router.post('/', requireAuth, createRestaurantHandler);
 
 // Get all restaurants
 router.get('/', getRestaurantsHandler);
 
 // Update a restaurant by ID
-router.put('/:restaurantId', updateRestaurantHandler); // Update a restaurant by ID
+router.put('/:restaurantId', requireAuth, updateRestaurantHandler); // Update a restaurant by ID
 
 // Update restaurant owner_id
-router.patch('/:restaurantId/owner', updateRestaurantOwnerHandler); // Update owner_id of a restaurant
+router.patch('/:restaurantId/owner', requireAuth, updateRestaurantOwnerHandler); // Update owner_id of a restaurant
 
 // Delete a restaurant by ID
-router.delete('/:restaurantId', deleteRestaurantHandler);
+router.delete('/:restaurantId', requireAuth, deleteRestaurantHandler);
 
 // Get a single restaurant by ID
 router.get('/:restaurantId', getRestaurantByIdHandler);

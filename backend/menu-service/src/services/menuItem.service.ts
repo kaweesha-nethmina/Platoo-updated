@@ -69,3 +69,13 @@ export const getMenuItemImage = async (menuItemId: string): Promise<{ image_url:
   }
 };
 
+// [FIX VULN-04] fetch the authoritative item (used for server-side catalogue
+// lookups by cart-service so prices are never trusted from the client).
+export const getMenuItemById = async (menuItemId: string): Promise<IMenuItem | null> => {
+  try {
+    return await MenuItemModel.findById(menuItemId);
+  } catch (error) {
+    throw error;
+  }
+};
+

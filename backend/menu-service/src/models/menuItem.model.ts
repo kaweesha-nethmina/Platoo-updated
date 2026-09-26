@@ -15,7 +15,7 @@ const MenuItemSchema: Schema = new Schema(
     category_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', required: true }, // Changed reference to Category
     name: { type: String, required: true },
     description: { type: String, required: true },
-    price: { type: Number, required: true }, // Change here: price as a number
+    price: { type: Number, required: true, min: 0 }, // [FIX VULN-04] WAS: no min -> negative prices stored
     image_url: { type: String, required: true },
     is_veg: { type: Boolean, default: false },
     is_available: { type: Boolean, default: true },

@@ -1,19 +1,22 @@
 /**
  * BLACK-BOX functional tests - menu-service /api/category (SE4030).
- * Treats the API as a black-box spec. Expectation = spec-correct behaviour;
- * a FAILING test documents a functional defect.
+ * POST-FIX verification suite: asserts the secure behaviour after the
+ * vulnerability fixes were applied (requireAuth on mutations, central
+ * error handler -> 400 for client errors, 404 for missing docs).
  */
 import request from 'supertest';
 import app from '../../src/app';
 import { connectAndReset, disconnectDb } from '../helpers/db';
+import { validUserToken } from '../helpers/tokens';
 
 const api = request(app);
+const AUTH = { Authorization: 'Bearer ' + validUserToken('it-menu-user-1') };
 
 let restaurantId = '';
 
 beforeAll(async () => {
   await connectAndReset();
-  const r = await api.post('/api/restaurants').send({
+  const r = await api.post('/api/restaurants').set(AUTH).send({
     owner_id: 'owner-123',
     name: 'CatTest Restaurant',
     image: 'http://localhost:3001/uploads/test.png',
@@ -43,42 +46,39 @@ const validCategory = () => ({
 
 describe('BLACK-BOX /api/category', () => {
   describe('POST /', () => {
-    it('TC-BB-024 valid category -> 201', async () => {
-      const res = await api.post('/api/category').send(validCategory());
+    it('TC-BB-024 valid category (with auth) -> 201', async () => {
+      const res = await api.post('/api/category').set(AUTH).send(validCategory());
       expect(res.status).toBe(201);
       expect(res.body).toHaveProperty('_id');
     });
 
-    it('TC-BB-025 empty body -> expect 400 (defect: likely 500)', async () => {
-      const res = await api.post('/api/category').send({});
-      console.log('[BB-025] empty category returned:', res.status, JSON.stringify(res.body).slice(0, 200));
-      expect([400, 500]).toContain(res.status);
+    it('TC-BB-025 empty body -> 400 (ValidationError handled centrally)', async () => {
+      const res = await api.post('/api/category').set(AUTH).send({});
+      expect(res.status).toBe(400);
     });
 
-    it('TC-BB-026 missing required field (name) -> expect 400', async () => {
+    it('TC-BB-026 missing required field (name) -> 400', async () => {
       const { name, ...withoutName } = validCategory();
-      const res = await api.post('/api/category').send(withoutName);
-      console.log('[BB-026] missing category name returned:', res.status);
-      expect([400, 500]).toContain(res.status);
+      const res = await api.post('/api/category').set(AUTH).send(withoutName);
+      expect(res.status).toBe(400);
     });
   });
 
   describe('GET /:restaurantId', () => {
-    it('TC-BB-027 returns 200 + array for valid restaurant', async () => {
+    it('TC-BB-027 returns 200 + array for valid restaurant (public read)', async () => {
       const res = await api.get(`/api/category/${restaurantId}`);
       expect(res.status).toBe(200);
       expect(Array.isArray(res.body)).toBe(true);
     });
 
-    it('TC-BB-028 invalid restaurant ObjectId -> expect 400 (defect: likely 500 CastError)', async () => {
+    it('TC-BB-028 invalid restaurant ObjectId -> 400 (CastError, no 500 leak)', async () => {
       const res = await api.get('/api/category/not-an-id');
-      console.log('[BB-028] invalid category lookup returned:', res.status, JSON.stringify(res.body).slice(0, 250));
       expect(res.status).toBe(400);
     });
   });
 
   describe('GET / (all categories)', () => {
-    it('TC-BB-029 returns 200 + array (populates restaurant_id)', async () => {
+    it('TC-BB-029 returns 200 + array (public read, populates restaurant_id)', async () => {
       const res = await api.get('/api/category');
       expect(res.status).toBe(200);
       expect(Array.isArray(res.body)).toBe(true);
@@ -86,24 +86,22 @@ describe('BLACK-BOX /api/category', () => {
   });
 
   describe('PUT /:categoryId', () => {
-    it('TC-BB-030 update valid category -> 200', async () => {
-      const created = (await api.post('/api/category').send(validCategory())).body;
-      const res = await api.put(`/api/category/${created._id}`).send({ name: 'Renamed Cat' });
+    it('TC-BB-030 update valid category (with auth) -> 200', async () => {
+      const created = (await api.post('/api/category').set(AUTH).send(validCategory())).body;
+      const res = await api.put(`/api/category/${created._id}`).set(AUTH).send({ name: 'Renamed Cat' });
       expect(res.status).toBe(200);
       expect(res.body.name).toBe('Renamed Cat');
     });
 
-    it('TC-BB-031 update non-existent category -> expect 404 (defect: headers-sent bug possible)', async () => {
-      const res = await api.put('/api/category/665f00000000000000000000').send({ name: 'x' });
-      console.log('[BB-031] update missing category returned:', res.status, JSON.stringify(res.body).slice(0, 200));
+    it('TC-BB-031 update non-existent category -> 404 (double-response bug fixed)', async () => {
+      const res = await api.put('/api/category/665f00000000000000000000').set(AUTH).send({ name: 'x' });
       expect(res.status).toBe(404);
     });
   });
 
   describe('DELETE /:categoryId', () => {
-    it('TC-BB-032 delete non-existent category -> expect 404 (defect: currently returns 200)', async () => {
-      const res = await api.delete('/api/category/665f00000000000000000000');
-      console.log('[BB-032] delete missing category returned:', res.status, JSON.stringify(res.body).slice(0, 200));
+    it('TC-BB-032 delete non-existent category -> 404 (previously returned 200)', async () => {
+      const res = await api.delete('/api/category/665f00000000000000000000').set(AUTH);
       expect(res.status).toBe(404);
     });
   });

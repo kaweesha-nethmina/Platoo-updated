@@ -1,0 +1,11 @@
+# [FIX VULN-13] .dockerignore — WAS: none, so `COPY . .` shipped .env, uploads/ and tests into the image.
+node_modules
+.env
+.env.*
+!.env.example
+uploads
+coverage
+tests
+.git
+npm-debug.log
+dist
