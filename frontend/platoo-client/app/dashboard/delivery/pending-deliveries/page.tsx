@@ -38,7 +38,7 @@ export default function PendingDeliveriesPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("http://localhost:3008/api/orders");
+      const res = await fetch("/api/proxy/order/orders");
       const data = await res.json();
 
       const readyOrders = data.filter((o: any) => o.status === "ready");

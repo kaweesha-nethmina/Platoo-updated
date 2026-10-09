@@ -32,15 +32,28 @@ const Header = ({ cartCount }: { cartCount: number }) => {
     }
   }, [])
 
-  const handleSignOut = () => {
-    localStorage.removeItem("token")
+  const handleSignOut = async () => {
     localStorage.removeItem("user")
+    localStorage.removeItem("adminId")
+    localStorage.removeItem("restaurantOwnerId")
+    localStorage.removeItem("deliveryManId")
+    localStorage.removeItem("userId")
+    try {
+      // Clear the httpOnly session cookie set by the BFF.
+      await fetch("/api/auth/logout", { method: "POST" })
+    } catch (error) {
+      console.error("Logout failed:", error)
+    }
     router.push("/login")
   }
 
   const handleProfileRedirect = () => {
-    const token = localStorage.getItem("token")
-    if (!token) {
+    const hasIdentity =
+      localStorage.getItem("userId") ||
+      localStorage.getItem("adminId") ||
+      localStorage.getItem("restaurantOwnerId") ||
+      localStorage.getItem("deliveryManId")
+    if (!hasIdentity) {
       router.push("/login")
     } else {
       router.push("/profile")

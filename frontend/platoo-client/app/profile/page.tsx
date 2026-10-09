@@ -96,17 +96,15 @@ export default function ProfilePage() {
   const [manualCoordinates, setManualCoordinates] = useState({ lat: "", lng: "" })
 
   useEffect(() => {
-    const token = localStorage.getItem("jwtToken")
+    const userId = localStorage.getItem("userId")
 
-    if (!token) {
-      router.push("/login") // Redirect to login if no token is found
+    if (!userId) {
+      router.push("/login") // Redirect to login if no identity found
       return
     }
 
-    const userId = localStorage.getItem("userId")
-
     if (userId) {
-      fetchUserData(token, userId) // Fetch user data if userId is available
+      fetchUserData(userId) // Fetch user data if userId is available
     } else {
       router.push("/login") // Redirect to login if userId is missing
     }
@@ -439,13 +437,13 @@ export default function ProfilePage() {
     setLocationSelected(true)
   }
 
-  const fetchUserData = async (token: string, userId: string) => {
+  const fetchUserData = async (userId: string) => {
     try {
       setIsLoading(true)
-      const response = await fetch(`http://localhost:4000/api/auth/user/${userId}`, {
+      const response = await fetch(`/api/proxy/user/auth/user/${userId}`, {
         method: "GET",
         headers: {
-          Authorization: `Bearer ${token}`,
+          // (V-08) Authorization removed — BFF proxy injects Bearer from the httpOnly cookie
         },
       })
 
@@ -570,11 +568,11 @@ export default function ProfilePage() {
     }
 
     try {
-      const response = await fetch(`http://localhost:4000/api/auth/update/${userId}`, {
+      const response = await fetch(`/api/proxy/user/auth/update/${userId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("jwtToken")}`,
+          // (V-08) Authorization removed — BFF proxy injects Bearer from the httpOnly cookie
         },
         body: JSON.stringify(formData),
       })
@@ -624,11 +622,11 @@ export default function ProfilePage() {
     }
 
     try {
-      const response = await fetch(`http://localhost:4000/api/auth/update/${userId}`, {
+      const response = await fetch(`/api/proxy/user/auth/update/${userId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("jwtToken")}`,
+          // (V-08) Authorization removed — BFF proxy injects Bearer from the httpOnly cookie
         },
         body: JSON.stringify({ newPassword: passwordData.newPassword }), // Send newPassword to update
       })
@@ -666,11 +664,11 @@ export default function ProfilePage() {
     }
   
     try {
-      const response = await fetch(`http://localhost:4000/api/auth/update/${userId}`, {
+      const response = await fetch(`/api/proxy/user/auth/update/${userId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("jwtToken")}`,
+          // (V-08) Authorization removed — BFF proxy injects Bearer from the httpOnly cookie
         },
         body: JSON.stringify({
           address: formData.address,

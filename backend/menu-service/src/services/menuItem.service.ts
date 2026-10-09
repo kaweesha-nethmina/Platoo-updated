@@ -1,5 +1,6 @@
 import MenuItemModel, { IMenuItem } from '../models/menuItem.model'; // Import remains the same
 import CategoryModel from '../models/category.model';
+import mongoose from 'mongoose';
 
 export const createMenuItem = async (data: any) => {
   return await MenuItemModel.create(data);
@@ -64,6 +65,64 @@ export const getMenuItemImage = async (menuItemId: string): Promise<{ image_url:
   try {
     const menuItem = await MenuItemModel.findById(menuItemId, 'image_url');
     return menuItem ? { image_url: menuItem.image_url } : null;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// Quote a list of menu items with server-side, trusted prices. Used by the
+// order service so order totals are never derived from client-supplied prices.
+export const quoteMenuItems = async (
+  quotes: { menu_item_id: string; quantity: number }[]
+): Promise<{
+  valid: { menu_item_id: string; name: string; price: number; quantity: number }[];
+  invalid: string[];
+}> => {
+  try {
+    const valid: { menu_item_id: string; name: string; price: number; quantity: number }[] = [];
+    const invalid: string[] = [];
+
+    const uniqueIds = Array.from(
+      new Set(
+        quotes
+          .map((q) => (q ? q.menu_item_id : ''))
+          .filter((id) => Boolean(id) && mongoose.isValidObjectId(id))
+      )
+    );
+
+    const found = await MenuItemModel.find({ _id: { $in: uniqueIds } }).lean();
+    const priceById = new Map<string, IMenuItem>(
+      found.map((item) => [String(item._id), item as IMenuItem])
+    );
+
+    for (const quote of quotes) {
+      if (
+        !quote ||
+        !quote.menu_item_id ||
+        !mongoose.isValidObjectId(quote.menu_item_id) ||
+        typeof quote.quantity !== 'number' ||
+        !Number.isFinite(quote.quantity) ||
+        quote.quantity <= 0
+      ) {
+        invalid.push(quote ? quote.menu_item_id : 'missing');
+        continue;
+      }
+
+      const item = priceById.get(quote.menu_item_id);
+      if (!item) {
+        invalid.push(quote.menu_item_id);
+        continue;
+      }
+
+      valid.push({
+        menu_item_id: String(item._id),
+        name: item.name,
+        price: item.price,
+        quantity: quote.quantity,
+      });
+    }
+
+    return { valid, invalid };
   } catch (error) {
     throw error;
   }

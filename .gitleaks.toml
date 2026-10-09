@@ -1,0 +1,11 @@
+# Platoo scanning config: use gitleaks default rules plus scoped allowlist.
+title = "Platoo gitleaks configuration"
+[extend]
+useDefault = true
+
+[allowlist]
+description = "search-service and notification-service k8s Secrets hold deployment-time placeholders only (SRCH-08 / NOTIF-07): real credentials are injected out-of-band via kubectl/Helm and are never committed. The default kubernetes-secret-yaml heuristic otherwise flags the resource object itself even though it contains no secret material."
+paths = [
+  "backend/k8s/search-service.yaml",
+  "backend/k8s/notification-service.yaml",
+]

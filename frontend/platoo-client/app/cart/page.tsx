@@ -118,7 +118,7 @@ export default function CartPage() {
       console.warn("Cart is empty.");
       return;
     }
-  
+
     // Store full cart in localStorage
     localStorage.setItem("checkoutCart", JSON.stringify(cartItems));
     localStorage.setItem("selectedItem", ""); // clear single item if any
@@ -129,14 +129,14 @@ export default function CartPage() {
     localStorage.setItem("checkoutDeliveryFee", deliveryFee.toFixed(2));
     localStorage.setItem("checkoutTax", tax.toFixed(2));
     localStorage.setItem("checkoutTotal", total.toFixed(2));
-  
-    // Save restaurant ID if not already present
-    const storedRestaurantId = localStorage.getItem("restaurantId");
-    if (!storedRestaurantId) {
-      const guessedRestaurantId = cartItems[0]?.menuItemId?.split("-")?.[0]; // fallback logic if needed
-      if (guessedRestaurantId) {
-        localStorage.setItem("restaurantId", guessedRestaurantId);
-      }
+
+    // The restaurant must be known before checkout: order-service rejects the
+    // order with 400 "restaurant_id missing" when this is absent. Items added
+    // from a restaurant's menu page persist `restaurantId` automatically; if it
+    // is still missing the cart has no restaurant context we can trust.
+    if (!localStorage.getItem("restaurantId")) {
+      alert("Please open the restaurant's menu page and add items from there before checking out.");
+      return;
     }
   
     // Navigate to checkout

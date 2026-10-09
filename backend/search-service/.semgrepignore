@@ -1,0 +1,8 @@
+# Semgrep ignore patterns (scans run from the service dir)
+node_modules
+dist
+coverage
+.semgrep
+*.json
+package-lock.json
+tests

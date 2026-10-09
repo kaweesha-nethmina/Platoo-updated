@@ -5,7 +5,8 @@ import {
   updateMenuItem, 
   deleteMenuItem, 
   getMenuItemsByRestaurant,
-  getAllMenuItems
+  getAllMenuItems,
+  quoteMenuItems
 } from '../services/menuItem.service';
 
 // Create a new menu item (now associated with a category)
@@ -112,6 +113,26 @@ export const getAllMenuItemsHandler = async (req: Request, res: Response): Promi
   try {
     const menuItems = await getAllMenuItems();
     res.status(200).json(menuItems);
+  } catch (error) {
+    if (error instanceof Error) {
+      res.status(500).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: 'An unknown error occurred' });
+    }
+  }
+};
+
+// Return server-side prices for a list of menu items (used by the order service)
+export const quoteMenuItemsHandler = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { items } = req.body ?? {};
+    if (!Array.isArray(items)) {
+      res.status(400).json({ error: 'items must be an array' });
+      return;
+    }
+
+    const result = await quoteMenuItems(items);
+    res.status(200).json(result);
   } catch (error) {
     if (error instanceof Error) {
       res.status(500).json({ error: error.message });

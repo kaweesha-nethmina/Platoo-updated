@@ -64,8 +64,10 @@ export const getCartByUserId = async (req: Request, res: Response): Promise<void
   try {
     const cart = await CartModel.findOne({ userId });
 
+    // No cart yet means an empty cart, not an error: return an empty cart so
+    // the frontend doesn't treat "Cart not found" as a failure.
     if (!cart) {
-      res.status(404).json({ message: 'Cart not found' });
+      res.status(200).json({ userId, items: [], updatedAt: new Date() });
       return;
     }
 

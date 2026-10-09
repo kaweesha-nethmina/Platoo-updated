@@ -87,7 +87,7 @@ export default function RestaurantSettings() {
     const fetchOwner = async () => {
       setIsLoading(true)
       try {
-        const res = await fetch(`http://localhost:4000/api/auth/restaurant-owner/${storedId}`)
+        const res = await fetch(`/api/proxy/user/auth/restaurant-owner/${storedId}`)
         if (!res.ok) throw new Error("Failed to fetch owner data")
         const data = await res.json()
         setOwner({
@@ -116,17 +116,12 @@ export default function RestaurantSettings() {
       alert("Please enter your password to save changes.")
       return
     }
-    const token = localStorage.getItem("jwtToken")
-    if (!token) {
-      alert("You are not authenticated.")
-      return
-    }
     try {
-      const response = await fetch(`http://localhost:4000/api/auth/update/${ownerId}`, {
+      const response = await fetch(`/api/proxy/user/auth/update/${ownerId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          // (V-08) Authorization removed — BFF proxy injects Bearer from the httpOnly cookie
         },
         body: JSON.stringify({ ...owner, password }),
       })
@@ -156,20 +151,15 @@ export default function RestaurantSettings() {
       alert("Owner ID not found in localStorage.")
       return
     }
-    const token = localStorage.getItem("jwtToken")
-    if (!token) {
-      alert("You are not authenticated.")
-      return
-    }
     const confirmDelete = window.confirm(
       "Are you sure you want to permanently delete your account? This action cannot be undone.",
     )
     if (!confirmDelete) return
     try {
-      const response = await fetch(`http://localhost:4000/api/auth/delete/${ownerId}`, {
+      const response = await fetch(`/api/proxy/user/auth/delete/${ownerId}`, {
         method: "DELETE",
         headers: {
-          Authorization: `Bearer ${token}`,
+          // (V-08) Authorization removed — BFF proxy injects Bearer from the httpOnly cookie
         },
       })
       if (!response.ok) {

@@ -16,13 +16,12 @@ public class PaymentVerificationController {
     @Value("${stripe.secretKey}")
     private String secretKey;
 
-    public PaymentVerificationController() {
-        // Initialize Stripe API key
-        Stripe.apiKey = secretKey;
-    }
-
     @GetMapping("/api/verify-payment/{sessionId}")
     public ResponseEntity<String> verifyPayment(@PathVariable String sessionId) {
+        // NOTE: the API key must be set here (not in a constructor) because the
+        // @Value field is only injected after construction.
+        Stripe.apiKey = secretKey;
+
         try {
             // Retrieve the session from Stripe using the sessionId
             Session session = Session.retrieve(sessionId);
@@ -31,14 +30,15 @@ public class PaymentVerificationController {
             String orderId = session.getMetadata().get("order_id");
 
             // Check if the payment was successful
-            if ("paid".equals(session.getPaymentStatus())) {
+            if ("paid".equals(session.getPaymentStatus()) && orderId != null && !orderId.isBlank()) {
                 return ResponseEntity.ok("{\"status\": \"success\", \"orderId\": \"" + orderId + "\"}");
             } else {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("{\"status\": \"failed\", \"message\": \"Payment not successful.\"}");
             }
         } catch (StripeException e) {
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("{\"status\": \"failed\", \"message\": \"Stripe error: " + e.getMessage() + "\"}");
+            // Log the detail server-side only; never relay Stripe internals to the client (V-09).
+            System.err.println("Payment verification error: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("{\"status\": \"failed\", \"message\": \"Payment could not be verified.\"}");
         }
     }
 }
