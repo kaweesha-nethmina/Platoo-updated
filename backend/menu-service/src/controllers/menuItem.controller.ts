@@ -116,6 +116,26 @@ export const getAllMenuItemsHandler = async (req: Request, res: Response, next?:
   }
 };
 
+// Return server-side prices for a list of menu items (used by the order service)
+export const quoteMenuItemsHandler = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { items } = req.body ?? {};
+    if (!Array.isArray(items)) {
+      res.status(400).json({ error: 'items must be an array' });
+      return;
+    }
+
+    const result = await quoteMenuItems(items);
+    res.status(200).json(result);
+  } catch (error) {
+    if (error instanceof Error) {
+      res.status(500).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: 'An unknown error occurred' });
+    }
+  }
+};
+
 // Get only the image URL of a menu item by ID
 export const getMenuItemImageHandler = async (req: Request, res: Response, next?: NextFunction): Promise<void> => {
   try {

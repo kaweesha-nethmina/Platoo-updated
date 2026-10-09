@@ -1,3 +1,4 @@
+# food-ordering-system
 # Platoo — Food Ordering System
 
 A full-stack food-ordering platform built as the **SSD (System & Software

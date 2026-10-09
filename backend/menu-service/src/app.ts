@@ -2,6 +2,8 @@ import express from 'express';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import path from 'path';
+import cors from 'cors';
+import helmet from 'helmet';
 import restaurantRoutes from './routes/restaurant.routes';
 import menuItemRoutes from './routes/menuItem.routes';
 import categoryRoutes from './routes/category.routes';
@@ -32,6 +34,15 @@ app.use(
 
 app.use(express.json());
 
+// Helmet's default Cross-Origin-Resource-Policy: same-origin would block the browser
+// from loading these public images cross-origin (page on :3000, assets on :3001).
+// Relax CORP only for the uploads directory; APIs stay same-origin.
+app.use((req, res, next) => {
+  if (req.path.startsWith('/uploads/')) {
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  }
+  next();
+});
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 // [FIX VULN-01] upload router is write-only -> requireAuth mounted here.

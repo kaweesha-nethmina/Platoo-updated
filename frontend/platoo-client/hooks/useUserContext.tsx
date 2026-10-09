@@ -31,43 +31,39 @@ export const useUser = (): UserContextType => {
 export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   const [user, setUserState] = useState<any>(null);
 
-  const decodeToken = (token: string) => {
+  // V-08: the JWT lives in an httpOnly cookie set by the BFF. The browser can
+  // never read it, so we resolve the session through the BFF which presents the
+  // cookie to user-service and returns the safe profile.
+  const syncAuth = async () => {
     try {
-      return JSON.parse(atob(token.split(".")[1]));
+      const res = await fetch("/api/auth/session", { cache: "no-store" });
+      const data = await res.json();
+      setUserState(data?.user ?? null);
     } catch (error) {
-      console.error("Invalid token:", error);
-      return null;
-    }
-  };
-
-  const syncAuth = () => {
-    const token = localStorage.getItem("token");
-    if (!token) {
+      console.error("Failed to resolve session:", error);
       setUserState(null);
-      return;
     }
-
-    const decoded = decodeToken(token);
-    if (!decoded) {
-      logout();
-      return;
-    }
-
-    setUserState({ ...decoded, token });
   };
 
-  const logout = () => {
-    localStorage.removeItem("token");
+  const logout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
+    // Non-secret identity keys + cached profile, cookie handled BFF-side.
+    ["adminId", "restaurantOwnerId", "deliveryManId", "userId", "user"].forEach(
+      (k) => localStorage.removeItem(k)
+    );
     setUserState(null);
   };
 
   useEffect(() => {
     syncAuth();
 
-    const handleStorage = (e: StorageEvent) => {
-      if (e.key === "token") {
-        syncAuth();
-      }
+    // Multi-tab sync: identity keys change when another tab logs in/out.
+    const handleStorage = () => {
+      syncAuth();
     };
 
     window.addEventListener("storage", handleStorage);
@@ -75,9 +71,6 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   }, []);
 
   const setUser = (newUser: any) => {
-    if (newUser?.token) {
-      localStorage.setItem("token", newUser.token);
-    }
     setUserState(newUser);
   };
 

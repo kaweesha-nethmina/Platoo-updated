@@ -1,5 +1,6 @@
 import MenuItemModel, { IMenuItem } from '../models/menuItem.model'; // Import remains the same
 import CategoryModel from '../models/category.model';
+import mongoose from 'mongoose';
 
 export const createMenuItem = async (data: any) => {
   return await MenuItemModel.create(data);

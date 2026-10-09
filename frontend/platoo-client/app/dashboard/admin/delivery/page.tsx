@@ -146,14 +146,13 @@ export default function AdminDeliveryDashboard() {
     setEditLoading(true)
     setEditError("")
     try {
-      const token = localStorage.getItem("token")
       const res = await fetch(
-        `http://localhost:4000/api/auth/update/${selectedDeliveryPerson.id}`,
+        `/api/proxy/user/auth/update/${selectedDeliveryPerson.id}`,
         {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
+            // (V-08) Authorization removed — BFF proxy injects Bearer from the httpOnly cookie
           },
           body: JSON.stringify(editForm),
         }
@@ -180,12 +179,11 @@ export default function AdminDeliveryDashboard() {
     async function fetchDeliveryPersonnel() {
       setIsLoading(true)
       try {
-        const token = localStorage.getItem("token")
-        const res = await fetch("http://localhost:4000/api/auth/users", {
+        const res = await fetch("/api/proxy/user/auth/users", {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
+            // (V-08) Authorization removed — BFF proxy injects Bearer from the httpOnly cookie
           },
         })
         if (!res.ok) throw new Error("Failed to fetch users")

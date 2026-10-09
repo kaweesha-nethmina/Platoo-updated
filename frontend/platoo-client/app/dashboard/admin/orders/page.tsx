@@ -73,7 +73,11 @@ export default function OrdersPage() {
       setIsLoading(true);
       try {
         // Fetch all orders
-        const ordersRes = await fetch("http://localhost:3008/api/orders");
+        const ordersRes = await fetch("/api/proxy/order/orders", {
+          headers: {
+            // (V-08) Authorization removed — BFF proxy injects Bearer from the httpOnly cookie
+          },
+        });
         const ordersData: Order[] = await ordersRes.json();
         setOrders(ordersData);
         setFilteredOrders(ordersData);
@@ -82,13 +86,11 @@ export default function OrdersPage() {
         const userIds = Array.from(new Set(ordersData.map(o => o.user_id)));
         const restaurantIds = Array.from(new Set(ordersData.map(o => o.restaurant_id)));
 
-        // Fetch users by ID through JWT token
-        const token = localStorage.getItem('jwt');
+        // Fetch users by ID through the BFF proxy (JWT from httpOnly cookie)
         const userMapTemp: Record<string, string> = {};
         await Promise.all(userIds.map(async (uid) => {
-          const res = await fetch(`http://localhost:4000/api/auth/user/${uid}`, {
+          const res = await fetch(`/api/proxy/user/auth/user/${uid}`, {
             headers: {
-              'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json'
             }
           });

@@ -8,7 +8,24 @@ import Delivery from "../models/delivery";
 export class DeliveryService {
   // ✅ Create a new delivery
   static async createDelivery(deliveryData: IDelivery): Promise<IDelivery> {
-    const delivery = new Delivery(deliveryData);
+    const { orderId, customerName, deliveryAddress, restaurantName, pickupTime, deliveryTime } = deliveryData;
+
+    if (!orderId || !customerName || !deliveryAddress || !restaurantName || !pickupTime || !deliveryTime) {
+      throw new Error("orderId, customerName, deliveryAddress, restaurantName, pickupTime and deliveryTime are required");
+    }
+
+    const delivery = new Delivery({
+      orderId,
+      customerName,
+      deliveryAddress,
+      restaurantName,
+      pickupTime,
+      deliveryTime,
+      deliveryStatus: "pending",
+      assignedTo: null,
+      earnings: 0,
+      deliveredAt: null,
+    });
     return await delivery.save();
   }
 

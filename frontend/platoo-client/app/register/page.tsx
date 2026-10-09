@@ -65,26 +65,46 @@ export default function RegisterPage() {
     let errors = { name: "", email: "", password: "", confirmPassword: "", phone: "", address: "", restaurantName: "", vehicleNumber: "" }
     let isValid = true
 
+    const name = formData.name.trim()
+    const email = formData.email.trim()
+    const phone = formData.phone.trim()
+    const address = formData.address.trim()
+    const restaurantName = formData.restaurantName.trim()
+    const vehicleNumber = formData.vehicleNumber.trim()
+    const hasHtml = (value: string) => /[<>]/.test(value) // reject markup to prevent script injection
+
     // Name validation
-    if (!formData.name) {
+    if (!name) {
       errors.name = "Full Name is required"
+      isValid = false
+    } else if (name.length < 2) {
+      errors.name = "Full Name must be at least 2 characters"
+      isValid = false
+    } else if (name.length > 100) {
+      errors.name = "Full Name cannot exceed 100 characters"
+      isValid = false
+    } else if (hasHtml(name)) {
+      errors.name = "Full Name cannot contain < or >"
       isValid = false
     }
 
     // Email validation
-    if (!formData.email) {
+    if (!email) {
       errors.email = "Email is required"
       isValid = false
-    } else if (!/^[a-zA-Z0-9._%+-]+@gmail\.com$/.test(formData.email)) {
+    } else if (email.length > 254) {
+      errors.email = "Email cannot exceed 254 characters"
+      isValid = false
+    } else if (!/^[a-zA-Z0-9._%+-]+@gmail\.com$/.test(email)) {
       errors.email = "Please enter a valid Gmail address"
       isValid = false
     }
 
     // Phone number validation (only for USER role)
-    if (formData.role === UserRole.USER && !formData.phone) {
+    if (formData.role === UserRole.USER && !phone) {
       errors.phone = "Phone number is required"
       isValid = false
-    } else if (formData.phone && !/^\d{10}$/.test(formData.phone)) {
+    } else if (phone && !/^\d{10}$/.test(phone)) {
       errors.phone = "Phone number should be exactly 10 digits"
       isValid = false
     }
@@ -96,6 +116,17 @@ export default function RegisterPage() {
     } else if (formData.password.length < 8) {
       errors.password = "Password should be at least 8 characters"
       isValid = false
+    } else if (formData.password.length > 128) {
+      errors.password = "Password cannot exceed 128 characters"
+      isValid = false
+    } else if (
+      !/[a-z]/.test(formData.password) ||
+      !/[A-Z]/.test(formData.password) ||
+      !/[0-9]/.test(formData.password) ||
+      !/[^a-zA-Z0-9]/.test(formData.password)
+    ) {
+      errors.password = "Password must include uppercase, lowercase, a number, and a special character"
+      isValid = false
     }
 
     // Confirm password validation
@@ -105,20 +136,39 @@ export default function RegisterPage() {
     }
 
     // Address validation (required for all roles)
-    if (!formData.address) {
+    if (!address) {
       errors.address = "Address is required"
+      isValid = false
+    } else if (address.length > 200) {
+      errors.address = "Address cannot exceed 200 characters"
+      isValid = false
+    } else if (hasHtml(address)) {
+      errors.address = "Address cannot contain < or >"
       isValid = false
     }
 
     // Role-based validation
-    if (formData.role === UserRole.RESTAURANT_OWNER && !formData.restaurantName) {
-      errors.restaurantName = "Restaurant Name is required"
-      isValid = false
+    if (formData.role === UserRole.RESTAURANT_OWNER) {
+      if (!restaurantName) {
+        errors.restaurantName = "Restaurant Name is required"
+        isValid = false
+      } else if (restaurantName.length > 100) {
+        errors.restaurantName = "Restaurant Name cannot exceed 100 characters"
+        isValid = false
+      } else if (hasHtml(restaurantName)) {
+        errors.restaurantName = "Restaurant Name cannot contain < or >"
+        isValid = false
+      }
     }
 
-    if (formData.role === UserRole.DELIVERY_MAN && !formData.vehicleNumber) {
-      errors.vehicleNumber = "Vehicle Number is required"
-      isValid = false
+    if (formData.role === UserRole.DELIVERY_MAN) {
+      if (!vehicleNumber) {
+        errors.vehicleNumber = "Vehicle Number is required"
+        isValid = false
+      } else if (!/^[A-Z0-9-]{2,20}$/.test(vehicleNumber)) {
+        errors.vehicleNumber = "Vehicle Number must be 2-20 letters, numbers, or dashes"
+        isValid = false
+      }
     }
 
     setFormErrors(errors)
@@ -137,12 +187,23 @@ export default function RegisterPage() {
     try {
       const { confirmPassword, ...dataToSend } = formData // Remove confirmPassword from request data
 
-      const response = await fetch("http://localhost:4000/api/auth/register", {
+      // Send trimmed values so whitespace padding can't be abused
+      const cleanedData = {
+        ...dataToSend,
+        name: dataToSend.name.trim(),
+        email: dataToSend.email.trim(),
+        phone: dataToSend.phone.trim(),
+        address: dataToSend.address.trim(),
+        restaurantName: dataToSend.restaurantName?.trim(),
+        vehicleNumber: dataToSend.vehicleNumber?.trim(),
+      }
+
+      const response = await fetch("/api/proxy/user/auth/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(dataToSend),
+        body: JSON.stringify(cleanedData),
       })
 
       const data = await response.json()
@@ -196,6 +257,8 @@ export default function RegisterPage() {
                 value={formData.name}
                 onChange={handleChange}
                 required
+                maxLength={100}
+                autoComplete="name"
                 className="bg-white/30 border-white/30 text-white placeholder:text-white/60 focus:border-orange-400 focus:ring-orange-400"
               />
               {formErrors.name && <p className="text-red-500 text-sm">{formErrors.name}</p>}
@@ -211,6 +274,8 @@ export default function RegisterPage() {
                 value={formData.email}
                 onChange={handleChange}
                 required
+                maxLength={254}
+                autoComplete="email"
                 className="bg-white/30 border-white/30 text-white placeholder:text-white/60 focus:border-orange-400 focus:ring-orange-400"
               />
               {formErrors.email && <p className="text-red-500 text-sm">{formErrors.email}</p>}
@@ -226,6 +291,8 @@ export default function RegisterPage() {
                   value={formData.password}
                   onChange={handleChange}
                   required
+                  maxLength={128}
+                  autoComplete="new-password"
                   className="bg-white/30 border-white/30 text-white placeholder:text-white/60 focus:border-orange-400 focus:ring-orange-400"
                 />
                 {formErrors.password && <p className="text-red-500 text-sm">{formErrors.password}</p>}
@@ -239,6 +306,8 @@ export default function RegisterPage() {
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   required
+                  maxLength={128}
+                  autoComplete="new-password"
                   className="bg-white/30 border-white/30 text-white placeholder:text-white/60 focus:border-orange-400 focus:ring-orange-400"
                 />
                 {formErrors.confirmPassword && <p className="text-red-500 text-sm">{formErrors.confirmPassword}</p>}
@@ -282,6 +351,8 @@ export default function RegisterPage() {
                 value={formData.phone}
                 onChange={handleChange}
                 required
+                maxLength={15}
+                autoComplete="tel"
                 className="bg-white/30 border-white/30 text-white placeholder:text-white/60 focus:border-orange-400 focus:ring-orange-400"
               />
               {formErrors.phone && <p className="text-red-500 text-sm">{formErrors.phone}</p>}
@@ -296,6 +367,8 @@ export default function RegisterPage() {
                 value={formData.address}
                 onChange={handleChange}
                 required
+                maxLength={200}
+                autoComplete="street-address"
                 className="bg-white/30 border-white/30 text-white placeholder:text-white/60 focus:border-orange-400 focus:ring-orange-400"
               />
               {formErrors.address && <p className="text-red-500 text-sm">{formErrors.address}</p>}
@@ -311,6 +384,7 @@ export default function RegisterPage() {
                   value={formData.restaurantName}
                   onChange={handleChange}
                   required
+                  maxLength={100}
                   className="bg-white/30 border-white/30 text-white placeholder:text-white/60 focus:border-orange-400 focus:ring-orange-400"
                 />
                 {formErrors.restaurantName && <p className="text-red-500 text-sm">{formErrors.restaurantName}</p>}
@@ -327,6 +401,7 @@ export default function RegisterPage() {
                   value={formData.vehicleNumber}
                   onChange={handleChange}
                   required
+                  maxLength={20}
                   className="bg-white/30 border-white/30 text-white placeholder:text-white/60 focus:border-orange-400 focus:ring-orange-400"
                 />
                 {formErrors.vehicleNumber && <p className="text-red-500 text-sm">{formErrors.vehicleNumber}</p>}
