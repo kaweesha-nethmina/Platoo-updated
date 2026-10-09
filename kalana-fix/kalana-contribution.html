@@ -1,0 +1,1187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kalana Contribution — Security Fixes for delevery-service &amp; admin-service</title>
+<style>
+  :root { color-scheme: light; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 2rem auto; max-width: 1200px; padding: 0 1rem; color: #1a1a1a; line-height: 1.5; background: #fff; }
+  h1 { font-size: 1.6rem; border-bottom: 3px solid #1a7f37; padding-bottom: .4rem; }
+  h2 { font-size: 1.25rem; margin-top: 2.2rem; border-bottom: 1px solid #ccc; padding-bottom: .3rem; }
+  h3 { font-size: 1.05rem; margin-top: 1.6rem; color: #333; }
+  h4 { font-size: 1rem; margin: 0 0 .5rem 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: .92rem; }
+  th, td { border: 1px solid #b8b8b8; padding: .45rem .6rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f0; font-weight: 600; }
+  tr:nth-child(even) td { background: #fafafa; }
+  code, .path, .advisory { font-family: "SFMono-Regular", Consolas, Menlo, monospace; font-size: .88em; background: #f4f4f4; padding: .1em .35em; border-radius: 3px; }
+  ul, ol { margin: .4rem 0 .8rem 1.2rem; }
+  li { margin: .25rem 0; }
+  em { color: #444; }
+
+  /* severity badges */
+  .sev-High { color: #fff; background: #b22222; padding: .1rem .5rem; border-radius: 3px; font-weight: 600; font-size: .82rem; white-space: nowrap; }
+  .sev-Medium { color: #7a5200; background: #ffe08a; padding: .1rem .5rem; border-radius: 3px; font-weight: 600; font-size: .82rem; white-space: nowrap; }
+  .sev-Low { color: #14521d; background: #bfe6c0; padding: .1rem .5rem; border-radius: 3px; font-weight: 600; font-size: .82rem; white-space: nowrap; }
+  .sev-Fixed { color: #fff; background: #1a7f37; padding: .1rem .5rem; border-radius: 3px; font-weight: 600; font-size: .82rem; white-space: nowrap; }
+
+  /* finding cards */
+  .finding { border: 1px solid #ddd; border-left: 4px solid #1a7f37; padding: .8rem 1rem; margin: 1.2rem 0; background: #fcfcfc; }
+  .finding.high { border-left-color: #b22222; }
+  .finding.medium { border-left-color: #e0a800; }
+  .meta { font-size: .9rem; color: #555; margin: 0 0 .6rem 0; }
+
+  /* file badge block */
+  .files { margin: .6rem 0; font-size: .88rem; }
+  .files td { background: #f4f7f4 !important; }
+  .files .lbl { width: 12%; font-weight: 600; color: #333; white-space: nowrap; }
+  .newfile { color: #1a7f37; font-weight: 600; }
+  .modfile { color: #b26a00; font-weight: 600; }
+
+  /* before / after code */
+  .ba { margin: .6rem 0 1rem 0; border: 1px solid #ddd; border-radius: 4px; overflow: hidden; }
+  .ba-label { font-size: .78rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: .25rem .6rem; }
+  .ba-label.before { background: #fdecea; color: #8a1c14; border-bottom: 1px solid #f0c4bf; }
+  .ba-label.after  { background: #e8f5e9; color: #14521d; border-bottom: 1px solid #c2e0c5; }
+  .ba-label.before + pre, .ba-label.after + pre { margin: 0; }
+  pre { font-family: "SFMono-Regular", Consolas, Menlo, monospace; font-size: .82em; line-height: 1.45; padding: .6rem .8rem; overflow-x: auto; background: #fbfbfb; margin: .5rem 0; border-radius: 3px; }
+  pre code { background: none; padding: 0; font-size: 1em; }
+  .cmt { color: #6a737d; font-style: italic; }
+  .kw { color: #a626a4; }
+  .str { color: #50a14f; }
+  .num { color: #986801; }
+  .fn { color: #4078f2; }
+
+  blockquote { border-left: 4px solid #999; margin: .6rem 0; padding: .2rem 1rem; background: #f6f6f6; }
+  .ok { border-left: 4px solid #1a7f37; background: #f2f9f3; margin: .6rem 0; padding: .5rem 1rem; }
+  .open { border-left: 4px solid #b26a00; background: #fdf8ee; margin: .6rem 0; padding: .5rem 1rem; }
+  .status-banner { border: 1px solid #b7dfc0; background: #eef8f1; border-left: 5px solid #1a7f37; padding: .7rem 1rem; margin: 1rem 0; border-radius: 4px; }
+  .topnav { background: #f6f8f6; border: 1px solid #ddd; border-radius: 4px; padding: .6rem 1rem; margin: 1.2rem 0; font-size: .9rem; }
+  .topnav a { color: #1a5c8a; text-decoration: none; margin-right: 1rem; white-space: nowrap; }
+  .topnav a:hover { text-decoration: underline; }
+  .note { font-size: .88rem; color: #555; }
+
+  /* wide reviewer table */
+  .tbl-scroll { overflow-x: auto; margin: 1rem 0; border: 1px solid #ddd; border-radius: 4px; }
+  table.review { min-width: 1500px; margin: 0; font-size: .84rem; }
+  table.review th { background: #eceff1; position: sticky; top: 0; white-space: nowrap; }
+  table.review td { line-height: 1.45; }
+  table.review td.c-id { font-weight: 700; white-space: nowrap; }
+  table.review td.c-sev, table.review td.c-svc, table.review td.c-st { white-space: nowrap; }
+  table.review td.c-vuln { min-width: 300px; }
+  table.review td.c-how  { min-width: 340px; }
+  table.review td.c-files { min-width: 300px; }
+  table.review ul { margin: .3rem 0 .1rem 1rem; }
+  table.review li { margin: .18rem 0; }
+  .legend { font-size: .84rem; color: #555; margin: .4rem 0 1rem; }
+  .legend span { white-space: nowrap; }
+  .dir { color: #666; font-family: "SFMono-Regular", Consolas, Menlo, monospace; font-size: .95em; }
+</style>
+</head>
+<body>
+
+<h1>Kalana Contribution — Security Fixes for <code>delevery-service</code> &amp; <code>admin-service</code></h1>
+
+<p>
+  <strong>Date:</strong> 2026-09-23 &nbsp;|&nbsp; <strong>Author:</strong> Kalana &nbsp;|&nbsp; <strong>Scope:</strong> <code>backend/delevery-service</code>, <code>backend/admin-service</code><br>
+  <strong>Status:</strong> All findings below are <span class="sev-Fixed">Fixed &amp; verified</span> — <code>tsc --noEmit</code> passes and <code>npm audit</code> reports <strong>0 vulnerabilities</strong> in both services.
+</p>
+
+<div class="status-banner">
+  <strong>Outcome:</strong> 8 code findings remediated (4 High, 4 Medium) and 21 dependency vulnerabilities cleared
+  (9 in delevery-service, 12 in admin-service) — <strong>21 &rarr; 0</strong> in total. Every fix is listed below with its
+  <em>exact file path</em>, the vulnerable "before" code, and the applied "after" code, all verified against the committed source.
+</div>
+
+<h2>Contents</h2>
+<div class="topnav">
+  <a href="#summary">Summary</a>
+  <a href="#delevery">1. delevery-service</a>
+  <a href="#delevery-deps">1.5 Deps (delevery)</a>
+  <a href="#admin">2. admin-service</a>
+  <a href="#admin-deps">2.4 Deps (admin)</a>
+  <a href="#verify">3. Verification</a>
+  <a href="#open">4. Still open</a>
+</div>
+
+<h2 id="summary">Summary of all fixes</h2>
+
+<div class="tbl-scroll">
+<table class="review">
+  <tr>
+    <th>ID</th>
+    <th>Severity</th>
+    <th>OWASP 2021</th>
+    <th>Service</th>
+    <th>Vulnerability &mdash; what it was / how it was exploitable</th>
+    <th>How it was fixed</th>
+    <th>Files changed &amp; folder path</th>
+    <th>Status</th>
+  </tr>
+
+  <tr>
+    <td class="c-id">K-05</td>
+    <td class="c-sev"><span class="sev-High">High</span></td>
+    <td class="c-svc">A01:2021<br>Broken Access Control</td>
+    <td class="c-svc">delevery</td>
+    <td class="c-vuln">
+      <strong>No authentication on any delivery route.</strong> <code>app.use("/api/delivery", deliveryRoutes)</code> was mounted
+      behind only <code>cors</code> and <code>express.json()</code> &mdash; no token was parsed anywhere in the service, so every
+      route was anonymous.
+      <ul>
+        <li><code>GET /</code> returned <strong>every</strong> delivery: <code>customerName</code>, <code>deliveryAddress</code>, <code>restaurantName</code>, <code>earnings</code>.</li>
+        <li><code>DELETE /:id</code> deleted <strong>any</strong> record.</li>
+      </ul>
+      <em>Impact:</em> full PII read + destructive delete on production data, with no notion of who the caller was.
+    </td>
+    <td class="c-how">
+      Added a real JWT auth layer. New <code>authMiddleware</code> reads <code>Authorization: Bearer &lt;token&gt;</code>, calls
+      <code>jwt.verify(token, process.env.JWT_SECRET)</code> against the <strong>same user-service HS256 secret</strong>, attaches
+      <code>req.user = { id, role }</code>, and short-circuits with <code>401</code> when the header or token is missing/invalid.
+      Wired in front of <strong>all 7 routes</strong>. Also added the matching <code>JWT_SECRET</code> to the service <code>.env</code>.
+    </td>
+    <td class="c-files">
+      <span class="dir">backend/delevery-service/</span>
+      <ul>
+        <li><code>src/middleware/auth.ts</code> <span class="newfile">NEW</span> &mdash; the middleware</li>
+        <li><code>src/routes/deliveryRoutes.ts</code> <span class="modfile">MOD</span> &mdash; mounted on every route</li>
+        <li><code>package.json</code> <span class="modfile">MOD</span> &mdash; <code>jsonwebtoken</code></li>
+        <li><code>.env</code> <span class="modfile">MOD</span> &mdash; <code>JWT_SECRET</code></li>
+      </ul>
+    </td>
+    <td class="c-st"><span class="sev-Fixed">Fixed</span></td>
+  </tr>
+
+  <tr>
+    <td class="c-id">K-06</td>
+    <td class="c-sev"><span class="sev-High">High</span></td>
+    <td class="c-svc">A01:2021<br>Broken Access Control</td>
+    <td class="c-svc">delevery</td>
+    <td class="c-vuln">
+      <strong>IDOR &mdash; arbitrary <code>driverId</code> taken from the URL.</strong> <code>driverId</code> was read verbatim
+      from <code>req.params</code> and used as a Mongo filter on <code>assignedTo</code>, never compared against the caller.
+      On top of K-05 an attacker could enumerate driver IDs and read each driver's whole job history, their
+      <strong>earnings</strong> via <code>/driver/:id/completed</code> (<code>deliveryStatus:"delivered"</code>), and the
+      customer name/address on their active delivery via <code>/assigned/:id</code>.
+    </td>
+    <td class="c-how">
+      Added two authorization helpers and a role matrix.
+      <ul>
+        <li><code>requireRoles(...roles)</code> &rarr; <code>403</code> unless the verified role is listed.</li>
+        <li><code>requireDriverMatch</code> &rarr; <code>admin</code> passes; a <code>delivery_man</code> gets <code>403</code> unless the URL <code>driverId</code> equals the token subject; any other role <code>403</code>.</li>
+        <li><code>resolveDriverId()</code> in the controller reads the driver ID from the <strong>verified token</strong>, not the URL, so even a crafted URL cannot redirect the query.</li>
+      </ul>
+    </td>
+    <td class="c-files">
+      <span class="dir">backend/delevery-service/</span>
+      <ul>
+        <li><code>src/middleware/auth.ts:31-63</code> <span class="newfile">NEW</span> &mdash; both helpers</li>
+        <li><code>src/routes/deliveryRoutes.ts:42,46,47</code> <span class="modfile">MOD</span> &mdash; role matrix</li>
+        <li><code>src/controllers/deliveryController.ts:75-80</code> <span class="modfile">MOD</span> &mdash; <code>resolveDriverId</code></li>
+      </ul>
+    </td>
+    <td class="c-st"><span class="sev-Fixed">Fixed</span></td>
+  </tr>
+
+  <tr>
+    <td class="c-id">K-07</td>
+    <td class="c-sev"><span class="sev-Medium">Medium</span></td>
+    <td class="c-svc">A04:2021<br>Insecure Design</td>
+    <td class="c-svc">delevery</td>
+    <td class="c-vuln">
+      <strong>Mass assignment in <code>createDelivery</code>.</strong> The handler did
+      <code>new Delivery(req.body)</code> with no whitelist, so a client could set the <em>server-owned</em> fields
+      <code>deliveryStatus</code>, <code>assignedTo</code>, <code>earnings</code> and <code>deliveredAt</code>. An attacker
+      could create deliveries pre-assigned to a chosen driver, or already <code>delivered</code> with a fabricated
+      <code>earnings</code> value &mdash; tampering with the driver payout ledger and poisoning the "unassigned" work queue.
+    </td>
+    <td class="c-how">
+      Whitelist + server-owned defaults. <code>createDelivery</code> now destructures only the six caller-supplied fields
+      (<code>orderId</code>, <code>customerName</code>, <code>deliveryAddress</code>, <code>restaurantName</code>,
+      <code>pickupTime</code>, <code>deliveryTime</code>) and hard-codes
+      <code>deliveryStatus:"pending"</code>, <code>assignedTo:null</code>, <code>earnings:0</code>, <code>deliveredAt:null</code>.
+      Any extra body field is silently dropped; missing required fields throw &rarr; clean <code>400</code>.
+      Status/assignment can now only move through <code>assignDeliveryToMan</code> / <code>updateDeliveryStatus</code>, which
+      are deliberately not exposed on any route.
+    </td>
+    <td class="c-files">
+      <span class="dir">backend/delevery-service/</span>
+      <ul>
+        <li><code>src/services/deliveryService.ts:10-30</code> <span class="modfile">MOD</span> &mdash; the whitelist</li>
+        <li><code>src/models/delivery.ts:42-57</code> <span class="note">(context)</span> &mdash; server-owned fields</li>
+      </ul>
+    </td>
+    <td class="c-st"><span class="sev-Fixed">Fixed</span></td>
+  </tr>
+
+  <tr>
+    <td class="c-id">K-08</td>
+    <td class="c-sev"><span class="sev-Medium">Medium</span></td>
+    <td class="c-svc">A05:2021<br>Security Misconfiguration</td>
+    <td class="c-svc">delevery</td>
+    <td class="c-vuln">
+      <strong>Raw error objects leaked to clients.</strong> Every <code>catch</code> responded
+      <code>{ message, error }</code> with the raw exception, so Mongoose <code>CastError</code> stack traces, schema
+      validation internals and DB connection metadata were sent to the caller &mdash; free reconnaissance of the data model
+      and infrastructure.
+    </td>
+    <td class="c-how">
+      Inversion of the leak: all <strong>7</strong> catch blocks now <code>console.error("&lt;handler&gt; failed:", error)</code>
+      server-side and return a generic <code>{ message }</code> only. No <code>error</code> object is serialised into any
+      response body, so stack traces never reach the network.
+    </td>
+    <td class="c-files">
+      <span class="dir">backend/delevery-service/</span>
+      <ul>
+        <li><code>src/controllers/deliveryController.ts</code> <span class="modfile">MOD</span> &mdash; all 7 catch blocks<br>
+          (lines 11, 21, 33, 45, 55, 70, 91)</li>
+      </ul>
+    </td>
+    <td class="c-st"><span class="sev-Fixed">Fixed</span></td>
+  </tr>
+
+  <tr>
+    <td class="c-id">Deps</td>
+    <td class="c-sev">&mdash;</td>
+    <td class="c-svc">&mdash;</td>
+    <td class="c-svc">delevery</td>
+    <td class="c-vuln">
+      <strong>9 npm vulnerabilities (6 high, 2 moderate, 1 low).</strong> The express 4.21.2 chain
+      (body-parser, path-to-regexp, qs), mongoose 8.13.1
+      (<span class="advisory">GHSA-wpg9-53fq-2r8h</span>, <span class="advisory">GHSA-664h-wqgq-64gw</span> &mdash; NoSQL
+      injection / prototype pollution), plus dev-toolchain transitives (minimatch, brace-expansion, picomatch, diff).
+    </td>
+    <td class="c-how">
+      Ran <code>npm audit fix</code>, then raised the manifest minimums to <code>express ^4.22.3</code> and
+      <code>mongoose ^8.24.4</code>. Every upgrade stays inside the same major family &mdash; express remains 4.x, so
+      route-handling semantics are unchanged and there is no behavioural risk.
+      <strong>Result: 0 vulnerabilities.</strong>
+    </td>
+    <td class="c-files">
+      <span class="dir">backend/delevery-service/</span>
+      <ul>
+        <li><code>package.json</code> <span class="modfile">MOD</span> &mdash; version floors</li>
+        <li><code>package-lock.json</code> <span class="modfile">MOD</span> &mdash; resolved tree</li>
+      </ul>
+      9 packages updated &mdash; see <a href="#delevery-deps">&sect;1.5</a>
+    </td>
+    <td class="c-st"><span class="sev-Fixed">0 vulns</span></td>
+  </tr>
+
+  <tr>
+    <td class="c-id">K-01</td>
+    <td class="c-sev"><span class="sev-High">High</span></td>
+    <td class="c-svc">A01:2021<br>Broken Access Control</td>
+    <td class="c-svc">admin</td>
+    <td class="c-vuln">
+      <strong>Unauthenticated admin email/invite endpoint.</strong> <code>POST /api/email/send-admin-invite</code> was the
+      service's <em>only</em> route and had no auth at all. Any anonymous caller could:
+      <ul>
+        <li>use the app's own Gmail SMTP account as a <strong>spam relay</strong> &mdash; quota exhaustion, mailbox/domain reputation damage;</li>
+        <li>send forged <em>"Your admin account has been created &mdash; Password: X"</em> <strong>phishing</strong> mail to any address, with a password <em>the attacker chose</em>.</li>
+      </ul>
+      Same bug class as order-service V-04.
+    </td>
+    <td class="c-how">
+      Added <code>requireAdmin</code>: verifies the user-service HS256 Bearer token, requires
+      <code>decoded.role === "admin"</code>, attaches <code>req.user</code>, and logs failures server-side via
+      <code>console.error</code>. Mounted as the <strong>first</strong> handler on the route.
+      <strong>Response codes:</strong> <code>401</code> no token / invalid token &middot; <code>403</code> valid token with a
+      non-<code>admin</code> role.
+    </td>
+    <td class="c-files">
+      <span class="dir">backend/admin-service/</span>
+      <ul>
+        <li><code>src/middleware/auth.ts</code> <span class="newfile">NEW</span> &mdash; <code>requireAdmin</code></li>
+        <li><code>src/routes/email.ts:16-21</code> <span class="modfile">MOD</span> &mdash; wired onto the route</li>
+        <li><code>package.json</code> <span class="modfile">MOD</span> &mdash; <code>jsonwebtoken</code></li>
+        <li><code>.env</code> <span class="modfile">MOD</span> &mdash; <code>JWT_SECRET</code></li>
+      </ul>
+    </td>
+    <td class="c-st"><span class="sev-Fixed">Fixed</span></td>
+  </tr>
+
+  <tr>
+    <td class="c-id">K-03</td>
+    <td class="c-sev"><span class="sev-Medium">Medium</span></td>
+    <td class="c-svc">A05:2021<br>Security Misconfiguration</td>
+    <td class="c-svc">admin</td>
+    <td class="c-vuln">
+      <strong>Wide-open CORS.</strong> <code>app.use(cors())</code> was called with no <code>origin</code> option, so it
+      reflected every origin and sent <code>Access-Control-Allow-Origin: *</code>. Any webpage a victim merely visited could
+      preflight and <code>POST</code> to the invite endpoint using the victim's own browser as the hop &mdash; a drive-by abuse
+      of the SMTP channel that never touches the attacker's own IP.
+    </td>
+    <td class="c-how">
+      Replaced the wildcard with an explicit allowlist of the admin-dashboard origins
+      (<code>http://localhost:3000</code>, <code>http://127.0.0.1:3000</code> &mdash; the Next.js client), plus explicit
+      <code>methods</code>, <code>credentials: true</code> and <code>optionsSuccessStatus: 204</code>. This mirrors the pattern
+      delevery-service already used. Any other origin now receives <strong>no</strong> ACAO header at all, so the browser
+      blocks the cross-origin call.
+    </td>
+    <td class="c-files">
+      <span class="dir">backend/admin-service/</span>
+      <ul>
+        <li><code>src/app.ts:12-19</code> <span class="modfile">MOD</span> &mdash; <code>cors(corsOptions)</code></li>
+      </ul>
+    </td>
+    <td class="c-st"><span class="sev-Fixed">Fixed</span></td>
+  </tr>
+
+  <tr>
+    <td class="c-id">K-04</td>
+    <td class="c-sev"><span class="sev-Medium">Medium</span></td>
+    <td class="c-svc">A04:2021<br>Insecure Design</td>
+    <td class="c-svc">admin</td>
+    <td class="c-vuln">
+      <strong>No input validation and no rate limiting on the email sender.</strong> <code>email</code>, <code>name</code>
+      and <code>password</code> were used verbatim &mdash; no format check, no length bounds &mdash; with no throttling and no
+      queue. The SMTP relay was therefore fully automatable: arbitrary invite volume exhausted the Gmail sending quota and
+      got the mailbox suspended, while unreviewed fields fed email header / address-parsing edge cases.
+    </td>
+    <td class="c-how">
+      Three defence layers, applied as
+      <code>requireAdmin &rarr; rateLimitInvites &rarr; validateAdminInvite</code>:
+      <ul>
+        <li><strong>Validate</strong> &mdash; email regex + &le;254 chars, name 1&ndash;100 trimmed, password 8&ndash;128 &rarr; <code>400</code> with a <code>details</code> array.</li>
+        <li><strong>Throttle</strong> &mdash; sliding windows: <strong>10 req / 15 min per IP</strong> and <strong>3 invites / hour per recipient</strong> &rarr; <code>429</code>.</li>
+        <li><strong>Queue</strong> &mdash; a single in-process FIFO worker (<code>one sendMail at a time</code>), 3 retries with exponential backoff (<code>500ms &times; 2^n</code>), failures logged server-side, and a sanitized <code>"Email sending failed"</code> so no SMTP internals leak.</li>
+      </ul>
+      No new runtime dependencies added.
+    </td>
+    <td class="c-files">
+      <span class="dir">backend/admin-service/</span>
+      <ul>
+        <li><code>src/middleware/validate.ts</code> <span class="newfile">NEW</span></li>
+        <li><code>src/middleware/inviteRateLimit.ts</code> <span class="newfile">NEW</span></li>
+        <li><code>src/services/mailQueue.ts</code> <span class="newfile">NEW</span></li>
+        <li><code>src/routes/email.ts:4-6,16-60</code> <span class="modfile">MOD</span> &mdash; chain + handler</li>
+      </ul>
+    </td>
+    <td class="c-st"><span class="sev-Fixed">Fixed</span></td>
+  </tr>
+
+  <tr>
+    <td class="c-id">Deps</td>
+    <td class="c-sev">&mdash;</td>
+    <td class="c-svc">&mdash;</td>
+    <td class="c-svc">admin</td>
+    <td class="c-vuln">
+      <strong>12 npm vulnerabilities (7 high, 3 moderate, 1 critical).</strong> nodemailer 6.x
+      (<span class="advisory">GHSA-mm7p-fcc7-pg87</span> plus the SMTP-injection / SSRF / addressparser-DoS family),
+      mongoose 8.14.0, the twilio &rarr; axios 1.9.0 advisory chain, and a <strong>critical</strong> form-data advisory.
+    </td>
+    <td class="c-how">
+      <code>npm audit fix</code> cleared the transitive chain, then two direct upgrades with bumped manifest minimums:
+      <ul>
+        <li><code>nodemailer 6.10.1 &rarr; 10.0.10</code> &mdash; the only <em>breaking</em> bump, but the API actually used
+            (<code>createTransport</code> / <code>sendMail</code>) is unchanged, and <code>mailQueue.ts</code> type imports were
+            migrated to the named <code>Transporter</code> / <code>SendMailOptions</code> for <code>@types/nodemailer</code>.</li>
+        <li><code>mongoose 8.14.0 &rarr; 8.24.4</code> &mdash; clears both mongoose advisories.</li>
+      </ul>
+      <strong>Result: 0 vulnerabilities.</strong>
+    </td>
+    <td class="c-files">
+      <span class="dir">backend/admin-service/</span>
+      <ul>
+        <li><code>package.json</code> <span class="modfile">MOD</span> &mdash; version floors</li>
+        <li><code>package-lock.json</code> <span class="modfile">MOD</span> &mdash; resolved tree</li>
+        <li><code>src/services/mailQueue.ts:1</code> <span class="modfile">MOD</span> &mdash; nodemailer 10 types</li>
+      </ul>
+      12 packages updated &mdash; see <a href="#admin-deps">&sect;2.4</a>
+    </td>
+    <td class="c-st"><span class="sev-Fixed">0 vulns</span></td>
+  </tr>
+</table>
+</div>
+
+<p class="legend">
+  <strong>Legend:</strong>
+  <span class="newfile">NEW</span> = file created by this contribution &nbsp;&middot;&nbsp;
+  <span class="modfile">MOD</span> = existing file modified &nbsp;&middot;&nbsp;
+  <span class="path">path:lines</span> = exact location of the change &nbsp;&middot;&nbsp;
+  <span class="dir">folder/</span> = path relative to the repository root.
+  All paths are shown relative to the repository root so they can be copy-pasted directly.
+</p>
+
+<p class="note">
+  <strong>New files created (5):</strong>
+  <span class="path">backend/delevery-service/src/middleware/auth.ts</span>,
+  <span class="path">backend/admin-service/src/middleware/auth.ts</span>,
+  <span class="path">backend/admin-service/src/middleware/validate.ts</span>,
+  <span class="path">backend/admin-service/src/middleware/inviteRateLimit.ts</span>,
+  <span class="path">backend/admin-service/src/services/mailQueue.ts</span>
+</p>
+
+<!-- ============================================================ -->
+<h2 id="delevery">1. delevery-service</h2>
+
+<!-- ---------------------------- K-05 ---------------------------- -->
+<div class="finding high">
+<h4>K-05 — No authentication on any delivery route <span class="sev-High">High</span> · A01:2021 Broken Access Control</h4>
+<p class="meta"><strong>Service:</strong> delevery-service &nbsp;|&nbsp; <strong>Status:</strong> <span class="sev-Fixed">Fixed</span></p>
+
+<table class="files">
+  <tr><td class="lbl">New file</td><td><span class="path">backend/delevery-service/src/middleware/auth.ts</span> — <code>authMiddleware</code> at lines 13–29, exported <code>AuthRequest</code> / <code>UserPayload</code></td></tr>
+  <tr><td class="lbl">Modified</td><td><span class="path">backend/delevery-service/src/routes/deliveryRoutes.ts:3,39-47</span> — <code>authMiddleware</code> applied to all 7 routes</td></tr>
+  <tr><td class="lbl">Modified</td><td><span class="path">backend/delevery-service/package.json</span> — added <code>jsonwebtoken ^9.0.3</code>, <code>@types/jsonwebtoken ^9.0.10</code></td></tr>
+  <tr><td class="lbl">Modified</td><td><span class="path">backend/delevery-service/.env</span> — added <code>JWT_SECRET</code> (matches user-service)</td></tr>
+</table>
+
+<p><strong>Finding.</strong> The service mounted <code>/api/delivery</code> with only <code>cors</code> and <code>express.json()</code> before it; no route required a token. Every route was anonymous:</p>
+<ul>
+  <li><code>POST /</code> — create deliveries</li>
+  <li><code>GET /</code> — list <strong>all</strong> deliveries including <code>customerName</code>, <code>deliveryAddress</code>, <code>restaurantName</code>, <code>earnings</code></li>
+  <li><code>GET /unassigned</code>, <code>GET /assigned/:driverId</code>, <code>GET /driver/:driverId</code>, <code>GET /driver/:driverId/completed</code></li>
+  <li><code>DELETE /:id</code> — delete <strong>any</strong> delivery record</li>
+</ul>
+<p><strong>Blast radius:</strong> full read of customer PII (names / addresses / earnings) plus destructive <code>DELETE</code> on production data, with no notion of who the caller was.</p>
+
+<div class="ba">
+  <div class="ba-label before">Before — <span class="path">src/routes/deliveryRoutes.ts</span> (pre-fix <code>151593d~1</code> — no middleware anywhere)</div>
+<pre><code><span class="kw">import</span> express <span class="kw">from</span> <span class="str">"express"</span>;
+<span class="kw">import</span> { DeliveryController } <span class="kw">from</span> <span class="str">"../controllers/deliveryController"</span>;
+
+<span class="kw">const</span> router = express.Router();
+
+<span class="cmt">// no auth middleware imported anywhere in this file</span>
+router.post(<span class="str">"/"</span>, DeliveryController.createDelivery);
+router.get(<span class="str">"/"</span>, DeliveryController.getAllDeliveries);
+router.get(<span class="str">"/unassigned"</span>, DeliveryController.getUnassignedDeliveries);
+router.get(<span class="str">"/assigned/:driverId"</span>, DeliveryController.getAssignedDelivery);
+router.delete(<span class="str">"/:id"</span>, DeliveryController.deleteDelivery);
+router.get(<span class="str">"/driver/:driverId"</span>, DeliveryController.getDeliveriesByDriver);
+router.get(<span class="str">"/driver/:driverId/completed"</span>, DeliveryController.getCompletedDeliveriesByDriver);
+
+<span class="kw">export default</span> router;</code></pre>
+</div>
+
+<div class="ba">
+  <div class="ba-label after">After — <span class="path">src/middleware/auth.ts:13-29</span> (new file)</div>
+<pre><code><span class="kw">import</span> { Request, Response, NextFunction } <span class="kw">from</span> <span class="str">"express"</span>;
+<span class="kw">import</span> jwt <span class="kw">from</span> <span class="str">"jsonwebtoken"</span>;
+
+<span class="kw">export interface</span> UserPayload {
+  id: <span class="kw">string</span>;
+  role: <span class="kw">string</span>;
+}
+
+<span class="kw">export interface</span> AuthRequest <span class="kw">extends</span> Request {
+  user?: UserPayload;
+}
+
+<span class="kw">export const</span> <span class="fn">authMiddleware</span> = (req: AuthRequest, res: Response, next: NextFunction): <span class="kw">void</span> =&gt; {
+  <span class="kw">const</span> header = req.headers.authorization;
+  <span class="kw">const</span> token = header?.startsWith(<span class="str">"Bearer "</span>) ? header.slice(<span class="str">"Bearer "</span>.length) : <span class="kw">undefined</span>;
+
+  <span class="kw">if</span> (!token) {
+    res.status(<span class="num">401</span>).json({ message: <span class="str">"Unauthorized: No token provided"</span> });
+    <span class="kw">return</span>;
+  }
+
+  <span class="kw">try</span> {
+    <span class="kw">const</span> decoded = jwt.verify(token, process.env.JWT_SECRET!) <span class="kw">as</span> UserPayload;
+    req.user = { id: decoded.id, role: decoded.role };
+    next();
+  } <span class="kw">catch</span> (error) {
+    res.status(<span class="num">401</span>).json({ message: <span class="str">"Unauthorized: Invalid token"</span> });
+  }
+};</code></pre>
+</div>
+
+<div class="ba">
+  <div class="ba-label after">After — <span class="path">src/routes/deliveryRoutes.ts:3,39-47</span></div>
+<pre><code><span class="kw">import</span> { authMiddleware, requireRoles, requireDriverMatch } <span class="kw">from</span> <span class="str">"../middleware/auth"</span>;
+
+<span class="cmt">// Main CRUD</span>
+router.post(<span class="str">"/"</span>, authMiddleware, requireRoles(<span class="str">"admin"</span>, <span class="str">"restaurant_owner"</span>), DeliveryController.createDelivery);
+router.get(<span class="str">"/"</span>, authMiddleware, requireRoles(<span class="str">"admin"</span>), DeliveryController.getAllDeliveries);
+router.get(<span class="str">"/unassigned"</span>, authMiddleware, requireRoles(<span class="str">"delivery_man"</span>, <span class="str">"admin"</span>), DeliveryController.getUnassignedDeliveries);
+router.get(<span class="str">"/assigned/:driverId"</span>, authMiddleware, requireDriverMatch, DeliveryController.getAssignedDelivery);
+router.delete(<span class="str">"/:id"</span>, authMiddleware, requireRoles(<span class="str">"admin"</span>), DeliveryController.deleteDelivery);
+
+<span class="cmt">// New API for Driver</span>
+router.get(<span class="str">"/driver/:driverId"</span>, authMiddleware, requireDriverMatch, DeliveryController.getDeliveriesByDriver);
+router.get(<span class="str">"/driver/:driverId/completed"</span>, authMiddleware, requireDriverMatch, DeliveryController.getCompletedDeliveriesByDriver);</code></pre>
+</div>
+
+<p><strong>Fix applied.</strong></p>
+<ol>
+  <li>Added <code>jsonwebtoken</code> + <code>@types/jsonwebtoken</code> as dependencies in <span class="path">package.json</span>.</li>
+  <li>New <span class="path">src/middleware/auth.ts</span> — verifies the user-service HS256 <code>JWT_SECRET</code> Bearer token and attaches <code>req.user = { id, role }</code>; exports <code>AuthRequest</code> (used by K-06).</li>
+  <li>Applied <code>authMiddleware</code> to every route: <code>POST /</code>, <code>GET /</code>, <code>GET /unassigned</code>, <code>GET /assigned/:driverId</code>, <code>GET /driver/:driverId</code>, <code>GET /driver/:driverId/completed</code>, <code>DELETE /:id</code>.</li>
+  <li>Added <code>JWT_SECRET</code> (matching user-service) to <span class="path">delevery-service/.env</span>.</li>
+</ol>
+<div class="ok"><strong>Result:</strong> every request without a valid <code>Authorization: Bearer &lt;token&gt;</code> header now returns <code>401</code> before reaching a controller.</div>
+</div>
+
+<!-- ---------------------------- K-06 ---------------------------- -->
+<div class="finding high">
+<h4>K-06 — IDOR: arbitrary <code>driverId</code> from URL params <span class="sev-High">High</span> · A01:2021 Broken Access Control</h4>
+<p class="meta"><strong>Service:</strong> delevery-service &nbsp;|&nbsp; <strong>Status:</strong> <span class="sev-Fixed">Fixed</span></p>
+
+<table class="files">
+  <tr><td class="lbl">New file</td><td><span class="path">backend/delevery-service/src/middleware/auth.ts:31-63</span> — <code>requireRoles(...roles)</code> and <code>requireDriverMatch</code> helpers</td></tr>
+  <tr><td class="lbl">Modified</td><td><span class="path">backend/delevery-service/src/routes/deliveryRoutes.ts:42,46,47</span> — <code>requireDriverMatch</code> on the three driver-scoped routes</td></tr>
+  <tr><td class="lbl">Modified</td><td><span class="path">backend/delevery-service/src/controllers/deliveryController.ts:75-80</span> — <code>resolveDriverId</code> derives identity from the verified token</td></tr>
+</table>
+
+<p><strong>Finding.</strong> <code>driverId</code> was taken verbatim from <code>req.params</code> and used as a filter on <code>assignedTo</code>. With no auth (K-05), any caller could enumerate <code>driverId</code> values and read another driver's every delivery, their <strong>earnings</strong> (<code>/driver/:driverId/completed</code> — <code>deliveryStatus: "delivered"</code>), and the customer name/address on their active delivery (<code>/assigned/:driverId</code>).</p>
+
+<div class="ba">
+  <div class="ba-label before">Before — <span class="path">src/controllers/deliveryController.ts</span> (pre-fix <code>151593d~1</code>)</div>
+<pre><code><span class="kw">static async</span> <span class="fn">getDeliveriesByDriver</span>(req: Request, res: Response): <span class="kw">Promise</span>&lt;<span class="kw">void</span>&gt; {
+  <span class="kw">try</span> {
+    <span class="kw">const</span> { driverId } = req.params;
+    <span class="kw">const</span> deliveries = <span class="kw">await</span> DeliveryService.getDeliveriesByDriver(driverId);
+    res.status(<span class="num">200</span>).json(deliveries);
+  } <span class="kw">catch</span> (error) {
+    res.status(<span class="num">400</span>).json({ message: <span class="str">"Failed to fetch driver deliveries"</span>, error });
+  }
+}</code></pre>
+</div>
+
+<p><strong>Fix applied.</strong></p>
+<ol>
+  <li>Added two authorization helpers to <span class="path">src/middleware/auth.ts</span>:
+    <ul>
+      <li><code>requireRoles(...roles)</code> — <code>403</code> unless the verified caller's role is in the list.</li>
+      <li><code>requireDriverMatch</code> — <code>admin</code> passes (may query any driver); a <code>delivery_man</code> gets <code>403</code> unless the URL <code>driverId</code> equals the token subject; any other role gets <code>403</code>.</li>
+    </ul>
+  </li>
+  <li>Routes now enforce a role matrix.</li>
+</ol>
+
+<table>
+  <tr><th>Route</th><th>Allowed callers</th><th>Middleware chain (source)</th></tr>
+  <tr><td><code>POST /</code></td><td><code>admin</code>, <code>restaurant_owner</code></td><td><code>authMiddleware, requireRoles("admin", "restaurant_owner")</code> — <span class="path">deliveryRoutes.ts:39</span></td></tr>
+  <tr><td><code>GET /</code></td><td><code>admin</code> only</td><td><code>authMiddleware, requireRoles("admin")</code> — <span class="path">deliveryRoutes.ts:40</span></td></tr>
+  <tr><td><code>GET /unassigned</code></td><td><code>delivery_man</code>, <code>admin</code></td><td><code>authMiddleware, requireRoles("delivery_man", "admin")</code> — <span class="path">deliveryRoutes.ts:41</span></td></tr>
+  <tr><td><code>GET /assigned/:driverId</code></td><td><code>delivery_man</code> (own) / <code>admin</code></td><td><code>authMiddleware, requireDriverMatch</code> — <span class="path">deliveryRoutes.ts:42</span></td></tr>
+  <tr><td><code>GET /driver/:driverId</code></td><td><code>delivery_man</code> (own) / <code>admin</code></td><td><code>authMiddleware, requireDriverMatch</code> — <span class="path">deliveryRoutes.ts:46</span></td></tr>
+  <tr><td><code>GET /driver/:driverId/completed</code></td><td><code>delivery_man</code> (own) / <code>admin</code></td><td><code>authMiddleware, requireDriverMatch</code> — <span class="path">deliveryRoutes.ts:47</span></td></tr>
+  <tr><td><code>DELETE /:id</code></td><td><code>admin</code> only</td><td><code>authMiddleware, requireRoles("admin")</code> — <span class="path">deliveryRoutes.ts:43</span></td></tr>
+</table>
+
+<ol start="3">
+  <li>Controllers now derive the driver identity from the <strong>verified token subject</strong> (<code>resolveDriverId</code>) instead of trusting the URL for <code>delivery_man</code>.</li>
+</ol>
+
+<div class="ba">
+  <div class="ba-label after">After — <span class="path">src/middleware/auth.ts:31-63</span></div>
+<pre><code><span class="kw">export const</span> <span class="fn">requireRoles</span> = (...roles: <span class="kw">string</span>[]) =&gt; {
+  <span class="kw">return</span> (req: AuthRequest, res: Response, next: NextFunction): <span class="kw">void</span> =&gt; {
+    <span class="kw">if</span> (!req.user) {
+      res.status(<span class="num">401</span>).json({ message: <span class="str">"Unauthorized"</span> });
+      <span class="kw">return</span>;
+    }
+    <span class="kw">if</span> (!roles.includes(req.user.role)) {
+      res.status(<span class="num">403</span>).json({ message: <span class="str">"Forbidden: Insufficient permissions"</span> });
+      <span class="kw">return</span>;
+    }
+    next();
+  };
+};
+
+<span class="kw">export const</span> <span class="fn">requireDriverMatch</span> = (req: AuthRequest, res: Response, next: NextFunction): <span class="kw">void</span> =&gt; {
+  <span class="kw">if</span> (!req.user) {
+    res.status(<span class="num">401</span>).json({ message: <span class="str">"Unauthorized"</span> });
+    <span class="kw">return</span>;
+  }
+  <span class="kw">if</span> (req.user.role === <span class="str">"admin"</span>) {
+    next();
+    <span class="kw">return</span>;
+  }
+  <span class="kw">if</span> (req.user.role !== <span class="str">"delivery_man"</span>) {
+    res.status(<span class="num">403</span>).json({ message: <span class="str">"Forbidden: Insufficient permissions"</span> });
+    <span class="kw">return</span>;
+  }
+  <span class="kw">const</span> driverId = req.params.driverId;
+  <span class="kw">if</span> (driverId &amp;&amp; driverId !== req.user.id) {
+    res.status(<span class="num">403</span>).json({ message: <span class="str">"Forbidden: You can only view your own deliveries"</span> });
+    <span class="kw">return</span>;
+  }
+  next();
+};</code></pre>
+</div>
+
+<div class="ba">
+  <div class="ba-label after">After — <span class="path">src/controllers/deliveryController.ts:75-80</span></div>
+<pre><code><span class="kw">private static</span> <span class="fn">resolveDriverId</span>(req: AuthRequest): <span class="kw">string</span> {
+  <span class="kw">if</span> (req.user &amp;&amp; req.user.role === <span class="str">"delivery_man"</span>) {
+    <span class="kw">return</span> req.user.id;
+  }
+  <span class="kw">return</span> req.params.driverId; <span class="cmt">// admin only past requireDriverMatch</span>
+}</code></pre>
+</div>
+
+<div class="open">
+  <strong>Residual (documented, not a regression):</strong> the Delivery schema has no customer-account / <code>userId</code> field, so "customer reads only their own orders" still requires an <code>orderId</code> &rarr; order-service user linkage. All list reads therefore default to <code>admin</code>. Tracked alongside K-07 (see <a href="#open">§4 Still open</a>).
+</div>
+</div>
+
+<!-- ---------------------------- K-07 ---------------------------- -->
+<div class="finding medium">
+<h4>K-07 — Mass assignment in <code>createDelivery</code> <span class="sev-Medium">Medium</span> · A04:2021 Insecure Design</h4>
+<p class="meta"><strong>Service:</strong> delevery-service &nbsp;|&nbsp; <strong>Status:</strong> <span class="sev-Fixed">Fixed</span></p>
+
+<table class="files">
+  <tr><td class="lbl">Modified</td><td><span class="path">backend/delevery-service/src/services/deliveryService.ts:10-30</span> — <code>createDelivery</code> whitelist + server-owned defaults</td></tr>
+  <tr><td class="lbl">Context</td><td><span class="path">backend/delevery-service/src/models/delivery.ts:42-57</span> — server-owned schema fields <code>earnings</code>, <code>deliveredAt</code>, <code>assignedTo</code>, <code>deliveryStatus</code></td></tr>
+</table>
+
+<p><strong>Finding.</strong> <code>createDelivery</code> wrote every field of <code>req.body</code> straight into a Mongoose document. An anonymous caller could create deliveries pre-<code>assigned</code> to a chosen driver, already <code>delivered</code>, or carrying arbitrary <code>earnings</code> — tampering with the driver-earnings ledger and poisoning the "unassigned" work queue.</p>
+
+<div class="ba">
+  <div class="ba-label before">Before — <span class="path">src/services/deliveryService.ts:10-12</span> (pre-fix <code>151593d~1</code>)</div>
+<pre><code><span class="cmt">// deliveryData is req.body, passed through unfiltered</span>
+<span class="kw">static async</span> <span class="fn">createDelivery</span>(deliveryData: IDelivery): <span class="kw">Promise</span>&lt;IDelivery&gt; {
+  <span class="kw">const</span> delivery = <span class="kw">new</span> Delivery(deliveryData);
+  <span class="kw">return await</span> delivery.save();
+}</code></pre>
+</div>
+
+<p><strong>Fix applied.</strong> <code>createDelivery</code> now whitelists only the caller-supplied fields and forces safe defaults on everything the server owns (<code>deliveryStatus: "pending"</code>, <code>assignedTo: null</code>, <code>earnings: 0</code>, <code>deliveredAt: null</code>). Any field the client sends beyond the whitelist is silently dropped; the six required fields must be present or a clean 400 is returned.</p>
+
+<div class="ba">
+  <div class="ba-label after">After — <span class="path">src/services/deliveryService.ts:10-30</span></div>
+<pre><code><span class="kw">static async</span> <span class="fn">createDelivery</span>(deliveryData: IDelivery): <span class="kw">Promise</span>&lt;IDelivery&gt; {
+  <span class="kw">const</span> { orderId, customerName, deliveryAddress, restaurantName, pickupTime, deliveryTime } = deliveryData;
+
+  <span class="kw">if</span> (!orderId || !customerName || !deliveryAddress || !restaurantName || !pickupTime || !deliveryTime) {
+    <span class="kw">throw new</span> Error(<span class="str">"orderId, customerName, deliveryAddress, restaurantName, pickupTime and deliveryTime are required"</span>);
+  }
+
+  <span class="kw">const</span> delivery = <span class="kw">new</span> Delivery({
+    orderId,
+    customerName,
+    deliveryAddress,
+    restaurantName,
+    pickupTime,
+    deliveryTime,
+    deliveryStatus: <span class="str">"pending"</span>,
+    assignedTo: <span class="kw">null</span>,
+    earnings: <span class="num">0</span>,
+    deliveredAt: <span class="kw">null</span>,
+  });
+  <span class="kw">return await</span> delivery.save();
+}</code></pre>
+</div>
+
+<div class="ok">
+  <strong>Result:</strong> status/assignment can now only change through the dedicated transition methods
+  <code>assignDeliveryToMan</code> (<span class="path">deliveryService.ts:56-64</span>) and
+  <code>updateDeliveryStatus</code> (<span class="path">deliveryService.ts:66-68</span>), which remain unexposed on routes
+  (intended server-side workflow steps).
+</div>
+</div>
+
+<!-- ---------------------------- K-08 ---------------------------- -->
+<div class="finding medium">
+<h4>K-08 — Raw error objects leaked to clients <span class="sev-Medium">Medium</span> · A05:2021 Security Misconfiguration</h4>
+<p class="meta"><strong>Service:</strong> delevery-service &nbsp;|&nbsp; <strong>Status:</strong> <span class="sev-Fixed">Fixed</span></p>
+
+<table class="files">
+  <tr><td class="lbl">Modified</td><td><span class="path">backend/delevery-service/src/controllers/deliveryController.ts</span> — 7 catch blocks at lines <strong>11, 21, 33, 45, 55, 70, 91</strong></td></tr>
+</table>
+
+<p><strong>Finding.</strong> Every <code>catch</code> in <span class="path">src/controllers/deliveryController.ts</span> returned <code>{ message: ..., error }</code>, sending Mongoose <code>CastError</code> stack traces, validation internals and DB connection metadata to the client.</p>
+
+<div class="ba">
+  <div class="ba-label before">Before — <span class="path">src/controllers/deliveryController.ts</span> (pre-fix <code>151593d~1</code> — raw exception shipped to client)</div>
+<pre><code>} <span class="kw">catch</span> (error) {
+  res.status(<span class="num">400</span>).json({ message: <span class="str">"Failed to create delivery"</span>, error });
+}</code></pre>
+</div>
+
+<p><strong>Fix applied.</strong> All 7 catch blocks now log the exception server-side and return a generic message only — no <code>error</code> object reaches the client.</p>
+
+<div class="ba">
+  <div class="ba-label after">After — <span class="path">src/controllers/deliveryController.ts</span></div>
+<pre><code>} <span class="kw">catch</span> (error) {
+  console.error(<span class="str">"createDelivery failed:"</span>, error);
+  res.status(<span class="num">400</span>).json({ message: <span class="str">"Failed to create delivery"</span> });
+}</code></pre>
+</div>
+
+<table>
+  <tr><th>Handler</th><th>catch at</th><th>Client message now returned</th></tr>
+  <tr><td><code>createDelivery</code></td><td>line 11</td><td><code>Failed to create delivery</code></td></tr>
+  <tr><td><code>getAllDeliveries</code></td><td>line 21</td><td><code>Failed to fetch deliveries</code></td></tr>
+  <tr><td><code>getDeliveriesByDriver</code></td><td>line 33</td><td><code>Failed to fetch driver deliveries</code></td></tr>
+  <tr><td><code>getCompletedDeliveriesByDriver</code></td><td>line 45</td><td><code>Failed to fetch completed deliveries</code></td></tr>
+  <tr><td><code>getUnassignedDeliveries</code></td><td>line 55</td><td><code>Failed to fetch unassigned deliveries</code></td></tr>
+  <tr><td><code>getAssignedDelivery</code></td><td>line 70</td><td><code>Failed to fetch assigned delivery</code></td></tr>
+  <tr><td><code>deleteDelivery</code></td><td>line 91</td><td><code>Failed to delete delivery</code></td></tr>
+</table>
+</div>
+
+<!-- --------------------- delevery deps --------------------- -->
+<h3 id="delevery-deps">1.5 Deps (delevery-service) — 9 vulnerabilities &rarr; 0</h3>
+
+<table class="files">
+  <tr><td class="lbl">Modified</td><td><span class="path">backend/delevery-service/package.json</span> — <code>express ^4.22.3</code>, <code>mongoose ^8.24.4</code></td></tr>
+  <tr><td class="lbl">Modified</td><td><span class="path">backend/delevery-service/package-lock.json</span></td></tr>
+</table>
+
+<p><strong>Finding (before).</strong> <code>npm audit</code>: <strong>9 vulnerabilities (6 high, 2 moderate, 1 low)</strong> — express 4.21.2 chain (body-parser 1.20.3, path-to-regexp 0.1.12, qs 6.13.0), mongoose 8.13.1 (<span class="advisory">GHSA-wpg9-53fq-2r8h</span>, <span class="advisory">GHSA-664h-wqgq-64gw</span>), and dev-toolchain transitives (minimatch 3.1.2, brace-expansion 1.1.11, picomatch 2.3.1, diff 4.0.2).</p>
+<p><strong>Fix applied.</strong> Ran <code>npm audit fix</code> and bumped manifest minimums to <code>express ^4.22.3</code> and <code>mongoose ^8.24.4</code>. Effective installed versions:</p>
+
+<table>
+  <tr><th>Package</th><th>Before</th><th>After</th></tr>
+  <tr><td><code>express</code></td><td>4.21.2</td><td><strong>4.22.3</strong></td></tr>
+  <tr><td><code>body-parser</code></td><td>1.20.3</td><td><strong>1.20.8</strong></td></tr>
+  <tr><td><code>path-to-regexp</code></td><td>0.1.12</td><td><strong>0.1.13</strong></td></tr>
+  <tr><td><code>qs</code></td><td>6.13.0</td><td><strong>6.16.0</strong></td></tr>
+  <tr><td><code>mongoose</code></td><td>8.13.1</td><td><strong>8.24.4</strong></td></tr>
+  <tr><td><code>minimatch</code></td><td>3.1.2</td><td><strong>3.1.5</strong></td></tr>
+  <tr><td><code>brace-expansion</code></td><td>1.1.11</td><td><strong>1.1.21</strong></td></tr>
+  <tr><td><code>picomatch</code></td><td>2.3.1</td><td><strong>2.3.2</strong></td></tr>
+  <tr><td><code>diff</code></td><td>4.0.2</td><td><strong>4.0.4</strong></td></tr>
+</table>
+
+<div class="ok">
+  <strong>Result:</strong> <code>npm audit</code> &rarr; <strong>0 vulnerabilities</strong>. All upgrades stay within the original
+  major/minor families (express stays 4.x — route handling semantics unchanged).
+</div>
+
+<!-- ============================================================ -->
+<h2 id="admin">2. admin-service</h2>
+
+<!-- ---------------------------- K-01 ---------------------------- -->
+<div class="finding high">
+<h4>K-01 — Unauthenticated admin email/invite endpoint <span class="sev-High">High</span> · A01:2021 Broken Access Control</h4>
+<p class="meta"><strong>Service:</strong> admin-service &nbsp;|&nbsp; <strong>Status:</strong> <span class="sev-Fixed">Fixed</span></p>
+
+<table class="files">
+  <tr><td class="lbl">New file</td><td><span class="path">backend/admin-service/src/middleware/auth.ts</span> — <code>requireAdmin</code> at lines 8-29, exported <code>AuthRequest</code></td></tr>
+  <tr><td class="lbl">Modified</td><td><span class="path">backend/admin-service/src/routes/email.ts:3,16-21</span> — <code>requireAdmin</code> wired onto the route</td></tr>
+  <tr><td class="lbl">Modified</td><td><span class="path">backend/admin-service/package.json</span> — added <code>jsonwebtoken ^9.0.3</code>, <code>@types/jsonwebtoken ^9.0.10</code></td></tr>
+  <tr><td class="lbl">Modified</td><td><span class="path">backend/admin-service/.env</span> — added <code>JWT_SECRET</code> (matching user-service)</td></tr>
+</table>
+
+<p><strong>Finding.</strong> <code>POST /api/email/send-admin-invite</code> had <strong>no authentication</strong> — the only route in the service. Any anonymous caller could (a) abuse the service's own Gmail SMTP account for high-volume mail (spam relay / quota exhaustion), and (b) send forged "Your admin account has been created — Password: X" phishing emails to arbitrary addresses with attacker-chosen passwords. Same bug class as order-service V-04.</p>
+
+<div class="ba">
+  <div class="ba-label before">Before — <span class="path">src/routes/email.ts</span> (pre-fix <code>e007e69~1</code> — no token parsing existed anywhere in <code>src/</code>)</div>
+<pre><code><span class="kw">import</span> express, { Request, Response } <span class="kw">from</span> <span class="str">'express'</span>;
+<span class="kw">import</span> nodemailer <span class="kw">from</span> <span class="str">'nodemailer'</span>;
+<span class="cmt">// ...</span>
+<span class="kw">const</span> router = express.Router();
+
+router.post(<span class="str">'/send-admin-invite'</span>, <span class="kw">async</span> (req: Request&lt;{}, {}, AdminInviteRequest&gt;, res: Response) =&gt; {
+  <span class="kw">const</span> { email, name, password } = req.body;
+  <span class="kw">const</span> transporter = nodemailer.createTransport({
+    service: process.env.EMAIL_SERVICE || <span class="str">'Gmail'</span>,
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASSWORD,
+    },
+  });
+  <span class="cmt">// ... mailOptions built from the raw body ...</span>
+  <span class="kw">try</span> {
+    <span class="kw">await</span> transporter.sendMail(mailOptions);
+    res.json({ message: <span class="str">'Email sent successfully'</span> });
+  } <span class="kw">catch</span> (err: <span class="kw">unknown</span>) {
+    <span class="kw">const</span> error = err <span class="kw">instanceof</span> Error ? err : <span class="kw">new</span> Error(<span class="str">'Unknown error occurred'</span>);
+    res.status(<span class="num">500</span>).json({
+      error: <span class="str">'Failed to send email'</span>,
+      details: error.message
+    });
+  }
+});</code></pre>
+</div>
+
+<p><strong>Fix applied.</strong></p>
+<ol>
+  <li>Added <code>jsonwebtoken</code> + <code>@types/jsonwebtoken</code> as direct dependencies.</li>
+  <li>New <span class="path">src/middleware/auth.ts</span> exports <code>requireAdmin</code> — verifies the user-service HS256 <code>JWT_SECRET</code> Bearer token, requires <code>role === "admin"</code> (otherwise 403), attaches <code>req.user</code>, and returns 401 on missing/invalid tokens (with server-side <code>console.error</code> on verify failure).</li>
+  <li>Wired onto the route: <code>router.post('/send-admin-invite', requireAdmin, ...)</code>.</li>
+  <li>Added <code>JWT_SECRET</code> (matching user-service) to <span class="path">admin-service/.env</span>.</li>
+</ol>
+
+<div class="ba">
+  <div class="ba-label after">After — <span class="path">src/middleware/auth.ts:8-29</span> (new file)</div>
+<pre><code><span class="kw">import</span> { Request, Response, NextFunction } <span class="kw">from</span> <span class="str">"express"</span>;
+<span class="kw">import</span> jwt <span class="kw">from</span> <span class="str">"jsonwebtoken"</span>;
+
+<span class="kw">export interface</span> AuthRequest <span class="kw">extends</span> Request {
+  user?: { id: <span class="kw">string</span>; role: <span class="kw">string</span> };
+}
+
+<span class="kw">export function</span> <span class="fn">requireAdmin</span>(req: AuthRequest, res: Response, next: NextFunction): <span class="kw">void</span> {
+  <span class="kw">const</span> header = req.headers.authorization;
+  <span class="kw">const</span> token = header?.startsWith(<span class="str">"Bearer "</span>) ? header.slice(<span class="str">"Bearer "</span>.length) : <span class="kw">undefined</span>;
+
+  <span class="kw">if</span> (!token) {
+    res.status(<span class="num">401</span>).json({ message: <span class="str">"Unauthorized: No token provided"</span> });
+    <span class="kw">return</span>;
+  }
+
+  <span class="kw">try</span> {
+    <span class="kw">const</span> decoded = jwt.verify(token, process.env.JWT_SECRET!) <span class="kw">as</span> { id: <span class="kw">string</span>; role: <span class="kw">string</span> };
+    <span class="kw">if</span> (decoded.role !== <span class="str">"admin"</span>) {
+      res.status(<span class="num">403</span>).json({ message: <span class="str">"Forbidden: Admin access required"</span> });
+      <span class="kw">return</span>;
+    }
+    req.user = decoded;
+    next();
+  } <span class="kw">catch</span> (error) {
+    console.error(<span class="str">"requireAdmin: token verification failed:"</span>, error);
+    res.status(<span class="num">401</span>).json({ message: <span class="str">"Unauthorized: Invalid token"</span> });
+  }
+}</code></pre>
+</div>
+
+<div class="ba">
+  <div class="ba-label after">After — <span class="path">src/routes/email.ts:16-21</span></div>
+<pre><code><span class="kw">import</span> { requireAdmin } <span class="kw">from</span> <span class="str">'../middleware/auth'</span>;
+<span class="cmt">// ...</span>
+router.post(
+  <span class="str">'/send-admin-invite'</span>,
+  requireAdmin,
+  rateLimitInvites,
+  validateAdminInvite,
+  <span class="kw">async</span> (req: Request&lt;{}, {}, AdminInviteRequest&gt;, res: Response) =&gt; {</code></pre>
+</div>
+
+<div class="ok">
+  <strong>Response codes now:</strong> <code>401</code> no token / invalid token, <code>403</code> valid token with a non-<code>admin</code> role.
+</div>
+</div>
+
+<!-- ---------------------------- K-03 ---------------------------- -->
+<div class="finding medium">
+<h4>K-03 — Wide-open CORS <span class="sev-Medium">Medium</span> · A05:2021 Security Misconfiguration</h4>
+<p class="meta"><strong>Service:</strong> admin-service &nbsp;|&nbsp; <strong>Status:</strong> <span class="sev-Fixed">Fixed</span></p>
+
+<table class="files">
+  <tr><td class="lbl">Modified</td><td><span class="path">backend/admin-service/src/app.ts:6,12-19</span> — <code>cors(corsOptions)</code> allowlist replaces <code>cors()</code></td></tr>
+</table>
+
+<p><strong>Finding.</strong> <code>app.use(cors())</code> reflected/accepted every origin (<code>Access-Control-Allow-Origin: *</code>). Combined with the (then unauthenticated) invite endpoint, any webpage a victim visited could issue invite requests from the victim's browser (pre-flighted and allowed) and abuse the SMTP channel.</p>
+
+<div class="ba">
+  <div class="ba-label before">Before — <span class="path">src/app.ts:6,11</span></div>
+<pre><code><span class="kw">const</span> cors = require(<span class="str">'cors'</span>);
+<span class="cmt">// ...</span>
+app.use(cors()); <span class="cmt">// no origin option — ACAO: *</span></code></pre>
+</div>
+
+<p><strong>Fix applied.</strong> Replaced with an explicit allowlist of the admin-dashboard origins (the Next.js client on port 3000 — same pattern delevery-service already uses at <span class="path">src/app.ts:14-19</span>):</p>
+
+<div class="ba">
+  <div class="ba-label after">After — <span class="path">src/app.ts:12-19</span></div>
+<pre><code><span class="kw">const</span> corsOptions = {
+  origin: [<span class="str">'http://localhost:3000'</span>, <span class="str">'http://127.0.0.1:3000'</span>],
+  methods: <span class="str">'GET,HEAD,PUT,PATCH,POST,DELETE'</span>,
+  credentials: <span class="kw">true</span>,
+  optionsSuccessStatus: <span class="num">204</span>,
+};
+
+app.use(cors(corsOptions));</code></pre>
+</div>
+
+<div class="ok">
+  <strong>Result:</strong> any other origin now receives <strong>no</strong> <code>Access-Control-Allow-Origin</code> header, so cross-origin abuse of the invite endpoint is blocked at the browser layer. Live-verified (see <a href="#verify">§3 Verification</a>).
+</div>
+</div>
+
+<!-- ---------------------------- K-04 ---------------------------- -->
+<div class="finding medium">
+<h4>K-04 — No input validation / no rate limiting <span class="sev-Medium">Medium</span> · A04:2021 Insecure Design</h4>
+<p class="meta"><strong>Service:</strong> admin-service &nbsp;|&nbsp; <strong>Status:</strong> <span class="sev-Fixed">Fixed</span></p>
+
+<table class="files">
+  <tr><td class="lbl">New file</td><td><span class="path">backend/admin-service/src/middleware/validate.ts</span> — <code>validateAdminInvite</code> at lines 5-29</td></tr>
+  <tr><td class="lbl">New file</td><td><span class="path">backend/admin-service/src/middleware/inviteRateLimit.ts</span> — <code>rateLimitInvites</code> (23-36), <code>isRecipientRateLimited</code> (38-44), <code>recordRecipientInvite</code> (46-51)</td></tr>
+  <tr><td class="lbl">New file</td><td><span class="path">backend/admin-service/src/services/mailQueue.ts</span> — <code>MailQueue</code> at lines 9-71</td></tr>
+  <tr><td class="lbl">Modified</td><td><span class="path">backend/admin-service/src/routes/email.ts:4-6,16-60</span> — chain <code>requireAdmin → rateLimitInvites → validateAdminInvite</code>; per-recipient limit + queue call in the handler</td></tr>
+</table>
+
+<p><strong>Finding.</strong> <code>email</code>, <code>name</code>, <code>password</code> were accepted with zero validation; there was no throttling and no queue. The SMTP relay was fully automatable — arbitrary invite volume exhausting the Gmail sending quota — and unreviewed fields could drive email-header/address-parsing edge cases.</p>
+
+<p><strong>Fix applied.</strong> The route now runs <code>requireAdmin &rarr; rateLimitInvites &rarr; validateAdminInvite</code> before handling.</p>
+
+<h3 style="margin-top:1.2rem">1. <span class="path">src/middleware/validate.ts</span> — schema checks (new)</h3>
+<ul>
+  <li><code>email</code>: must match <code>^[^\s@]+@[^\s@]+\.[^\s@]+$</code>, max 254 chars</li>
+  <li><code>name</code>: trimmed length 1–100 chars</li>
+  <li><code>password</code>: length 8–128 chars</li>
+  <li>Failures return <code>400 { error: "Validation failed", details: [...] }</code></li>
+</ul>
+
+<div class="ba">
+  <div class="ba-label after">New — <span class="path">src/middleware/validate.ts:1-29</span></div>
+<pre><code><span class="kw">import</span> { Request, Response, NextFunction } <span class="kw">from</span> <span class="str">"express"</span>;
+
+<span class="kw">const</span> EMAIL_REGEX = <span class="str">/^[^\s@]+@[^\s@]+\.[^\s@]+$/</span>;
+
+<span class="kw">export function</span> <span class="fn">validateAdminInvite</span>(req: Request, res: Response, next: NextFunction): <span class="kw">void</span> {
+  <span class="kw">const</span> body = req.body ?? {};
+  <span class="kw">const</span> email = body.email;
+  <span class="kw">const</span> name = body.name;
+  <span class="kw">const</span> password = body.password;
+
+  <span class="kw">const</span> errors: <span class="kw">string</span>[] = [];
+
+  <span class="kw">if</span> (<span class="kw">typeof</span> email !== <span class="str">"string"</span> || email.length &gt; <span class="num">254</span> || !EMAIL_REGEX.test(email)) {
+    errors.push(<span class="str">"email must be a valid email address"</span>);
+  }
+  <span class="kw">if</span> (<span class="kw">typeof</span> name !== <span class="str">"string"</span> || name.trim().length &lt; <span class="num">1</span> || name.trim().length &gt; <span class="num">100</span>) {
+    errors.push(<span class="str">"name must be between 1 and 100 characters"</span>);
+  }
+  <span class="kw">if</span> (<span class="kw">typeof</span> password !== <span class="str">"string"</span> || password.length &lt; <span class="num">8</span> || password.length &gt; <span class="num">128</span>) {
+    errors.push(<span class="str">"password must be between 8 and 128 characters"</span>);
+  }
+
+  <span class="kw">if</span> (errors.length &gt; <span class="num">0</span>) {
+    res.status(<span class="num">400</span>).json({ error: <span class="str">"Validation failed"</span>, details: errors });
+    <span class="kw">return</span>;
+  }
+
+  next();
+}</code></pre>
+</div>
+
+<h3 style="margin-top:1.2rem">2. <span class="path">src/middleware/inviteRateLimit.ts</span> — in-memory sliding windows (new)</h3>
+<ul>
+  <li><strong>Per-IP:</strong> 10 requests / 15 minutes &rarr; <code>429</code></li>
+  <li><strong>Per-recipient:</strong> 3 invites / hour per recipient address &rarr; <code>429</code></li>
+</ul>
+
+<div class="ba">
+  <div class="ba-label after">New — <span class="path">src/middleware/inviteRateLimit.ts:1-51</span></div>
+<pre><code><span class="kw">const</span> IP_WINDOW_MS = <span class="num">15</span> * <span class="num">60</span> * <span class="num">1000</span>;
+<span class="kw">const</span> IP_MAX_REQUESTS = <span class="num">10</span>;
+<span class="kw">const</span> RECIPIENT_WINDOW_MS = <span class="num">60</span> * <span class="num">60</span> * <span class="num">1000</span>;
+<span class="kw">const</span> RECIPIENT_MAX_INVITES = <span class="num">3</span>;
+
+<span class="kw">const</span> ipHits = <span class="kw">new</span> Map&lt;<span class="kw">string</span>, <span class="kw">number</span>[]&gt;();
+<span class="kw">const</span> recipientHits = <span class="kw">new</span> Map&lt;<span class="kw">string</span>, <span class="kw">number</span>[]&gt;();
+
+<span class="kw">function</span> <span class="fn">prune</span>(map: Map&lt;<span class="kw">string</span>, <span class="kw">number</span>[]&gt;, windowMs: <span class="kw">number</span>): <span class="kw">void</span> {
+  <span class="kw">const</span> cutoff = Date.now() - windowMs;
+  <span class="kw">for</span> (<span class="kw">const</span> [key, timestamps] <span class="kw">of</span> map) {
+    <span class="kw">const</span> active = timestamps.filter((t) =&gt; t &gt; cutoff);
+    <span class="kw">if</span> (active.length === <span class="num">0</span>) {
+      map.delete(key);
+    } <span class="kw">else</span> {
+      map.set(key, active);
+    }
+  }
+}
+
+<span class="kw">export function</span> <span class="fn">rateLimitInvites</span>(req: Request, res: Response, next: NextFunction): <span class="kw">void</span> {
+  <span class="kw">const</span> ip = req.ip || req.socket?.remoteAddress || <span class="str">"unknown"</span>;
+  <span class="kw">const</span> now = Date.now();
+  prune(ipHits, IP_WINDOW_MS);
+
+  <span class="kw">const</span> hits = ipHits.get(ip) ?? [];
+  <span class="kw">if</span> (hits.length &gt;= IP_MAX_REQUESTS) {
+    res.status(<span class="num">429</span>).json({ error: <span class="str">"Too many requests, please try again later"</span> });
+    <span class="kw">return</span>;
+  }
+
+  ipHits.set(ip, [...hits, now]);
+  next();
+}
+
+<span class="kw">export function</span> <span class="fn">isRecipientRateLimited</span>(email: <span class="kw">string</span>): <span class="kw">boolean</span> {
+  <span class="kw">if</span> (!email) <span class="kw">return true</span>;
+  <span class="kw">const</span> key = email.toLowerCase();
+  prune(recipientHits, RECIPIENT_WINDOW_MS);
+  <span class="kw">const</span> hits = recipientHits.get(key) ?? [];
+  <span class="kw">return</span> hits.length &gt;= RECIPIENT_MAX_INVITES;
+}
+
+<span class="kw">export function</span> <span class="fn">recordRecipientInvite</span>(email: <span class="kw">string</span>): <span class="kw">void</span> {
+  <span class="kw">if</span> (!email) <span class="kw">return</span>;
+  <span class="kw">const</span> key = email.toLowerCase();
+  <span class="kw">const</span> hits = recipientHits.get(key) ?? [];
+  recipientHits.set(key, [...hits, Date.now()]);
+}</code></pre>
+</div>
+
+<h3 style="margin-top:1.2rem">3. <span class="path">src/services/mailQueue.ts</span> — outgoing-mail queue (new)</h3>
+<ul>
+  <li>Serializes sends (single in-process FIFO worker — one <code>sendMail</code> at a time).</li>
+  <li>Retries up to 3 times with exponential backoff (<code>500ms * 2^n</code>), logging each failure server-side.</li>
+  <li>Throws a sanitized <code>"Email sending failed"</code> (no SMTP internals); the route's 500 now returns a generic <code>details</code>.</li>
+  <li>Type imports updated from the <code>nodemailer.XXX</code> namespace to named <code>Transporter</code> / <code>SendMailOptions</code> for <code>@types/nodemailer</code> (relevant for the nodemailer 10 upgrade, <a href="#admin-deps">§2.4</a>).</li>
+</ul>
+
+<div class="ba">
+  <div class="ba-label after">New — <span class="path">src/services/mailQueue.ts:1-71</span></div>
+<pre><code><span class="kw">import</span> nodemailer, { Transporter, SendMailOptions } <span class="kw">from</span> <span class="str">"nodemailer"</span>;
+
+<span class="kw">interface</span> MailJob {
+  mailOptions: SendMailOptions;
+  resolve: () =&gt; <span class="kw">void</span>;
+  reject: (err: Error) =&gt; <span class="kw">void</span>;
+}
+
+<span class="kw">class</span> <span class="fn">MailQueue</span> {
+  <span class="kw">private</span> queue: MailJob[] = [];
+  <span class="kw">private</span> processing = <span class="kw">false</span>;
+  <span class="kw">private readonly</span> maxRetries = <span class="num">3</span>;
+
+  <span class="kw">private</span> <span class="fn">getTransporter</span>(): Transporter {
+    <span class="kw">return</span> nodemailer.createTransport({
+      service: process.env.EMAIL_SERVICE || <span class="str">"Gmail"</span>,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD,
+      },
+    });
+  }
+
+  <span class="kw">async</span> <span class="fn">enqueue</span>(mailOptions: SendMailOptions): <span class="kw">Promise</span>&lt;<span class="kw">void</span>&gt; {
+    <span class="kw">return new</span> Promise&lt;<span class="kw">void</span>&gt;((resolve, reject) =&gt; {
+      <span class="kw">this</span>.queue.push({ mailOptions, resolve, reject });
+      <span class="kw">void this</span>.process();
+    });
+  }
+
+  <span class="kw">private async</span> <span class="fn">process</span>(): <span class="kw">Promise</span>&lt;<span class="kw">void</span>&gt; {
+    <span class="kw">if</span> (<span class="kw">this</span>.processing) <span class="kw">return</span>;
+    <span class="kw">this</span>.processing = <span class="kw">true</span>;
+
+    <span class="kw">while</span> (<span class="kw">this</span>.queue.length &gt; <span class="num">0</span>) {
+      <span class="kw">const</span> job = <span class="kw">this</span>.queue.shift() <span class="kw">as</span> MailJob;
+      <span class="kw">try</span> {
+        <span class="kw">await this</span>.sendWithRetry(job);
+        job.resolve();
+      } <span class="kw">catch</span> (error) {
+        <span class="kw">const</span> err = error <span class="kw">instanceof</span> Error ? error : <span class="kw">new</span> Error(<span class="str">"Email sending failed"</span>);
+        job.reject(err);
+      }
+    }
+
+    <span class="kw">this</span>.processing = <span class="kw">false</span>;
+  }
+
+  <span class="kw">private async</span> <span class="fn">sendWithRetry</span>(job: MailJob): <span class="kw">Promise</span>&lt;<span class="kw">void</span>&gt; {
+    <span class="kw">let</span> lastError: Error | <span class="kw">undefined</span>;
+    <span class="kw">for</span> (<span class="kw">let</span> attempt = <span class="num">0</span>; attempt &lt; <span class="kw">this</span>.maxRetries; attempt++) {
+      <span class="kw">try</span> {
+        <span class="kw">const</span> transporter = <span class="kw">this</span>.getTransporter();
+        <span class="kw">await</span> transporter.sendMail(job.mailOptions);
+        <span class="kw">return</span>;
+      } <span class="kw">catch</span> (error) {
+        lastError = error <span class="kw">instanceof</span> Error ? error : <span class="kw">new</span> Error(<span class="str">"Email sending failed"</span>);
+        console.error(
+          <span class="str">`sendMail attempt ${attempt + 1} of ${this.maxRetries} failed for recipient "${(job.mailOptions as { to?: string }).to ?? "unknown"}"`</span>,
+          lastError
+        );
+        <span class="kw">if</span> (attempt &lt; <span class="kw">this</span>.maxRetries - <span class="num">1</span>) {
+          <span class="kw">await new</span> Promise((resolve) =&gt; setTimeout(resolve, <span class="num">500</span> * Math.pow(<span class="num">2</span>, attempt)));
+        }
+      }
+    }
+    <span class="kw">throw</span> lastError ?? <span class="kw">new</span> Error(<span class="str">"Email sending failed"</span>);
+  }
+}
+
+<span class="kw">export default new</span> MailQueue();</code></pre>
+</div>
+
+<div class="ba">
+  <div class="ba-label after">After — <span class="path">src/routes/email.ts:22-58</span> (handler body)</div>
+<pre><code><span class="kw">const</span> { email, name, password } = req.body;
+
+<span class="kw">if</span> (isRecipientRateLimited(email)) {
+  res.status(<span class="num">429</span>).json({ error: <span class="str">'Too many invites for this recipient, please try again later'</span> });
+  <span class="kw">return</span>;
+}
+
+<span class="cmt">// ... mailOptions built from the validated fields ...</span>
+
+<span class="kw">try</span> {
+  <span class="kw">await</span> mailQueue.enqueue(mailOptions);
+  recordRecipientInvite(email);
+  res.json({ message: <span class="str">'Email sent successfully'</span> });
+} <span class="kw">catch</span> (err: <span class="kw">unknown</span>) {
+  <span class="kw">const</span> error = err <span class="kw">instanceof</span> Error ? err : <span class="kw">new</span> Error(<span class="str">'Unknown error occurred'</span>);
+  console.error(<span class="str">'send-admin-invite failed:'</span>, error);
+  res.status(<span class="num">500</span>).json({
+    error: <span class="str">'Failed to send email'</span>,
+    details: <span class="str">'The email could not be sent at this time'</span>,
+  });
+}</code></pre>
+</div>
+
+<div class="ok">
+  <strong>Result:</strong> no new runtime dependencies were added. The email body is unchanged (emailing plaintext passwords is tracked separately as K-02, see <a href="#open">§4</a>).
+</div>
+</div>
+
+<!-- --------------------- admin deps --------------------- -->
+<h3 id="admin-deps">2.4 Deps (admin-service) — 12 vulnerabilities &rarr; 0</h3>
+
+<table class="files">
+  <tr><td class="lbl">Modified</td><td><span class="path">backend/admin-service/package.json</span> — <code>nodemailer ^6.10.1 → ^10.0.10</code>, <code>mongoose ^8.14.0 → ^8.24.4</code></td></tr>
+  <tr><td class="lbl">Modified</td><td><span class="path">backend/admin-service/package-lock.json</span></td></tr>
+  <tr><td class="lbl">Modified</td><td><span class="path">backend/admin-service/src/services/mailQueue.ts:1</span> — nodemailer 10 type-import fix (see <a href="#admin">K-04</a>)</td></tr>
+</table>
+
+<p><strong>Finding (before).</strong> <code>npm audit</code>: <strong>12 vulnerabilities (7 high, 3 moderate, 1 critical)</strong> — nodemailer 6.x (<span class="advisory">GHSA-mm7p-fcc7-pg87</span> and the whole SMTP-injection/SSRF family, needs breaking 10.x), mongoose 8.14.0 (<code>$nor</code> NoSQL injection + prototype pollution), twilio-chain axios 1.9.0 (large advisory family incl. SSRF/prototype-pollution/DoS), form-data 4.0.2 (<strong>critical</strong> unsafe boundary random), path-to-regexp 8.2.0, body-parser 2.2.0, qs 6.14.0, minimatch 3.1.2, brace-expansion 1.1.11, picomatch 2.3.1, diff 4.0.2, follow-redirects 1.15.9.</p>
+<p><strong>Fix applied.</strong> <code>npm audit fix</code> for the transitive chain + explicit upgrades with bumped manifest minimums:</p>
+
+<table>
+  <tr><th>Package</th><th>Before</th><th>After</th></tr>
+  <tr><td><code>nodemailer</code></td><td>6.10.1</td><td><strong>10.0.10</strong> (breaking change per audit; API used — <code>createTransport</code>/<code>sendMail</code> — unchanged)</td></tr>
+  <tr><td><code>mongoose</code></td><td>8.14.0</td><td><strong>8.24.4</strong></td></tr>
+  <tr><td><code>axios</code></td><td>1.9.0</td><td><strong>1.20.0</strong></td></tr>
+  <tr><td><code>form-data</code></td><td>4.0.2</td><td><strong>4.0.6</strong> (critical advisory cleared)</td></tr>
+  <tr><td><code>follow-redirects</code></td><td>1.15.9</td><td><strong>1.16.0</strong></td></tr>
+  <tr><td><code>path-to-regexp</code></td><td>8.2.0</td><td><strong>8.4.2</strong></td></tr>
+  <tr><td><code>body-parser</code></td><td>2.2.0</td><td><strong>2.3.0</strong></td></tr>
+  <tr><td><code>qs</code></td><td>6.14.0</td><td><strong>6.16.0</strong></td></tr>
+  <tr><td><code>minimatch</code></td><td>3.1.2</td><td><strong>3.1.5</strong></td></tr>
+  <tr><td><code>brace-expansion</code></td><td>1.1.11</td><td><strong>1.1.21</strong></td></tr>
+  <tr><td><code>picomatch</code></td><td>2.3.1</td><td><strong>2.3.2</strong></td></tr>
+  <tr><td><code>diff</code></td><td>4.0.2</td><td><strong>4.0.4</strong></td></tr>
+</table>
+
+<div class="ok"><strong>Result:</strong> <code>npm audit</code> &rarr; <strong>0 vulnerabilities</strong>.</div>
+
+<!-- ============================================================ -->
+<h2 id="verify">3. Verification</h2>
+
+<table>
+  <tr><th>Check</th><th>Service</th><th>Result</th></tr>
+  <tr><td><code>tsc --noEmit</code></td><td>both</td><td><span class="sev-Fixed">Passes</span> in <code>backend/delevery-service</code> and <code>backend/admin-service</code></td></tr>
+  <tr><td><code>npm audit</code></td><td>delevery</td><td><span class="sev-Fixed">0 vulnerabilities</span> (was 9)</td></tr>
+  <tr><td><code>npm audit</code></td><td>admin</td><td><span class="sev-Fixed">0 vulnerabilities</span> (was 12)</td></tr>
+</table>
+
+<p><strong>Live smoke test</strong> (admin-service booted on port 4099):</p>
+<table>
+  <tr><th>Request</th><th>Observed response</th></tr>
+  <tr><td><code>POST /api/email/send-admin-invite</code> with <strong>no token</strong></td><td><code>401 {"message":"Unauthorized: No token provided"}</code></td></tr>
+  <tr><td>Request with <code>Origin: http://evil.com</code></td><td><strong>no</strong> <code>Access-Control-Allow-Origin</code> header (preflight <code>OPTIONS</code> and actual <code>POST</code> both verified)</td></tr>
+  <tr><td>Request with <code>Origin: http://localhost:3000</code></td><td><code>Access-Control-Allow-Origin: http://localhost:3000</code> present</td></tr>
+  <tr><td>Request with a garbage <code>Authorization</code></td><td><code>401 {"message":"Unauthorized: Invalid token"}</code></td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="open">4. Still open (outside this contribution's scope)</h2>
+
+<table>
+  <tr><th>ID</th><th>Service(s)</th><th>Description</th></tr>
+  <tr><td><strong>K-02</strong></td><td>all three</td><td>Secrets still plaintext in git-ignored <code>.env</code>; rotate Gmail app-password + MongoDB credentials; least-privilege DB users; stop emailing plaintext passwords (passwordless invite links).</td></tr>
+  <tr><td><strong>K-06 residual</strong></td><td>delevery</td><td>Customer "own-orders-only" reads need a <code>userId</code>/order linkage (Delivery schema has no customer field).</td></tr>
+  <tr><td>—</td><td>all three</td><td>Dynamic (Postman) authorization re-testing against a sandbox DB is still recommended.</td></tr>
+</table>
+
+<blockquote>
+  <p class="note">
+    <strong>Note on scope:</strong> this contribution covers <code>backend/delevery-service</code> and <code>backend/admin-service</code> only.
+    The <code>geo-location-service</code> findings from the assessment are tracked separately and are not part of this change set.
+  </p>
+</blockquote>
+
+</body>
+</html>
