@@ -1,4 +1,4 @@
-# Use official Node.js image
+# [FIX VULN-13] production container — WAS: dev mode (nodemon) + NODE_ENV=development.
 FROM node:20
 
 # Set working directory
@@ -14,8 +14,7 @@ COPY . .
 # Expose cart-service port
 EXPOSE 3005
 
-# Set environment to development
-ENV NODE_ENV=development
-
-# Run the app using nodemon
-CMD ["npm", "run", "dev"]
+# Compile TypeScript and run the built server in production
+RUN npm run build
+ENV NODE_ENV=production
+CMD ["npm", "start"]

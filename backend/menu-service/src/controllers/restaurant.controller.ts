@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import { NextFunction, Request, Response } from 'express';
 import {
   createRestaurant,
   getRestaurants,
@@ -10,12 +10,16 @@ import {
 } from '../services/restaurant.service';
 
 // Create a new restaurant
-export const createRestaurantHandler = async (req: Request, res: Response): Promise<void> => {
+export const createRestaurantHandler = async (req: Request, res: Response, next?: NextFunction): Promise<void> => {
   try {
-    const { owner_id, name, image, rating, deliveryTime, deliveryFee, minOrder, distance, cuisines, priceLevel, location, open_time, closed_time } = req.body;
+    const { name, image, rating, deliveryTime, deliveryFee, minOrder, distance, cuisines, priceLevel, location, open_time, closed_time } = req.body;
+
+    // [FIX VULN-01/03] ownership comes from the verified token, NOT the body.
+    // WAS: owner_id was taken straight from the request body.
+    const owner_id = (req as any).user?.id ?? (req as any).user?.sub;
 
     const restaurantData = {
-      owner_id, // Use owner_id from the request body
+      owner_id,
       name,
       image,
       rating,
@@ -33,33 +37,33 @@ export const createRestaurantHandler = async (req: Request, res: Response): Prom
     const restaurant = await createRestaurant(restaurantData);
     res.status(201).json(restaurant); // Do not use 'return' here
   } catch (error) {
-    if (error instanceof Error) {
-      res.status(500).json({ error: error.message });
-    } else {
-      res.status(500).json({ error: 'An unknown error occurred' });
-    }
+    // [FIX VULN-07] delegate to central error handler — WAS: res.status(500).json({ error: error.message })
+    next?.(error);
   }
 };
 
 // Get all restaurants
-export const getRestaurantsHandler = async (_: Request, res: Response): Promise<void> => {
+export const getRestaurantsHandler = async (_: Request, res: Response, next?: NextFunction): Promise<void> => {
   try {
     const restaurants = await getRestaurants();
     res.status(200).json(restaurants); // Do not use 'return' here
   } catch (error) {
-    if (error instanceof Error) {
-      res.status(500).json({ error: error.message });
-    } else {
-      res.status(500).json({ error: 'An unknown error occurred' });
-    }
+    // [FIX VULN-07] delegate to central error handler — WAS: res.status(500).json({ error: error.message })
+    next?.(error);
   }
 };
 
 // Update a restaurant by ID
-export const updateRestaurantHandler = async (req: Request, res: Response): Promise<void> => {
+export const updateRestaurantHandler = async (req: Request, res: Response, next?: NextFunction): Promise<void> => {
   try {
     const { restaurantId } = req.params;
-    const updatedData = req.body;
+
+    // [FIX VULN-03] allow-list: only client-editable fields may be updated.
+    // WAS: `const updatedData = req.body` -> mass assignment let a client set
+    // owner_id / is_active (evidence EV-M2, TC-BB-015).
+    const { name, image, rating, deliveryTime, deliveryFee, minOrder, distance, cuisines, priceLevel, location, open_time, closed_time } = req.body;
+    const updatedData = { name, image, rating, deliveryTime, deliveryFee, minOrder, distance, cuisines, priceLevel, location, open_time, closed_time };
+
     const updatedRestaurant = await updateRestaurant(restaurantId, updatedData);
 
     if (!updatedRestaurant) {
@@ -69,16 +73,13 @@ export const updateRestaurantHandler = async (req: Request, res: Response): Prom
 
     res.status(200).json(updatedRestaurant); // Do not use 'return' here
   } catch (error) {
-    if (error instanceof Error) {
-      res.status(500).json({ error: error.message });
-    } else {
-      res.status(500).json({ error: 'An unknown error occurred' });
-    }
+    // [FIX VULN-07] delegate to central error handler — WAS: res.status(500).json({ error: error.message })
+    next?.(error);
   }
 };
 
 // PATCH: Update the owner_id of a restaurant
-export const updateRestaurantOwnerHandler = async (req: Request, res: Response): Promise<void> => {
+export const updateRestaurantOwnerHandler = async (req: Request, res: Response, next?: NextFunction): Promise<void> => {
   try {
     const { restaurantId } = req.params; // Extract restaurant ID from URL params
     const { owner_id } = req.body; // Get the new owner_id from the request body
@@ -98,16 +99,13 @@ export const updateRestaurantOwnerHandler = async (req: Request, res: Response):
 
     res.status(200).json(updatedRestaurant);
   } catch (error) {
-    if (error instanceof Error) {
-      res.status(500).json({ error: error.message });
-    } else {
-      res.status(500).json({ error: 'An unknown error occurred' });
-    }
+    // [FIX VULN-07] delegate to central error handler — WAS: res.status(500).json({ error: error.message })
+    next?.(error);
   }
 };
 
 // Delete a restaurant by ID
-export const deleteRestaurantHandler = async (req: Request, res: Response): Promise<void> => {
+export const deleteRestaurantHandler = async (req: Request, res: Response, next?: NextFunction): Promise<void> => {
   try {
     const { restaurantId } = req.params;
     const deletedRestaurant = await deleteRestaurant(restaurantId);
@@ -119,16 +117,13 @@ export const deleteRestaurantHandler = async (req: Request, res: Response): Prom
 
     res.status(200).json({ message: 'Restaurant deleted successfully' }); // Do not use 'return' here
   } catch (error) {
-    if (error instanceof Error) {
-      res.status(500).json({ error: error.message });
-    } else {
-      res.status(500).json({ error: 'An unknown error occurred' });
-    }
+    // [FIX VULN-07] delegate to central error handler — WAS: res.status(500).json({ error: error.message })
+    next?.(error);
   }
 };
 
 // Get a single restaurant by ID
-export const getRestaurantByIdHandler = async (req: Request, res: Response): Promise<void> => {
+export const getRestaurantByIdHandler = async (req: Request, res: Response, next?: NextFunction): Promise<void> => {
   try {
     const { restaurantId } = req.params; // Extract restaurant ID from URL params
     const restaurant = await getRestaurantById(restaurantId);
@@ -140,18 +135,16 @@ export const getRestaurantByIdHandler = async (req: Request, res: Response): Pro
 
     res.status(200).json(restaurant);
   } catch (error) {
-    if (error instanceof Error) {
-      res.status(500).json({ error: error.message });
-    } else {
-      res.status(500).json({ error: 'An unknown error occurred' });
-    }
+    // [FIX VULN-07] delegate to central error handler — WAS: res.status(500).json({ error: error.message })
+    next?.(error);
   }
 };
 
 // Get restaurant's categories and menu items
 export const getRestaurantWithCategoriesAndMenuItemsHandler = async (
   req: Request,
-  res: Response
+  res: Response,
+  next?: NextFunction
 ): Promise<void> => {
   try {
     const { restaurantId } = req.params; // Extract restaurant ID from URL params
@@ -161,17 +154,13 @@ export const getRestaurantWithCategoriesAndMenuItemsHandler = async (
 
     res.status(200).json(result);
   } catch (error) {
-    if (error instanceof Error) {
-      res.status(500).json({ error: error.message });
-    } else {
-      res.status(500).json({ error: 'An unknown error occurred' });
-    }
+    // [FIX VULN-07] delegate to central error handler — WAS: res.status(500).json({ error: error.message })
+    next?.(error);
   }
 };
 
 // Get restaurants by owner_id
-// Get restaurants by owner_id
-export const getRestaurantsByOwnerIdHandler = async (req: Request, res: Response): Promise<void> => {
+export const getRestaurantsByOwnerIdHandler = async (req: Request, res: Response, next?: NextFunction): Promise<void> => {
   try {
     const { ownerId } = req.params; // Access owner_id from the route parameters
 
@@ -180,6 +169,7 @@ export const getRestaurantsByOwnerIdHandler = async (req: Request, res: Response
 
     res.status(200).json(restaurants);
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    // [FIX VULN-07] delegate to central error handler — WAS: res.status(500).json({ error: 'Internal server error' })
+    next?.(error);
   }
 };

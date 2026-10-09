@@ -3,6 +3,8 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+mongoose.set('sanitizeFilter', true); // [FIX VULN-05] strip $-operators from query filters (blocks NoSQL injection)
+
 const connectDB = async () => {
   try {
     await mongoose.connect(process.env.MONGO_URI || '', {});

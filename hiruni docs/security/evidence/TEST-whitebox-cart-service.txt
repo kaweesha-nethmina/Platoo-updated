@@ -1,0 +1,262 @@
+
+> cart-service@1.0.0 test:whitebox
+> jest tests/whitebox --runInBand
+
+  console.log
+    MongoDB connected
+
+      at src/utils/db.ts:9:13
+
+  console.error
+    Error: db down
+        at D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\tests\whitebox\cartController.whitebox.test.ts:44:79
+        at Generator.next (<anonymous>)
+        at D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\tests\whitebox\cartController.whitebox.test.ts:8:71
+        at new Promise (<anonymous>)
+        at Object.<anonymous>.__awaiter (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\tests\whitebox\cartController.whitebox.test.ts:4:12)
+        at Object.<anonymous> (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\tests\whitebox\cartController.whitebox.test.ts:43:74)
+        at Promise.then.completed (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\jest-circus\build\utils.js:298:28)
+        at new Promise (<anonymous>)
+        at callAsyncCircusFn (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\jest-circus\build\utils.js:231:10)
+        at _callCircusTest (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\jest-circus\build\run.js:316:40)
+        at processTicksAndRejections (node:internal/process/task_queues:105:5)
+        at _runTest (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\jest-circus\build\run.js:252:3)
+        at _runTestsForDescribeBlock (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\jest-circus\build\run.js:126:9)
+        at _runTestsForDescribeBlock (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\jest-circus\build\run.js:121:9)
+        at run (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\jest-circus\build\run.js:71:3)
+        at runAndTransformResultsToJestFormat (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapterInit.js:122:21)
+        at jestAdapter (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapter.js:79:19)
+        at runTestInternal (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\jest-runner\build\runTest.js:367:16)
+        at runTest (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\jest-runner\build\runTest.js:444:34)
+
+    [0m [90m 26 |[39m     res[33m.[39mstatus([35m200[39m)[33m.[39mjson(cart)[33m;[39m
+     [90m 27 |[39m   } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 28 |[39m     console[33m.[39merror(error)[33m;[39m
+     [90m    |[39m             [31m[1m^[22m[39m
+     [90m 29 |[39m     res[33m.[39mstatus([35m500[39m)[33m.[39mjson({ message[33m:[39m [32m'Error adding item to cart'[39m[33m,[39m error })[33m;[39m
+     [90m 30 |[39m   }
+     [90m 31 |[39m }[33m;[39m[0m
+
+      at src/controllers/cartController.ts:28:13
+          at Generator.throw (<anonymous>)
+      at rejected (src/controllers/cartController.ts:6:65)
+
+  console.error
+    Error: db down
+        at D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\tests\whitebox\cartController.whitebox.test.ts:67:79
+        at Generator.next (<anonymous>)
+        at fulfilled (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\tests\whitebox\cartController.whitebox.test.ts:5:58)
+        at processTicksAndRejections (node:internal/process/task_queues:105:5)
+
+    [0m [90m 52 |[39m     [36mreturn[39m[33m;[39m
+     [90m 53 |[39m   } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 54 |[39m     console[33m.[39merror(error)[33m;[39m
+     [90m    |[39m             [31m[1m^[22m[39m
+     [90m 55 |[39m     res[33m.[39mstatus([35m500[39m)[33m.[39mjson({ message[33m:[39m [32m'Error removing item from cart'[39m[33m,[39m error })[33m;[39m
+     [90m 56 |[39m     [36mreturn[39m[33m;[39m
+     [90m 57 |[39m   }[0m
+
+      at src/controllers/cartController.ts:54:13
+          at Generator.throw (<anonymous>)
+      at rejected (src/controllers/cartController.ts:6:65)
+
+  console.error
+    Error: db down
+        at D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\tests\whitebox\cartController.whitebox.test.ts:88:72
+        at Generator.next (<anonymous>)
+        at D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\tests\whitebox\cartController.whitebox.test.ts:8:71
+        at new Promise (<anonymous>)
+        at Object.<anonymous>.__awaiter (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\tests\whitebox\cartController.whitebox.test.ts:4:12)
+        at Object.<anonymous> (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\tests\whitebox\cartController.whitebox.test.ts:87:78)
+        at Promise.then.completed (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\jest-circus\build\utils.js:298:28)
+        at new Promise (<anonymous>)
+        at callAsyncCircusFn (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\jest-circus\build\utils.js:231:10)
+        at _callCircusTest (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\jest-circus\build\run.js:316:40)
+        at processTicksAndRejections (node:internal/process/task_queues:105:5)
+        at _runTest (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\jest-circus\build\run.js:252:3)
+        at _runTestsForDescribeBlock (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\jest-circus\build\run.js:126:9)
+        at _runTestsForDescribeBlock (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\jest-circus\build\run.js:121:9)
+        at run (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\jest-circus\build\run.js:71:3)
+        at runAndTransformResultsToJestFormat (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapterInit.js:122:21)
+        at jestAdapter (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapter.js:79:19)
+        at runTestInternal (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\jest-runner\build\runTest.js:367:16)
+        at runTest (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\jest-runner\build\runTest.js:444:34)
+
+    [0m [90m 72 |[39m     res[33m.[39mstatus([35m200[39m)[33m.[39mjson(cart)[33m;[39m
+     [90m 73 |[39m   } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 74 |[39m     console[33m.[39merror(error)[33m;[39m
+     [90m    |[39m             [31m[1m^[22m[39m
+     [90m 75 |[39m     res[33m.[39mstatus([35m500[39m)[33m.[39mjson({ message[33m:[39m [32m'Error fetching cart'[39m[33m,[39m error })[33m;[39m
+     [90m 76 |[39m   }
+     [90m 77 |[39m }[33m;[39m[0m
+
+      at src/controllers/cartController.ts:74:13
+          at Generator.throw (<anonymous>)
+      at rejected (src/controllers/cartController.ts:6:65)
+
+  console.error
+    Error: db down
+        at D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\tests\whitebox\cartController.whitebox.test.ts:118:79
+        at Generator.next (<anonymous>)
+        at fulfilled (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\tests\whitebox\cartController.whitebox.test.ts:5:58)
+        at processTicksAndRejections (node:internal/process/task_queues:105:5)
+
+    [0m [90m 105 |[39m     [36mreturn[39m[33m;[39m
+     [90m 106 |[39m   } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 107 |[39m     console[33m.[39merror(error)[33m;[39m
+     [90m     |[39m             [31m[1m^[22m[39m
+     [90m 108 |[39m     res[33m.[39mstatus([35m500[39m)[33m.[39mjson({ message[33m:[39m [32m'Error updating cart item quantity'[39m[33m,[39m error })[33m;[39m
+     [90m 109 |[39m     [36mreturn[39m[33m;[39m
+     [90m 110 |[39m   }[0m
+
+      at src/controllers/cartController.ts:107:13
+          at Generator.throw (<anonymous>)
+      at rejected (src/controllers/cartController.ts:6:65)
+
+  console.error
+    Error: db down
+        at D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\tests\whitebox\cartController.whitebox.test.ts:126:72
+        at Generator.next (<anonymous>)
+        at D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\tests\whitebox\cartController.whitebox.test.ts:8:71
+        at new Promise (<anonymous>)
+        at Object.<anonymous>.__awaiter (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\tests\whitebox\cartController.whitebox.test.ts:4:12)
+        at Object.<anonymous> (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\tests\whitebox\cartController.whitebox.test.ts:125:50)
+        at Promise.then.completed (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\jest-circus\build\utils.js:298:28)
+        at new Promise (<anonymous>)
+        at callAsyncCircusFn (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\jest-circus\build\utils.js:231:10)
+        at _callCircusTest (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\jest-circus\build\run.js:316:40)
+        at processTicksAndRejections (node:internal/process/task_queues:105:5)
+        at _runTest (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\jest-circus\build\run.js:252:3)
+        at _runTestsForDescribeBlock (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\jest-circus\build\run.js:126:9)
+        at _runTestsForDescribeBlock (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\jest-circus\build\run.js:121:9)
+        at run (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\jest-circus\build\run.js:71:3)
+        at runAndTransformResultsToJestFormat (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapterInit.js:122:21)
+        at jestAdapter (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapter.js:79:19)
+        at runTestInternal (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\jest-runner\build\runTest.js:367:16)
+        at runTest (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\jest-runner\build\runTest.js:444:34)
+
+    [0m [90m 105 |[39m     [36mreturn[39m[33m;[39m
+     [90m 106 |[39m   } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 107 |[39m     console[33m.[39merror(error)[33m;[39m
+     [90m     |[39m             [31m[1m^[22m[39m
+     [90m 108 |[39m     res[33m.[39mstatus([35m500[39m)[33m.[39mjson({ message[33m:[39m [32m'Error updating cart item quantity'[39m[33m,[39m error })[33m;[39m
+     [90m 109 |[39m     [36mreturn[39m[33m;[39m
+     [90m 110 |[39m   }[0m
+
+      at src/controllers/cartController.ts:107:13
+          at Generator.throw (<anonymous>)
+      at rejected (src/controllers/cartController.ts:6:65)
+
+  console.error
+    Error: Cart validation failed: items.0.quantity: Path `quantity` (0) is less than minimum allowed value (1).
+        at ValidationError.inspect (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\mongoose\lib\error\validation.js:52:26)
+        at formatValue (node:internal/util/inspect:877:19)
+        at inspect (node:internal/util/inspect:404:10)
+        at formatWithOptionsInternal (node:internal/util/inspect:2407:40)
+        at format (node:internal/util/inspect:2264:10)
+        at console.error (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\@jest\console\build\CustomConsole.js:112:48)
+        at D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\src\controllers\cartController.ts:28:13
+        at Generator.throw (<anonymous>)
+        at rejected (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\src\controllers\cartController.ts:6:65)
+        at processTicksAndRejections (node:internal/process/task_queues:105:5) {
+      errors: {
+        'items.0.quantity': ValidatorError: Path `quantity` (0) is less than minimum allowed value (1).
+            at validate (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\mongoose\lib\schemaType.js:1404:13)
+            at SchemaNumber.Object.<anonymous>.SchemaType.doValidate (D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\mongoose\lib\schemaType.js:1388:7)
+            at D:\Y4S2\SSD\SSD Assignment\Platoo-updated\backend\cart-service\node_modules\mongoose\lib\document.js:3082:18
+            at processTicksAndRejections (node:internal/process/task_queues:85:11) {
+          properties: [Object],
+          kind: 'min',
+          path: 'quantity',
+          value: 0,
+          reason: undefined,
+          [Symbol(mongoose#validatorError)]: true
+        }
+      },
+      _message: 'Cart validation failed'
+    }
+
+    [0m [90m 26 |[39m     res[33m.[39mstatus([35m200[39m)[33m.[39mjson(cart)[33m;[39m
+     [90m 27 |[39m   } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 28 |[39m     console[33m.[39merror(error)[33m;[39m
+     [90m    |[39m             [31m[1m^[22m[39m
+     [90m 29 |[39m     res[33m.[39mstatus([35m500[39m)[33m.[39mjson({ message[33m:[39m [32m'Error adding item to cart'[39m[33m,[39m error })[33m;[39m
+     [90m 30 |[39m   }
+     [90m 31 |[39m }[33m;[39m[0m
+
+      at src/controllers/cartController.ts:28:13
+          at Generator.throw (<anonymous>)
+      at rejected (src/controllers/cartController.ts:6:65)
+
+  console.log
+    [WB-069] quantity=0 -> 500 {"message":"Error adding item to cart","error":{"errors":{"items.0.quantity":{"name":"ValidatorError","message":"Path `quantity` (0) is less than minimum allowed value (1).","properties":{"message":"Path `quantity` (0) is less than minimum allowed va
+
+      at tests/whitebox/cartController.whitebox.test.ts:136:13
+
+  console.log
+    [WB-070] stored negative price: -999
+
+      at tests/whitebox/cartController.whitebox.test.ts:145:13
+
+node.exe : PASS tests/whitebox/cartController.whitebox.test.ts (9.95 s)
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (PASS tests/whit...est.ts (9.95 s):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  WHITE-BOX POST /api/cart/add
+    ΓêÜ WB-054 new cart created when none exists (129 ms)
+    ΓêÜ WB-055 existing cart: existing item quantity incremented (40 ms)
+    ΓêÜ WB-056 existing cart: new product pushes line item (36 ms)
+    ΓêÜ WB-057 save() failure -> 500 with error object echoed (48 ms)
+  WHITE-BOX POST /api/cart/remove
+    ΓêÜ WB-058 cart not found -> 404 (8 ms)
+    ΓêÜ WB-059 item removed -> 200 (36 ms)
+    ΓêÜ WB-060 save() failure -> 500 (29 ms)
+  WHITE-BOX GET /api/cart/:userId
+    ΓêÜ WB-061 found -> 200 (24 ms)
+    ΓêÜ WB-062 missing -> 404 (8 ms)
+    ΓêÜ WB-063 findOne failure -> 500 (logs error, echoes object) (15 ms)
+  WHITE-BOX POST /api/cart/update
+    ΓêÜ WB-064 cart not found -> 404 (8 ms)
+    ΓêÜ WB-065 item not found -> 404 (23 ms)
+    ΓêÜ WB-066 update success -> 200 (26 ms)
+    ΓêÜ WB-067 save failure -> 500 (30 ms)
+    ΓêÜ WB-068 findOne failure -> 500 (10 ms)
+  WHITE-BOX model validation (cartModel.ts)
+    ΓêÜ WB-069 mongoose enforces required + min:1 on item.quantity (29 ms)
+    ΓêÜ WB-070 price field has NO minimum (negative stored) (13 ms)
+
+  console.log
+    MongoDB connected
+
+      at src/utils/db.ts:9:13
+
+  console.log
+    [SEC-006] headers: {"x-powered-by":"Express","access-control-allow-origin":"*","content-type":"application/json; charset=utf-8","content-length":"28","etag":"W/\"1c-y3lUGYiPBbuyaIKU40lcGCnmz+M\"","date":"Mon, 21 Sep 2026 10:20:50 GMT","connection":"close"}
+
+      at tests/whitebox/security.observation.whitebox.test.ts:21:13
+
+  console.log
+    [SEC-007] access-control-allow-origin: *
+
+      at tests/whitebox/security.observation.whitebox.test.ts:29:13
+
+  console.log
+    [SEC-008] cartRoutes.ts imports handlers directly, no JWT verification middleware.
+
+      at tests/whitebox/security.observation.whitebox.test.ts:35:13
+
+PASS tests/whitebox/security.observation.whitebox.test.ts
+  SECURITY OBSERVATIONS - cart-service configuration
+    ΓêÜ SEC-006 no security headers sent (no helmet) (22 ms)
+    ΓêÜ SEC-007 CORS reflects ANY origin (9 ms)
+    ΓêÜ SEC-008 no auth middleware present: routes registered with bare handlers (4 ms)
+    ΓêÜ SEC-009 no rate limiting (8 ms)
+
+Test Suites: 2 passed, 2 total
+Tests:       21 passed, 21 total
+Snapshots:   0 total
+Time:        11.574 s
+Ran all test suites matching /tests\\whitebox/i.

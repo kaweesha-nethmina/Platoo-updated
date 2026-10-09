@@ -3,6 +3,10 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+// [FIX VULN-05] strip MongoDB operator keys ($ne/$gt/$where/...) from query
+// filters, blocking NoSQL operator injection in userId/category_id lookups.
+mongoose.set('sanitizeFilter', true);
+
 const connectDB = async () => {
   try {
     const conn = await mongoose.connect(process.env.MONGO_URI!);

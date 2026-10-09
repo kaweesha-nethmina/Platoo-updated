@@ -1,0 +1,1747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Report — Menu & Cart Services</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap');
+        :root {
+            --bg: #0d1117;
+            --bg2: #161b22;
+            --bg3: #1c2129;
+            --bg4: #222832;
+            --line: #282e3a;
+            --line2: #333b48;
+            --txt: #e6edf3;
+            --txt2: #9aa4b2;
+            --txt3: #6b7280;
+            --accent: #58a6ff;
+            --accent2: #1f6feb;
+            --green: #3fb950;
+            --red: #f85149;
+            --amber: #d29922;
+            --orange: #db6d28;
+            --purple: #bc8cff;
+            --cyan: #39c5cf;
+            --pink: #f778ba;
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        html {
+            scroll-behavior: smooth;
+            scroll-padding-top: 24px;
+        }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--txt);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+        .mono {
+            font-family: 'JetBrains Mono', Menlo, Consolas, monospace;
+        }
+        ::selection {
+            background: rgba(88, 166, 255, .25);
+        }
+        a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        /* ─── Layout ─── */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            width: 300px;
+            padding: 32px 24px;
+            background: var(--bg2);
+            border-right: 1px solid var(--line);
+            overflow-y: auto;
+            z-index: 10;
+            scrollbar-width: thin;
+            scrollbar-color: var(--line2) transparent;
+        }
+        .sidebar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .sidebar::-webkit-scrollbar-thumb {
+            background: var(--line2);
+            border-radius: 3px;
+        }
+        .sidebar .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 4px;
+        }
+        .sidebar .logo {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--accent2), var(--accent));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            font-size: 20px;
+            color: #fff;
+            flex-shrink: 0;
+        }
+        .sidebar .brand h1 {
+            font-size: 16px;
+            font-weight: 800;
+            letter-spacing: -.02em;
+        }
+        .sidebar .brand p {
+            font-size: 11px;
+            color: var(--txt3);
+            margin-top: 1px;
+        }
+        .side-note {
+            margin: 24px 0 18px;
+            padding: 12px 14px;
+            border: 1px solid var(--line2);
+            border-left: 3px solid var(--accent2);
+            border-radius: 8px;
+            background: var(--bg3);
+            font-size: 12px;
+            color: var(--txt2);
+            line-height: 1.5;
+        }
+        .side-note strong {
+            color: var(--txt);
+        }
+        .side-note .k {
+            background: var(--bg4);
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            padding: 0 5px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: var(--accent);
+        }
+        .nav-label {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .1em;
+            color: var(--txt3);
+            margin: 18px 0 8px 8px;
+        }
+        aside nav a {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 10px;
+            border-radius: 8px;
+            color: var(--txt2);
+            font-size: 12.5px;
+            font-weight: 600;
+            transition: background .15s, color .15s;
+            margin-bottom: 2px;
+        }
+        aside nav a .num {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: var(--txt3);
+            width: 24px;
+            flex-shrink: 0;
+        }
+        aside nav a .cnt {
+            margin-left: auto;
+            background: var(--bg4);
+            border: 1px solid var(--line2);
+            border-radius: 999px;
+            font-size: 10px;
+            font-family: 'JetBrains Mono', monospace;
+            padding: 1px 7px;
+            color: var(--txt2);
+        }
+        aside nav a:hover {
+            background: var(--bg3);
+            color: var(--txt);
+        }
+        aside nav a.active {
+            background: var(--bg4);
+            color: var(--txt);
+            border: 1px solid var(--line2);
+        }
+        aside nav a.active .num {
+            color: var(--accent);
+        }
+        .main {
+            margin-left: 300px;
+            padding: 48px 56px 80px;
+            max-width: 1180px;
+        }
+        @media (max-width: 1080px) {
+            .sidebar {
+                display: none;
+            }
+            .main {
+                margin-left: 0;
+                padding: 28px 20px 60px;
+            }
+        }
+
+        /* ─── Hero ─── */
+        .hero {
+            padding: 8px 0 40px;
+            border-bottom: 1px solid var(--line);
+            margin-bottom: 48px;
+        }
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--bg3);
+            border: 1px solid var(--line2);
+            border-radius: 999px;
+            padding: 5px 14px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: 16px;
+        }
+        .eyebrow .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--green);
+        }
+        .hero h2 {
+            font-size: 40px;
+            font-weight: 900;
+            letter-spacing: -.03em;
+            line-height: 1.15;
+            max-width: 760px;
+        }
+        .hero h2 .hl {
+            background: linear-gradient(120deg, var(--accent), var(--cyan));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .hero p {
+            margin-top: 16px;
+            max-width: 720px;
+            color: var(--txt2);
+            font-size: 15px;
+        }
+        .hero p strong {
+            color: var(--txt);
+        }
+        .meta-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 18px;
+            margin-top: 22px;
+        }
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--txt2);
+        }
+        .meta-item .ic {
+            width: 26px;
+            height: 26px;
+            border-radius: 7px;
+            background: var(--bg3);
+            border: 1px solid var(--line);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+        }
+        .meta-item .mono {
+            color: var(--txt);
+        }
+
+        /* ─── Stats ─── */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 48px;
+        }
+        .stat {
+            background: var(--bg2);
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 18px 20px;
+        }
+        .stat .val {
+            font-size: 34px;
+            font-weight: 900;
+            letter-spacing: -.03em;
+            font-family: 'JetBrains Mono', monospace;
+            line-height: 1;
+        }
+        .stat .lbl {
+            margin-top: 8px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: .07em;
+            color: var(--txt3);
+        }
+        .stat.danger .val { color: var(--red); }
+        .stat.good .val { color: var(--green); }
+        .stat.warn .val { color: var(--amber); }
+        .stat.accent .val { color: var(--accent); }
+        .stat.cyan .val { color: var(--cyan); }
+
+        /* ─── Sections ─── */
+        section.block {
+            margin-bottom: 64px;
+        }
+        .sec-head {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .sec-head .num {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--accent);
+            background: var(--bg3);
+            border: 1px solid var(--line2);
+            padding: 5px 10px;
+            border-radius: 8px;
+            flex-shrink: 0;
+            margin-top: 3px;
+        }
+        .sec-head h3 {
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: -.02em;
+        }
+        .sec-head p {
+            color: var(--txt2);
+            font-size: 14px;
+            margin-top: 4px;
+        }
+
+        /* ─── Chips ─── */
+        .chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        .chip {
+            background: var(--bg2);
+            border: 1px solid var(--line2);
+            border-radius: 999px;
+            padding: 6px 14px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--txt2);
+            cursor: pointer;
+            transition: all .15s;
+        }
+        .chip:hover {
+            border-color: var(--accent);
+            color: var(--txt);
+        }
+        .chip.on {
+            background: var(--accent2);
+            border-color: var(--accent2);
+            color: #fff;
+        }
+
+        /* ─── Finding card ─── */
+        .findings {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+        .card {
+            background: var(--bg2);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            overflow: hidden;
+        }
+        .card .chead {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 20px;
+            cursor: pointer;
+            user-select: none;
+        }
+        .card .chead:hover {
+            background: var(--bg3);
+        }
+        .card .chev {
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--txt3);
+            transition: transform .2s;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+        .card.open .chev {
+            transform: rotate(90deg);
+        }
+        .card .cid {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--accent);
+            background: var(--bg3);
+            border: 1px solid var(--line2);
+            border-radius: 6px;
+            padding: 3px 8px;
+            flex-shrink: 0;
+        }
+        .card .ctit {
+            font-weight: 700;
+            font-size: 14px;
+            flex: 1;
+            letter-spacing: -.01em;
+        }
+        .card .csev {
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            border-radius: 6px;
+            padding: 4px 10px;
+            flex-shrink: 0;
+        }
+        .sev-critical { background: rgba(248, 81, 73, .12); color: var(--red); border: 1px solid rgba(248, 81, 73, .3); }
+        .sev-high { background: rgba(219, 109, 40, .12); color: var(--orange); border: 1px solid rgba(219, 109, 40, .3); }
+        .sev-medium { background: rgba(210, 153, 34, .12); color: var(--amber); border: 1px solid rgba(210, 153, 34, .3); }
+        .sev-low { background: rgba(57, 197, 207, .12); color: var(--cyan); border: 1px solid rgba(57, 197, 207, .3); }
+        .card .cbody {
+            display: none;
+            padding: 0 20px 20px;
+            border-top: 1px solid var(--line);
+        }
+        .card.open .cbody {
+            display: block;
+            padding-top: 18px;
+        }
+        .cmeta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+        .cmeta .tag {
+            font-size: 11px;
+            font-weight: 600;
+            background: var(--bg3);
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            padding: 3px 9px;
+            color: var(--txt2);
+        }
+        .cmeta .tag b {
+            color: var(--txt);
+        }
+        .ffiles {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 4px;
+        }
+        .ffiles .tag.file {
+            font-family: 'JetBrains Mono', Menlo, Consolas, monospace;
+            font-size: 11px;
+            color: var(--green);
+            background: rgba(63, 185, 80, .08);
+            border: 1px solid rgba(63, 185, 80, .25);
+        }
+        .ffiles .tag.file.nf {
+            color: var(--amber);
+            background: rgba(210, 153, 34, .08);
+            border: 1px solid rgba(210, 153, 34, .25);
+        }
+        .cmeta .f-svc { border-color: transparent; }
+        .f-svc.svc-menu { background: rgba(88, 166, 255, .12); color: var(--accent); border-color: rgba(88, 166, 255, .25); }
+        .f-svc.svc-cart { background: rgba(188, 140, 255, .12); color: var(--purple); border-color: rgba(188, 140, 255, .25); }
+        .f-svc.svc-both { background: rgba(57, 197, 207, .12); color: var(--cyan); border-color: rgba(57, 197, 207, .25); }
+        .f-svc.svc-repo { background: rgba(248, 81, 73, .12); color: var(--red); border-color: rgba(248, 81, 73, .25); }
+        .cbody h5 {
+            font-size: 12px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            color: var(--txt3);
+            margin: 14px 0 6px;
+        }
+        .cbody p {
+            font-size: 13.5px;
+            color: var(--txt2);
+            margin-bottom: 8px;
+        }
+        .cbody p strong {
+            color: var(--txt);
+        }
+        .cbody ul {
+            margin-left: 18px;
+            margin-bottom: 8px;
+        }
+        .cbody li {
+            font-size: 13.5px;
+            color: var(--txt2);
+            margin-bottom: 4px;
+        }
+        .cbody li strong {
+            color: var(--txt);
+        }
+        .code-tabs {
+            display: flex;
+            gap: 4px;
+            margin: 10px 0 0;
+        }
+        .code-tabs button {
+            background: var(--bg3);
+            border: 1px solid var(--line2);
+            border-bottom: none;
+            border-radius: 8px 8px 0 0;
+            padding: 7px 14px;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--txt2);
+            cursor: pointer;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .code-tabs button.on {
+            background: var(--bg4);
+            color: var(--txt);
+            border-color: var(--line2);
+        }
+        .code-tabs button.bad.on {
+            color: var(--red);
+        }
+        .code-tabs button.good.on {
+            color: var(--green);
+        }
+        .codebox {
+            background: #0a0e14;
+            border: 1px solid var(--line2);
+            border-radius: 0 8px 8px 8px;
+            overflow-x: auto;
+            display: none;
+        }
+        .codebox.on {
+            display: block;
+        }
+        .codebox pre {
+            padding: 16px 18px;
+            font-size: 12.5px;
+            line-height: 1.6;
+            color: #d5dbe5;
+        }
+        .codebox pre .cmt {
+            color: #6b7280;
+            font-style: italic;
+        }
+        .codebox pre .lbl {
+            color: var(--txt3);
+        }
+        .verify {
+            margin-top: 6px;
+        }
+        .verify li::marker {
+            color: var(--green);
+        }
+
+        /* ─── Two-col compare ─── */
+        .compare {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px;
+            margin-top: 14px;
+        }
+        .compare-col h4 {
+            font-size: 12px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            margin-bottom: 10px;
+        }
+        .compare-col.before h4 { color: var(--red); }
+        .compare-col.after h4 { color: var(--green); }
+        .compare-col .codebox {
+            display: block;
+            border-radius: 8px;
+            height: 100%;
+        }
+        .compare-col .codebox pre {
+            font-size: 12px;
+        }
+        @media (max-width: 900px) {
+            .compare { grid-template-columns: 1fr; }
+        }
+
+        /* ─── Tooling table ─── */
+        .tool-win {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: var(--bg2);
+            margin-bottom: 10px;
+        }
+        .tool-win .tname {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            font-size: 13px;
+            width: 150px;
+            flex-shrink: 0;
+        }
+        .tool-win .tbar {
+            flex: 1;
+            height: 8px;
+            background: var(--bg4);
+            border-radius: 999px;
+            overflow: hidden;
+        }
+        .tool-win .tfill {
+            height: 100%;
+            border-radius: 999px;
+            transition: width .8s ease;
+        }
+        .tool-win .tres {
+            width: 120px;
+            text-align: right;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--txt2);
+            flex-shrink: 0;
+        }
+        .tool-win .tres b { color: var(--txt); }
+
+        /* ─── Details (not fixed) ─── */
+        .deta {
+            background: var(--bg2);
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            margin-bottom: 14px;
+            overflow: hidden;
+        }
+        .deta .dhead {
+            padding: 16px 20px;
+            cursor: pointer;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        .deta .dhead:hover { background: var(--bg3); }
+        .deta .dhead .dot2 {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: var(--amber);
+            flex-shrink: 0;
+        }
+        .deta .dhead .didn {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--amber);
+            flex-shrink: 0;
+        }
+        .deta .dhead .dt {
+            font-weight: 600;
+            font-size: 14px;
+            flex: 1;
+        }
+        .deta .dhead .dsev {
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: .05em;
+            text-transform: uppercase;
+            padding: 3px 9px;
+            border-radius: 6px;
+            background: rgba(248, 81, 73, .12);
+            color: var(--red);
+            border: 1px solid rgba(248, 81, 73, .3);
+        }
+        .deta .dbody {
+            display: none;
+            padding: 0 20px 18px;
+            border-top: 1px solid var(--line);
+            color: var(--txt2);
+            font-size: 13.5px;
+        }
+        .deta.open .dbody { display: block; padding-top: 14px; }
+        .deta .dbody p { margin-bottom: 8px; }
+        .deta .dbody ul { margin-left: 18px; }
+        .deta .dbody li { margin-bottom: 4px; }
+        .deta .dbody strong { color: var(--txt); }
+        .deta .dbody .why {
+            background: var(--bg3);
+            border-left: 3px solid var(--amber);
+            border-radius: 0 8px 8px 0;
+            padding: 12px 14px;
+            margin-top: 8px;
+        }
+
+        /* ─── Best practice cards ─── */
+        .bp-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 14px;
+        }
+        .bp {
+            background: var(--bg2);
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 16px 18px;
+        }
+        .bp .bno {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            font-size: 12px;
+            color: var(--accent);
+        }
+        .bp h5 {
+            font-size: 14px;
+            font-weight: 700;
+            margin: 6px 0 4px;
+            letter-spacing: -.01em;
+        }
+        .bp p {
+            font-size: 12.5px;
+            color: var(--txt2);
+        }
+        .bp p .free {
+            color: var(--accent);
+            font-weight: 600;
+        }
+        @media (max-width: 900px) {
+            .bp-grid { grid-template-columns: 1fr; }
+        }
+
+        /* ─── Summary table ─── */
+        .table-wrap {
+            overflow-x: auto;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            background: var(--bg2);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        th {
+            text-align: left;
+            padding: 12px 16px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            color: var(--txt3);
+            border-bottom: 1px solid var(--line2);
+            background: var(--bg3);
+            white-space: nowrap;
+        }
+        td {
+            padding: 11px 16px;
+            border-bottom: 1px solid var(--line);
+            color: var(--txt2);
+            vertical-align: top;
+        }
+        tr:last-child td { border-bottom: none; }
+        td.mono2 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: var(--txt);
+        }
+        td .sev-badge {
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: .05em;
+            text-transform: uppercase;
+            padding: 3px 8px;
+            border-radius: 6px;
+            white-space: nowrap;
+        }
+
+        /* ─── Footer ─── */
+        .footer {
+            margin-top: 64px;
+            padding-top: 24px;
+            border-top: 1px solid var(--line);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            color: var(--txt3);
+            font-size: 12px;
+        }
+        .footer .mono {
+            background: var(--bg3);
+            border: 1px solid var(--line);
+            padding: 2px 8px;
+            border-radius: 6px;
+        }
+        .footer .foot-copy {
+            font-size: 11px;
+            color: var(--txt3);
+        }
+        .up {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: var(--accent2);
+            color: #fff;
+            border: none;
+            width: 42px;
+            height: 42px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 18px;
+            z-index: 20;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .2s;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, .4);
+        }
+        .up.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .up:hover {
+            background: var(--accent);
+        }
+        .note-banner {
+            margin-top: 24px;
+            padding: 14px 18px;
+            border: 1px solid var(--line2);
+            border-left: 3px solid var(--accent2);
+            border-radius: 10px;
+            background: var(--bg3);
+            font-size: 13px;
+            color: var(--txt2);
+        }
+        .note-banner strong { color: var(--txt); }
+    </style>
+</head>
+<body>
+
+<aside class="sidebar" id="sidebar">
+    <div class="brand">
+        <div class="logo">H</div>
+        <div>
+            <h1>Hiruni</h1>
+            <p>SSD · Security Report</p>
+        </div>
+    </div>
+
+    <div class="side-note">
+        <strong>Contribution scope</strong><br>
+        <span class="k">menu-service</span> · <span class="k">cart-service</span> + related frontend
+    </div>
+
+    <p class="nav-label">Report</p>
+    <nav id="toc">
+        <a href="#overview"><span class="num">01</span>Overview <span class="cnt" id="count15">15</span></a>
+        <a href="#findings"><span class="num">02</span>Findings &amp; Fixes <span class="cnt" id="countF">15</span></a>
+        <a href="#blackbox"><span class="num">03</span>Black-box <span class="cnt">77</span></a>
+        <a href="#whitebox"><span class="num">04</span>White-box <span class="cnt">79</span></a>
+        <a href="#tooling"><span class="num">05</span>Tooling <span class="cnt">4</span></a>
+        <a href="#notfixed"><span class="num">06</span>Not Fixed <span class="cnt">2</span></a>
+        <a href="#bp"><span class="num">07</span>Best Practices <span class="cnt">9</span></a>
+        <a href="#summary"><span class="num">08</span>Summary <span class="cnt">1</span></a>
+    </nav>
+</aside>
+
+<div class="main">
+    <section class="hero">
+        <div class="eyebrow"><span class="dot"></span> Security Report · SE4030</div>
+        <h2>Menu &amp; Cart Services — <span class="hl">from Vulnerable to Hardened</span></h2>
+        <p>
+            Full security assessment of the <strong>menu-service</strong> and <strong>cart-service</strong>
+            — the two services I contributed to the <strong>Platoo</strong> food-delivery platform, plus the
+            related front-end pages (menu browsing, cart page, restaurant-admin menu management).
+            In this report I document how I discovered <strong>15 distinct vulnerabilities</strong>
+            (including <strong>3 Critical</strong> and <strong>5 High</strong> issues) using white-box review,
+            black-box dynamic testing and security scanners — and how each in-scope issue was fixed.
+        </p>
+        <div class="meta-row">
+            <div class="meta-item"><span class="ic">▦</span> <strong>15</strong> vulnerabilities found</div>
+            <div class="meta-item"><span class="ic">✓</span> <strong>13</strong> in-scope fixed</div>
+            <div class="meta-item"><span class="ic">λ</span> <span class="mono">menu-service :3001 · cart-service :3005</span></div>
+            <div class="meta-item"><span class="ic">⎇</span> <span class="mono">security-assessment-menu-cart</span></div>
+            <div class="meta-item"><span class="ic">◈</span> <span class="mono">2026-09-26</span></div>
+        </div>
+    </section>
+
+    <section class="stats" id="overview">
+        <div class="stat danger">
+            <div class="val" data-count="15">0</div>
+            <div class="lbl">Vulnerabilities found</div>
+        </div>
+        <div class="stat good">
+            <div class="val" data-count="13">0</div>
+            <div class="lbl">In-scope fixed</div>
+        </div>
+        <div class="stat warn">
+            <div class="val" data-count="2">0</div>
+            <div class="lbl">Not fixed (suspected / out of scope)</div>
+        </div>
+        <div class="stat accent">
+            <div class="val" data-count="4">0</div>
+            <div class="lbl">Security scanners used</div>
+        </div>
+    </section>
+
+    <section class="block" id="findings">
+        <div class="sec-head">
+            <span class="num">02</span>
+            <div>
+                <h3>Findings &amp; Fixes</h3>
+                <p>All 15 vulnerabilities found in the two services, how each was discovered, fixed and verified. Click a card to expand.</p>
+            </div>
+        </div>
+        <div class="chips" id="chips">
+            <button class="chip on" data-k="all">All</button>
+            <button class="chip" data-k="menu">Menu</button>
+            <button class="chip" data-k="cart">Cart</button>
+            <button class="chip" data-k="both">Both</button>
+            <button class="chip" data-k="repo">Repo</button>
+            <button class="chip" data-k="critical">Critical</button>
+            <button class="chip" data-k="high">High</button>
+            <button class="chip" data-k="medium">Medium</button>
+        </div>
+        <div class="findings" id="fList"></div>
+    </section>
+
+    <section class="block" id="blackbox">
+        <div class="sec-head">
+            <span class="num">03</span>
+            <div>
+                <h3>Black-box Testing</h3>
+                <p>HTTP-level functional &amp; attack tests against real Express apps on disposable MongoDB databases. Written first as defect-detecting evidence, then flipped to assert the secure post-fix behaviour.</p>
+            </div>
+        </div>
+        <div class="compare">
+            <div class="compare-col before">
+                <h4>Before Fixes</h4>
+                <div class="codebox">
+                    <pre>                      Tests    Pass    Fail
+menu-service           54       47       7
+cart-service           23       17       6
+<span class="lbl">                 ATTACK SURFACE</span>
+  • Missing auth → writes accepted (VULN-01/02)
+  • Mass assignment / owner takeover (VULN-03)
+  • Client-controlled price & quantity (VULN-04)
+  • $ne NoSQL bypass on userId          (VULN-05)
+  • HTML upload accepted / Host inject  (VULN-06/10)
+  • Leaky errors / double-response      (VULN-07/11)</pre>
+                </div>
+            </div>
+            <div class="compare-col after">
+                <h4>After Fixes</h4>
+                <div class="codebox">
+                    <pre>                      Tests    Pass    Fail
+menu-service           54       54       0
+cart-service           23       23       0
+<span class="lbl">                FIXED ATTACK SURFACE</span>
+  • requireAuth (HS256 pinned) writes     ✓
+  • allow-list updates / token identity   ✓
+  • server-side price lookup + min:0      ✓
+  • sanitizeFilter + type checks          ✓
+  • content-based upload + nosniff        ✓
+  • generic errors, single responses      ✓</pre>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="block" id="whitebox">
+        <div class="sec-head">
+            <span class="num">04</span>
+            <div>
+                <h3>White-box Testing</h3>
+                <p>Jest + ts-jest unit / service / controller tests exercising application logic directly, including security-specific observations (SEC-*).</p>
+            </div>
+        </div>
+        <div class="compare">
+            <div class="compare-col">
+                <h4>Unit / Service / Controller</h4>
+                <div class="codebox">
+                    <pre><span class="lbl">menu-service</span>
+  Test Suites  5/5   ✅ 100%
+  Tests       58/58   ✅ 100%
+
+<span class="lbl">cart-service</span>
+  Test Suites  2/2   ✅ 100%
+  Tests       21/21   ✅ 100%
+
+<span class="lbl">SECURITY OBSERVATIONS (SEC-*)</span>
+  auth, NoSQL, mass-assignment, price,
+  upload content, errors      ✓</pre>
+                </div>
+            </div>
+            <div class="compare-col">
+                <h4>Coverage</h4>
+                <div class="codebox">
+                    <pre><span class="lbl">menu-service</span>
+  Statements   90.42%  ✓
+  Lines        88.53%  ✓
+
+<span class="lbl">cart-service</span>
+  Statements   98.07%  ✓
+  Lines        97.82%  ✓
+
+<span class="lbl">REGRESSION</span>
+  Black-box defect tests (TC-BB-*) flip
+  to pass when the fix is applied —
+  the acceptance check per remediation.</pre>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="block" id="tooling">
+        <div class="sec-head">
+            <span class="num">05</span>
+            <div>
+                <h3>Tooling &amp; Scanners</h3>
+                <p>Open-source security tooling used to cross-validate and catch things white/black-box testing alone might miss.</p>
+            </div>
+        </div>
+        <div class="tool-win">
+            <div class="tname">npm audit</div>
+            <div class="tbar"><div class="tfill" data-w="100" style="background:var(--red)"></div></div>
+            <div class="tres"><b>9+11 → 0</b> advisories</div>
+        </div>
+        <div class="tool-win">
+            <div class="tname">Semgrep</div>
+            <div class="tbar"><div class="tfill" data-w="6" style="background:var(--amber)"></div></div>
+            <div class="tres"><b>0</b> findings</div>
+        </div>
+        <div class="tool-win">
+            <div class="tname">Gitleaks</div>
+            <div class="tbar"><div class="tfill" data-w="60" style="background:var(--orange)"></div></div>
+            <div class="tres"><b>21</b> repo-wide</div>
+        </div>
+        <div class="tool-win">
+            <div class="tname">OWASP ZAP</div>
+            <div class="tbar"><div class="tfill" data-w="40" style="background:var(--accent)"></div></div>
+            <div class="tres"><b>4</b> warnings → 0</div>
+        </div>
+    </section>
+
+    <section class="block" id="notfixed">
+        <div class="sec-head">
+            <span class="num">06</span>
+            <div>
+                <h3>Not Fixed — and Why</h3>
+                <p>Findings deliberately left unfixed, each with the reason (suspected-only / scope).</p>
+            </div>
+        </div>
+        <div id="nfList"></div>
+    </section>
+
+    <section class="block" id="bp">
+        <div class="sec-head">
+            <span class="num">07</span>
+            <div>
+                <h3>Best Practices</h3>
+                <p>Software-engineering practices that would have prevented these vulnerabilities from the start.</p>
+            </div>
+        </div>
+        <div class="bp-grid" id="bpGrid"></div>
+    </section>
+
+    <section class="block" id="summary">
+        <div class="sec-head">
+            <span class="num">08</span>
+            <div>
+                <h3>Summary</h3>
+                <p>Full register of all 15 findings with severity, service and fix status.</p>
+            </div>
+        </div>
+        <div class="table-wrap">
+            <table id="sumTbl">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Vulnerability</th>
+                        <th>Severity</th>
+                        <th>Service</th>
+                        <th>Key fix</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </section>
+
+    <div class="note-banner">
+        <strong>Note on repository state:</strong> The fixes are applied in the working tree (branch <span class="mono">security-assessment-menu-cart</span>,
+        baseline commit <span class="mono">7d6479f</span>). The black-box and white-box suites were converted from defect-detecting evidence to
+        post-fix verification: every <span class="mono">TC-BB-*</span> / <span class="mono">WB-*</span> / <span class="mono">SEC-*</span> now asserts the
+        secure behaviour and the full suites pass (menu 54 black-box + 58 white-box, cart 23 black-box + 21 white-box). Fields fixed by
+        each remediation are listed in the finding cards.
+    </div>
+
+    <div class="footer">
+        <div class="mono">Hiruni · SE4030 Secure Software Development</div>
+        <div class="foot-copy">Branch <span class="mono">security-assessment-menu-cart</span> · Report updated 2026-09-26</div>
+    </div>
+</div>
+
+<button class="up" id="upBtn" title="Back to top">↑</button>
+
+<script>
+    // ─────────────────────────────────────────────────────────────
+    // DATA
+    // ─────────────────────────────────────────────────────────────
+    const SERVICES = {
+        menu: 'Menu',
+        cart: 'Cart',
+        both: 'Both',
+        repo: 'Repo'
+    };
+    const SERV_CLASS = { menu: 'svc-menu', cart: 'svc-cart', both: 'svc-both', repo: 'svc-repo' };
+
+    const FINDINGS = [
+        {
+            id: 'VULN-01', svc: 'menu', severity: 'critical', cwe: 'CWE-306 / CWE-284', owasp: 'A01',
+            cvss: '9.8',
+            title: 'Missing authentication & authorization on all menu write endpoints',
+            files: ['backend/menu-service/src/middleware/auth.ts', 'backend/menu-service/src/app.ts', 'backend/menu-service/src/routes/restaurant.routes.ts', 'backend/menu-service/src/routes/category.routes.ts', 'backend/menu-service/src/routes/menuItem.routes.ts', 'backend/menu-service/src/routes/upload.routes.ts', 'backend/menu-service/src/controllers/restaurant.controller.ts'],
+            desc: 'No auth middleware anywhere in <span class="mono">menu-service</span> — <span class="mono">app.ts</span> registers only <span class="mono">cors()</span> + <span class="mono">express.json()</span>. Every <span class="mono">POST/PUT/PATCH/DELETE</span> across <span class="mono">/api/restaurants</span>, <span class="mono">/api/category</span>, <span class="mono">/api/menu-items</span> and <span class="mono">/api/upload</span> accepted requests with <strong>no token</strong>, <strong>any token</strong>, an <strong>expired token</strong>, and an <strong>alg:none</strong> JWT — all returning <span class="mono">201/200</span>. Anyone could create, alter or delete menu data.',
+            how: 'Black-box tests <span class="mono">TC-BB-022/023</span> and dynamic evidence <span class="mono">EV-M1</span>: <span class="mono">POST /api/restaurants</span> with an expired <span class="mono">alg:none</span> JWT and with <strong>no Authorization header</strong> both returned <span class="mono">201 Created</span>; <span class="mono">DELETE</span> with no auth deleted a record.',
+            fix: 'Add a central <span class="mono">requireAuth</span> JWT middleware that pins the <strong>HS256</strong> algorithm and verifies the token with the correct secret. Mount it on every menu API router (restaurants, category, menu-items, upload).',
+            codeBefore: `// src/app.ts (before) — no auth anywhere
+import { requireAuth } from './middleware/auth';
+...
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+app.use('/api/restaurants', restaurantRoutes);
+app.use('/api/category', categoryRoutes);
+app.use('/api/menu-items', menuItemRoutes);
+app.use('/api/upload', uploadRoutes); // all fully OPEN ❌`,
+            codeAfter: `// src/middleware/auth.ts (new)
+export function requireAuth(req, res, next) {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  if (!token) return res.status(401).json({ error: 'Authentication required' });
+  try {
+    const payload = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+    (req as any).user = payload; next();
+  } catch {
+    res.status(401).json({ error: 'Invalid or expired token' });
+  }
+}
+// src/app.ts (after) — upload router is write-only, guarded at the mount point
+app.use('/api/upload', requireAuth, uploadRoutes);
+// GET (read) routes stay public; each mutation is guarded inside its router.
+
+// src/routes/restaurant.routes.ts (after)
+router.post('/', requireAuth, createRestaurantHandler);
+router.put('/:restaurantId', requireAuth, updateRestaurantHandler);
+router.patch('/:restaurantId/owner', requireAuth, updateRestaurantOwnerHandler);
+router.delete('/:restaurantId', requireAuth, deleteRestaurantHandler);
+// …same pattern for category.routes.ts & menuItem.routes.ts ✅`,
+            verify: [
+                'POST with no Authorization header → 401 (was 201)',
+                'Expired / alg:none / garbage JWT → 401',
+                'Create handler derives owner_id from the token (req.user.id ?? req.user.sub)'
+            ]
+        },
+        {
+            id: 'VULN-02', svc: 'cart', severity: 'critical', cwe: 'CWE-306 / CWE-639', owasp: 'A01',
+            cvss: '9.1',
+            title: 'Missing authentication + IDOR on cart (client-controlled userId)',
+            files: ['backend/cart-service/src/routes/cartRoutes.ts', 'backend/cart-service/src/controllers/cartController.ts', 'backend/cart-service/src/middlewares/auth.ts'],
+            desc: '<span class="mono">cart-service</span> has no auth and the identity is fully client-controlled: <span class="mono">userId</span> is read from the request body or URL. <span class="mono">POST /api/cart/add</span> created carts <strong>as the victim</strong>, <span class="mono">GET /api/cart/:userId</span> returned anyone\'s cart, and <span class="mono">POST /api/cart/remove</span> deleted another user\'s items — all with no token.',
+            how: 'Black-box <span class="mono">TC-BB-064/069/075</span> and <span class="mono">EV-C1</span>: <span class="mono">POST /api/cart/add</span> with <span class="mono">userId:"victim-100"</span> created a cart as the victim; <span class="mono">GET /api/cart/victim-100</span> returned the victim\'s cart.',
+            fix: 'Require <span class="mono">requireAuth</span> on all four cart endpoints and stop accepting <span class="mono">userId</span> from the body/URL. Identity is derived only from the verified token (<span class="mono">req.user.id ?? req.user.sub</span>).',
+            codeBefore: `// src/controllers/cartController.ts (before)
+router.get('/:userId', getCartByUserId);
+router.post('/add', addItemToCart);
+router.post('/remove', removeItemFromCart);
+router.post('/update', updateCartItemQuantity);
+// handler reads identity from client
+const { userId } = req.body; // ❌ victim control`,
+            codeAfter: `// src/routes/cartRoutes.ts (after)
+router.get('/:userId', requireAuth, getCartByUserId);
+router.post('/add', requireAuth, addItemToCart);
+router.post('/remove', requireAuth, removeItemFromCart);
+router.post('/update', requireAuth, updateCartItemQuantity);
+
+// every handler:
+const userId = (req as any).user?.id ?? (req as any).user?.sub; // ✅ token only
+if (typeof userId !== 'string' || !userId) {
+  res.status(401).json({ message: 'Unauthorized' }); return; }`,
+            verify: [
+                'GET /api/cart/:id without token → 401',
+                'no-token add/remove/update → 401 (TC-BB-075/076/077)',
+                'with a valid token, a forged victim body/URL userId never touches the victim cart (token userId used)'
+            ]
+        },
+        {
+            id: 'VULN-03', svc: 'menu', severity: 'high', cwe: 'CWE-915', owasp: 'A01 / A04',
+            cvss: '8.1',
+            title: 'Mass assignment via req.body (ownership, is_active, price…)',
+            files: ['backend/menu-service/src/controllers/restaurant.controller.ts', 'backend/menu-service/src/controllers/category.controller.ts', 'backend/menu-service/src/controllers/menuItem.controller.ts'],
+            desc: 'Update handlers pass <span class="mono">req.body</span> wholesale into update functions. <span class="mono">PUT /api/restaurants/:id</span> with <span class="mono">{"owner_id":"attacker-999","is_active":false,"rating":1}</span> persisted the attacker\'s <span class="mono">owner_id</span> and toggled <span class="mono">is_active</span>; the same applied to menu-item <span class="mono">price</span>/<span class="mono">is_available</span>/<span class="mono">category_id</span>.',
+            how: '<span class="mono">EV-M2</span> and <span class="mono">TC-BB-015/045</span> — protected fields were successfully changed through the generic REST update.',
+            fix: 'Replace <span class="mono">const updatedData = req.body</span> with an explicit <strong>allow-list</strong> of client-editable fields in restaurant, category and menu-item update handlers (and validate create handlers the same way).',
+            codeBefore: `// restaurant.controller.ts (before)
+const updatedData = req.body; // ❌ mass assignment
+updateRestaurant(restaurantId, updatedData);
+// {"owner_id":"attacker-999","is_active":false} persisted`,
+            codeAfter: `// restaurant.controller.ts (after) — allow-list
+const { name, image, rating, deliveryTime, deliveryFee, minOrder,
+        distance, cuisines, priceLevel, location, open_time, closed_time } = req.body;
+const updatedData = { name, image, rating, deliveryTime, deliveryFee, minOrder,
+                      distance, cuisines, priceLevel, location, open_time, closed_time };
+// owner_id and is_active excluded → cannot be set by a client ✅`,
+            verify: [
+                'PUT with owner_id / is_active / unknown keys → unchanged (allow-list only)',
+                'Ownership changes require the dedicated authenticated transfer flow',
+                'Same allow-list applied to category and menu-item handlers'
+            ]
+        },
+        {
+            id: 'VULN-04', svc: 'both', severity: 'high', cwe: 'CWE-602 / CWE-472', owasp: 'A04',
+            cvss: '8.1',
+            title: 'Client-controlled price / quantity tampering',
+            files: ['backend/cart-service/src/controllers/cartController.ts', 'backend/cart-service/src/services/catalogue.service.ts', 'backend/menu-service/src/models/menuItem.model.ts', 'backend/menu-service/src/services/menuItem.service.ts', 'backend/menu-service/src/routes/menuItem.routes.ts', 'backend/menu-service/src/controllers/menuItem.controller.ts'],
+            desc: 'The cart stored <span class="mono">price</span> and <span class="mono">name</span> straight from the client; <span class="mono">price:1</span> and <span class="mono">price:-500</span> were persisted verbatim. The menu-service accepted a <strong>negative</strong> menu-item price. An attacker could buy anything for pennies or break totals.',
+            how: '<span class="mono">EV-C2</span>, <span class="mono">TC-BB-035/057/058</span> — client <span class="mono">price</span> tampering and negative prices accepted.',
+            fix: 'Cart: <span class="mono">price</span>/<span class="mono">name</span> no longer accepted from the client — the authoritative price is re-fetched from the catalogue server-side, and <span class="mono">quantity</span> validated as a positive integer. Menu: <span class="mono">min: 0</span> on the price schema path.',
+            codeBefore: `// cartController.ts addItemToCart (before)
+const { productId, price, name, quantity } = req.body; // ❌ client price
+cart.items.push({ productId, price, name });`,
+            codeAfter: `// cartController.ts addItemToCart (after)
+const { productId, quantity } = req.body;
+const catalogue = await getProductById(productId); // ✅ server lookup
+if (!catalogue) { res.status(400).json({ message: 'Unknown product' }); return; }
+if (!Number.isInteger(quantity) || quantity < 1) {
+  res.status(400).json({ message: 'quantity must be a positive integer' }); return; }
+const serverPrice = catalogue.price; // ✅ trust server, not client
+
+// menuItem.model.ts (after)
+price: { type: Number, required: true, min: 0 },`,
+            verify: [
+                'client price / name payloads → ignored (server price used)',
+                'quantity 0 / negative / NaN → 400',
+                'Negative menu-item price → 400 at the schema (min: 0)'
+            ]
+        },
+        {
+            id: 'VULN-05', svc: 'cart', severity: 'high', cwe: 'CWE-943', owasp: 'A03',
+            cvss: '7.3',
+            title: 'NoSQL operator injection in cart userId ($ne)',
+            files: ['backend/cart-service/src/utils/db.ts', 'backend/cart-service/src/controllers/cartController.ts'],
+            desc: 'Cart queries were built by interpolating the client value directly into the filter: <span class="mono">CartModel.findOne({ userId })</span>. Sending <span class="mono">{"$ne":null}</span> as <span class="mono">userId</span> bypassed the intended equality and <strong>matched another user\'s cart</strong> — an operator-injection bypass of the IDOR controls.',
+            how: '<span class="mono">TC-BB-063</span> and a direct mongoose probe (<span class="mono">tests/helpers/probe-nosql.ts</span>) — the <span class="mono">$ne</span> filter returned another user\'s document.',
+            fix: 'Defence in depth: (1) identity from the verified token; (2) <span class="mono">typeof userId !== "string"</span> → 401; (3) <span class="mono">mongoose.set(\'sanitizeFilter\', true)</span> strips <span class="mono">$</span>-operators before queries; (4) optional <span class="mono">zod</span> schema validation.',
+            codeBefore: `// cart-service/src (before)
+const filter = { userId };           // ❌ raw client value
+CartModel.findOne(filter);
+// {"userId":{"$ne":null}} bypasses the filter`,
+            codeAfter: `// src/utils/db.ts (after)
+mongoose.set('sanitizeFilter', true); // ✅ strip $where/$ne/$gt from filters
+
+// controllers:
+if (typeof userId !== 'string' || !userId) return res.status(401).json({ message: 'Unauthorized' });
+const filter = { userId };
+CartModel.findOne(filter); // operators are stripped ✅`,
+            verify: [
+                '$ne / $gt / $where in userId → rejected or ignored',
+                'probe-nosql.ts no longer bypasses the document filter',
+                'Type check rejects objects injected as userId'
+            ]
+        },
+        {
+            id: 'VULN-06', svc: 'menu', severity: 'high', cwe: 'CWE-434 / CWE-646', owasp: 'A04',
+            cvss: '8.1',
+            title: 'Insecure file upload (extension-only filter, no auth)',
+            files: ['backend/menu-service/src/routes/upload.routes.ts'],
+            desc: 'The upload filter checks only the file-name extension. An HTML file renamed <span class="mono">evil.png</span> (MIME <span class="mono">image/png</span>) was <strong>accepted</strong> and served back as its HTML body — <span class="mono">&lt;script&gt;alert(1)&lt;/script&gt;</span> — a stored-XSS/HTML-injection vector via upload, on an endpoint that required no authentication.',
+            how: '<span class="mono">EV-M5</span> and <span class="mono">TC-BB-052</span>: HTML smuggled with an image extension was accepted and re-served.',
+            fix: 'Content validation, not name validation: require auth on <span class="mono">/api/upload</span>; verify <span class="mono">file.mimetype</span> against an allow-list <strong>and</strong> sniff the magic bytes (<span class="mono">MAGIC_BYTES</span> for PNG/JPEG/GIF/WEBP) before persisting — a client-declared MIME can still lie, so content sniffing is the real gate; uploads are served under <span class="mono">/uploads</span> with <span class="mono">X-Content-Type-Options: nosniff</span> via helmet.',
+            codeBefore: `// upload.routes.ts (before)
+const fileFilter = (_req, file, cb) => {
+  const ext = path.extname(file.originalname).slice(1); // ❌ name only
+  if (allowedExts.includes(ext)) cb(null, true);
+  else cb(new Error('Not allowed'));
+};`,
+            codeAfter: `// upload.routes.ts (after)
+const allowedMimes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
+const fileFilter = (_req, file, cb) => {
+  const ext = path.extname(file.originalname).toLowerCase();
+  if (allowedExts.includes(ext) && allowedMimes.includes(file.mimetype)) cb(null, true);
+  else cb(new Error('Only image files are allowed (png, jpg, jpeg, gif, webp)'));
+};
+// after multer accepts: sniffFile(req.file.path) -> 400 on magic-byte mismatch ✅`,
+            verify: [
+                'HTML smuggled with an image extension → 400 (magic-byte sniff, TC-BB-052)',
+                'Disallowed extension / no file / oversize → rejected (TC-BB-049/050/051)',
+                'Uploads require auth; served under /uploads with nosniff via helmet'
+            ]
+        },
+        {
+            id: 'VULN-07', svc: 'both', severity: 'medium', cwe: 'CWE-209', owasp: 'A05',
+            cvss: '6.5',
+            title: 'Verbose errors / stack-trace & internal error leakage',
+            files: ['backend/cart-service/src/middlewares/errorHandler.ts', 'backend/cart-service/src/controllers/cartController.ts', 'backend/menu-service/src/app.ts', 'backend/menu-service/src/controllers/restaurant.controller.ts', 'backend/menu-service/src/controllers/category.controller.ts', 'backend/menu-service/src/controllers/menuItem.controller.ts'],
+            desc: 'Error handlers echo internal messages. <span class="mono">GET /api/restaurants/not-an-objectid</span> returned a raw Mongoose <span class="mono">CastError</span>; the cart controller returned <strong>the entire error object</strong>; malformed JSON printed Express\'s default <strong>stack-trace HTML page</strong> with absolute local paths.',
+            how: '<span class="mono">EV-M3</span>, <span class="mono">EV-C4</span>, <span class="mono">EV-C6</span>, <span class="mono">TC-BB-012/028/038/059-062/074</span>.',
+            fix: 'Central error-handling middleware: generic client messages in production, correct status codes (400 for validation/Cast/Syntax, 500 otherwise), and raw details only when <span class="mono">NODE_ENV !== "production"</span>. Remove <span class="mono">error</span> from every 500 body.',
+            codeBefore: `// cart-service (before) — whole object leaked
+res.status(500).json({ message: 'Error adding item to cart', error });
+// menu-service (before) — raw CastError / Express stack page`,
+            codeAfter: `// cart-service/src/middlewares/errorHandler.ts (new)
+app.use((err, _req, res, _next) => {
+  const isClientErr = ['ValidationError', 'CastError', 'SyntaxError'].includes(err?.name);
+  res.status(isClientErr ? 400 : 500).json({
+    error: process.env.NODE_ENV === 'production'
+      ? 'Request failed' : (err?.message ?? 'Unknown error'),
+  });
+});
+// controllers: res.status(500).json({ message: 'Error adding item to cart' }); ✅
+// plus NODE_ENV=production in deployment (see VULN-13)`,
+            verify: [
+                'TC-BB-012/028/038 → 400, no CastError text',
+                'TC-BB-059-062/074 → 4xx, no stack traces',
+                'Malformed JSON no longer serves the Express stack page'
+            ]
+        },
+        {
+            id: 'VULN-08', svc: 'both', severity: 'medium', cwe: 'CWE-693 / CWE-942', owasp: 'A05',
+            cvss: '6.1',
+            title: 'Missing security headers + permissive CORS',
+            files: ['backend/menu-service/src/app.ts', 'backend/cart-service/src/app.ts', 'backend/menu-service/src/server.ts'],
+            desc: 'Permissive and unsafe HTTP defaults: <span class="mono">cors()</span> → <span class="mono">Access-Control-Allow-Origin: *</span>, <span class="mono">X-Powered-By: Express</span> on every response, and no CSP / <span class="mono">nosniff</span> / HSTS / <span class="mono">Permissions-Policy</span>. Widens the browser-side blast radius of the other findings.',
+            how: '<span class="mono">EV-M4</span> and ZAP baseline warnings <span class="mono">10037/10055/10063/10098</span>.',
+            fix: 'Use <span class="mono">helmet</span> (CSP, <span class="mono">X-Content-Type-Options: nosniff</span>, HSTS, <span class="mono">Permissions-Policy</span>…), <span class="mono">app.disable(\'x-powered-by\')</span>, and an explicit CORS allow-list from configuration.',
+            codeBefore: `// app.ts (before)
+app.use(cors());                // ❌ ACAO: *
+app.use(express.json());
+// no helmet, X-Powered-By: Express`,
+            codeAfter: `// app.ts (after)
+app.use(helmet());              // ✅ CSP, nosniff, HSTS, Permissions-Policy
+app.disable('x-powered-by');
+app.use(cors({ origin: process.env.ALLOWED_ORIGINS?.split(',') ?? false,
+  credentials: true }));`,
+            verify: [
+                'ACAO reflects only configured origins (never *)',
+                'helmet headers present (nosniff, CSP, X-Frame-Options, HSTS)',
+                'ZAP re-scan clears 10037/10055/10063/10098'
+            ]
+        },
+        {
+            id: 'VULN-09', svc: 'both', severity: 'medium', cwe: 'CWE-770', owasp: 'A04',
+            cvss: '5.3',
+            title: 'No rate limiting (DoS / brute-force surface)',
+            files: ['backend/menu-service/src/app.ts', 'backend/cart-service/src/app.ts'],
+            desc: 'No <span class="mono">express-rate-limit</span> anywhere. An unlimited brute-force / credential-stuffing and resource-exhaustion surface — worsened by VULN-01/02 (no auth) and the 2 MB upload path (VULN-06).',
+            how: 'Code review — no rate limiting registered in either <span class="mono">app.ts</span>.',
+            fix: 'A global per-IP limit (plus the existing 2 MB upload size cap from VULN-06 to bound the upload path).',
+            codeBefore: `// app.ts (before)
+app.use(cors());
+app.use(express.json());
+// ❌ unlimited requests from any IP`,
+            codeAfter: `import rateLimit from 'express-rate-limit';
+app.use(rateLimit({
+  windowMs: 60_000, max: 100,
+  standardHeaders: true, legacyHeaders: false,
+})); // ✅ global per-IP cap; uploads additionally bounded by multer's 2 MB limit`,
+            verify: [
+                '101st request within a minute → 429 Too Many Requests',
+                'Upload path bounded by multer 2 MB size limit (VULN-06)',
+                'Rate-limit headers present (standardHeaders)'
+            ]
+        },
+        {
+            id: 'VULN-10', svc: 'menu', severity: 'medium', cwe: 'CWE-644', owasp: 'A03',
+            cvss: '5.3',
+            title: 'Host-header injection into returned upload URL',
+            files: ['backend/menu-service/src/routes/upload.routes.ts'],
+            desc: 'The returned URL was built from the request\'s <span class="mono">Host</span>: <span class="mono">POST /api/upload -H \'Host: evil.example:9999\'</span> returned <span class="mono">{"url":"http://evil.example:9999/uploads/…png"}</span> — a phishing / cache-poisoning / open-redirect-adjacent vector.',
+            how: '<span class="mono">EV-M5</span> and <span class="mono">TC-BB-054</span>.',
+            fix: 'Build the returned URL from a configured base URL, never from the request\'s <span class="mono">Host</span>.',
+            codeBefore: `// (before)
+const url = \`\${req.protocol}://\${req.get('host')}/uploads/\${req.file.filename}\`;
+// Host: evil.example:9999 is reflected verbatim ❌`,
+            codeAfter: `// (after)
+const base = process.env.PUBLIC_BASE_URL || 'http://localhost:3001';
+const url = \`\${base}/uploads/\${req.file.filename}\`; // ✅ fixed base, no host header`,
+            verify: [
+                'Response no longer reflects an attacker-controlled Host header',
+                'PUBLIC_BASE_URL from environment/config',
+                'TC-BB-054 confirms fixed base URL returned'
+            ]
+        },
+        {
+            id: 'VULN-11', svc: 'menu', severity: 'medium', cwe: 'CWE-391 / CWE-705', owasp: 'A04',
+            cvss: '5.3',
+            title: 'Double-response / ERR_HTTP_HEADERS_SENT',
+            files: ['backend/menu-service/src/controllers/category.controller.ts', 'backend/menu-service/src/controllers/menuItem.controller.ts'],
+            desc: 'Updating or deleting a non-existent category sent BOTH a <span class="mono">404</span> and a <span class="mono">200</span> (missing <span class="mono">return</span>), producing <span class="mono">ERR_HTTP_HEADERS_SENT</span> crashes; deleting a non-existent category/menu item returned <span class="mono">200</span>. Broken error semantics and availability issues.',
+            how: '<span class="mono">TC-BB-031/032/046</span> — non-existent category delete returned 200 plus 404.',
+            fix: 'Add early <span class="mono">return</span> after the <span class="mono">404</span> responses in <span class="mono">category.controller.ts</span> (update, delete) and <span class="mono">menuItem.controller.ts</span> (delete).',
+            codeBefore: `// category.controller.ts (before)
+if (!deletedCategory) {
+  res.status(404).json({ error: 'Category not found' });
+} // ❌ missing return → second response
+res.status(200).json({ deleted: true });`,
+            codeAfter: `// category.controller.ts (after)
+if (!deletedCategory) {
+  res.status(404).json({ error: 'Category not found' });
+  return; // ✅ single response
+}
+res.status(200).json({ deleted: true });`,
+            verify: [
+                'TC-BB-031 returns exactly one 404',
+                'TC-BB-032/046 return 404 instead of 200',
+                'Server logs free of ERR_HTTP_HEADERS_SENT'
+            ]
+        },
+        {
+            id: 'VULN-12', svc: 'both', severity: 'high', cwe: 'CWE-1104', owasp: 'A06',
+            cvss: '7.5',
+            title: 'Vulnerable & outdated dependencies',
+            files: ['backend/menu-service/package.json', 'backend/menu-service/package-lock.json', 'backend/cart-service/package.json', 'backend/cart-service/package-lock.json'],
+            desc: 'Both services shipped old, vulnerable dependency trees. <span class="mono">npm audit</span>: <span class="mono">AUDIT-menu-service.json</span> — <strong>9 advisories</strong> (incl. mongoose NoSQL-injection / prototype-pollution) and <span class="mono">AUDIT-cart-service.json</span> — <strong>11 advisories</strong> (ReDoS/SSRF in transitive <span class="mono">qs</span>, <span class="mono">minimatch</span>, <span class="mono">follow-redirects</span>, <span class="mono">path-to-regexp</span>).',
+            how: 'Dependency scanner <span class="mono">npm audit</span> on both service roots (captured as <span class="mono">AUDIT-*.json</span>).',
+            fix: 'Non-breaking upgrades via <span class="mono">npm audit fix</span> (updated <span class="mono">package-lock.json</span>); breaking upgrades (<span class="mono">express@5</span>, latest <span class="mono">mongoose</span>, <span class="mono">axios</span> major) tracked in a controlled change with the full regression suites run before and after.',
+            codeBefore: `$ npm audit
+menu-service  -> 9 advisories
+  (mongoose NoSQL-inj, prototype pollution, …)
+cart-service  -> 11 advisories
+  (qs, minimatch, follow-redirects, path-to-regexp) ❌`,
+            codeAfter: `$ npm audit fix
+$ npm audit
+found 0 vulnerabilities  ✅   // fixed, non-breaking set
+// breaking majors (express@5 / mongoose / axios)
+// run in a controlled change — the black-box & white-box
+// suites stay green on the upgraded tree (54+58 menu, 23+21 cart)`,
+            verify: [
+                'npm audit → 0 advisories for the fixed set',
+                'Black-box + white-box suites green on upgraded tree (54+58 menu, 23+21 cart)',
+                'Breaking upgrades tracked separately with regression gates'
+            ]
+        },
+        {
+            id: 'VULN-13', svc: 'both', severity: 'medium', cwe: 'CWE-538 / CWE-489', owasp: 'A05',
+            cvss: '5.5',
+            title: 'Container build leaks .env and runs dev mode',
+            files: ['backend/menu-service/.dockerignore', 'backend/menu-service/Dockerfile', 'backend/cart-service/.dockerignore', 'backend/cart-service/Dockerfile'],
+            desc: 'Both <span class="mono">Dockerfile</span>s use <span class="mono">COPY . .</span> with <strong>no <span class="mono">.dockerignore</span></strong>, copying <span class="mono">.env</span> and <span class="mono">uploads/</span> into the image; <span class="mono">ENV NODE_ENV=development</span> and <span class="mono">CMD ["npm","run","dev"]</span> (nodemon) in a production image — secrets in the image and dev error pages exposed.',
+            how: 'Static review of both Dockerfiles and build contexts.',
+            fix: 'Add <span class="mono">.dockerignore</span> to both services and switch the images to production mode (<span class="mono">NODE_ENV=production</span>, <span class="mono">CMD ["npm","start"]</span>).',
+            codeBefore: `# Dockerfile (before)
+FROM node:22
+COPY . .                  # ❌ copies .env + uploads into image
+ENV NODE_ENV=development  # ❌ dev mode in production
+CMD ["npm", "run", "dev"] # ❌ nodemon`,
+            codeAfter: `# .dockerignore (both services, new)
+node_modules
+.env
+.env.*
+!.env.example
+uploads
+coverage
+tests
+.git
+npm-debug.log
+
+# Dockerfile (after)
+ENV NODE_ENV=production   # ✅
+CMD ["npm", "start"]      # ✅ menu: node dist/server.js`,
+            verify: [
+                'Image build excludes .env, uploads, node_modules',
+                'Runtime NODE_ENV=production (no Express dev error pages)',
+                'Reinforces VULN-07 (no stack-trace leakage in prod)'
+            ]
+        },
+        {
+            id: 'VULN-14', svc: 'both', severity: 'medium', cwe: 'CWE-79', owasp: 'A03',
+            cvss: '5.4',
+            title: 'Stored XSS payloads persisted verbatim (suspected)',
+            files: [],
+            desc: 'Fields such as restaurant <span class="mono">name</span> and menu-item <span class="mono">description</span> are persisted / returned without sanitisation or CSP hardening. Marked <strong>suspected</strong>, not confirmed: exploitation additionally requires a front-end sink that renders these fields unescaped. The related front-end is a Next.js/React app, which <strong>escapes output by default</strong>, so an end-to-end exploit was never confirmed in this contribution scope.',
+            how: '<span class="mono">TC-BB-006/037</span> and <span class="mono">SEC-*</span> observations — payloads stored and returned verbatim, then cross-checked against front-end render paths.',
+            fix: 'Recommended, not applied: input sanitisation on storage, output encoding at every UI sink, and a strict CSP (partially addressed via helmet in 5.8 / VULN-08). Full remediation requires tracing every field to its sink across the whole front-end — outside the two-service scope (see Not Fixed).',
+            codeBefore: `// controllers persist fields verbatim (before)
+const data = { name: req.body.name,
+               description: req.body.description };
+saveMenuItem(data); // ❌ raw HTML stored & returned`,
+            codeAfter: `// recommended fix (not applied in-scope)
+const data = sanitizeHtml({ name: req.body.name,
+               description: req.body.description }); // ✅ on store
+// + CSP header from helmet (VULN-08) + React default escaping`,
+            verify: [
+                'Payloads stored/returned verbatim → confirmed (source)',
+                'Front-end React escapes by default → no confirmed sink',
+                'End-to-end exploit never proven in contribution scope'
+            ]
+        },
+        {
+            id: 'VULN-15', svc: 'repo', severity: 'critical', cwe: 'CWE-798', owasp: 'A02',
+            cvss: '9.8',
+            title: 'Secrets committed to git in k8s manifests (out of scope)',
+            files: [],
+            desc: 'Gitleaks over the full git history found <strong>21 secret findings</strong>, including hard-coded values in k8s manifests — e.g. <span class="mono">sk_test_...</span> payment keys, base64 <span class="mono">jwt-secret</span>, and an email password — across <strong>12 historical commits</strong>. Committed secrets allow full account takeover and are impossible to delete from history.',
+            how: 'Security scanner <span class="mono">Gitleaks</span> (Docker, full git history) → <span class="mono">SCAN-gitleaks.json</span>.',
+            fix: 'Repository-wide, out of scope for this contribution (see Not Fixed): rotate every leaked secret and migrate to a secret manager (Sealed Secrets / External Secrets / Vault). The in-scope takeaway is a gitleaks CI job and .gitignore hygiene.',
+            codeBefore: `# k8s manifests (repo, other services) — before
+sk_test_***REDACTED***                  # ❌ payment key committed (redacted)
+jwt-secret: cGxhdG9vLXNlY3JldA==          # ❌ base64
+email-pass: aGlydW5pLXNzZA==              # ❌`,
+            codeAfter: `# recommended (not applied — repo-wide coordination)
+# 1) rotate EVERY leaked credential
+# 2) migrate to secret manager (Sealed Secrets /
+#    External Secrets / Vault)
+# 3) gitleaks CI job on top of git history ✅`,
+            verify: [
+                'Gitleaks → 21 findings across 12 commits (evidence)',
+                'Secrets belong to other services — repo-wide scope',
+                'Rotation + secret-manager migration = coordinated change'
+            ]
+        }
+    ];
+
+    const TOOLING = [
+        { name: 'npm audit', pct: 100, color: 'var(--red)', res: '9 + 11 → 0 advisories' },
+        { name: 'Semgrep', pct: 6, color: 'var(--amber)', res: '0 findings (authz flaws invisible)' },
+        { name: 'Gitleaks', pct: 60, color: 'var(--orange)', res: '21 repo-wide secrets' },
+        { name: 'OWASP ZAP', pct: 40, color: 'var(--accent)', res: 'headers/CORS warnings → 0' }
+    ];
+
+    const NOT_FIXED = [
+        {
+            id: 'NF-1', sev: 'Medium (suspected)',
+            title: 'VULN-14 — Stored XSS payloads persisted verbatim',
+            why: 'Suspected / latent only. Exploitation requires a front-end sink that renders these fields unescaped; the related front-end is a Next.js/React app which escapes output by default, so an end-to-end exploit was never confirmed in my contribution scope. Input sanitisation and a strict CSP (partly added via helmet in VULN-08) are recommended, but full remediation requires tracing every field to its UI sink across the whole front-end — outside the two-service scope. Recorded as a latent risk rather than a confirmed, fixable defect.'
+        },
+        {
+            id: 'NF-2', sev: 'Critical',
+            title: 'VULN-15 — Committed secrets in k8s manifests (repo-wide)',
+            why: 'Out of scope (repository-wide). The secrets live in k8s manifests belonging to other services (payment, admin, user) that I did not contribute, and Gitleaks found them across 12 historical commits. Fixing properly means rotating every leaked secret (they are already in git history) and migrating to a secret manager (Sealed Secrets / External Secrets / Vault) — a coordinated, repository-wide change. Reported for awareness only.'
+        }
+    ];
+
+    const BEST_PRACTICES = [
+        { n: '01', t: 'Authenticate at the edge & authorize per resource', d: 'A JWT/requireAuth middleware (HS256 pinned) and ownership checks from day one — prevented VULN-01/02 and reduced VULN-03/04/05.', f: 'A01' },
+        { n: '02', t: 'Never trust the client for identity, price or quantity', d: 'Derive identity from the token and price from the server-side catalogue. Stops IDOR and tampering (VULN-02, VULN-04, VULN-05).', f: 'A01' },
+        { n: '03', t: 'Validate & allow-list request bodies', d: 'Schema validation (zod/joi); strip unknown keys instead of passing req.body to the data layer (VULN-03, VULN-04, VULN-05).', f: 'A03' },
+        { n: '04', t: 'Sanitize database filters', d: 'mongoose sanitizeFilter + typed inputs to prevent NoSQL operator injection (VULN-05).', f: 'A03' },
+        { n: '05', t: 'Non-leaky, centralised error handling', d: 'Generic client messages, correct 4xx/5xx, details server-side only, NODE_ENV=production in deployment (VULN-07).', f: 'A05' },
+        { n: '06', t: 'Harden HTTP by default', d: 'helmet, strict CORS allow-list, disable X-Powered-By (VULN-08).', f: 'A05' },
+        { n: '07', t: 'Validate uploads by content, not filename', d: 'Magic-byte sniffing + MIME allow-list; store outside web root; serve with nosniff/attachment; require auth (VULN-06, VULN-10).', f: 'A04' },
+        { n: '08', t: 'Secure-by-default project scaffolding', d: '.dockerignore, .gitignore for .env, rate limiting and size limits from the first commit (VULN-09, VULN-13).', f: 'A05' },
+        { n: '09', t: 'Dependency & secret hygiene + regression gates', d: 'npm audit/SCA in CI with fail-on-high, scheduled upgrades, gitleaks CI job, and the black-box defect tests promoted to mandatory CI (VULN-12, VULN-15).', f: 'A06 / A02' }
+    ];
+
+    // ─────────────────────────────────────────────────────────────
+    // TOOLS
+    // ─────────────────────────────────────────────────────────────
+    const $ = (s) => document.querySelector(s);
+    const esc = (s) => {
+        const d = document.createElement('div');
+        d.textContent = s;
+        return d.innerHTML;
+    };
+
+    // ─────────────────────────────────────────────────────────────
+    // RENDER
+    // ─────────────────────────────────────────────────────────────
+    function svcTag(svc) {
+        const lbl = SERVICES[svc];
+        return `<span class="tag f-svc ${SERV_CLASS[svc]}">${lbl}</span>`;
+    }
+    function sevTag(sev) {
+        return `<span class="csev sev-${sev}">${sev}</span>`;
+    }
+
+    function renderFinding(f) {
+        const el = document.createElement('div');
+        el.className = 'card';
+        el.setAttribute('data-k', f.svc + ',' + f.severity + ',all');
+        el.innerHTML = `
+            <div class="chead">
+                <span class="chev">▶</span>
+                <span class="cid">${f.id}</span>
+                <span class="ctit">${esc(f.title)}</span>
+                ${sevTag(f.severity)}
+            </div>
+            <div class="cbody">
+                <div class="cmeta">
+                    ${svcTag(f.svc)}
+                    <span class="tag"><b>CWE</b> ${f.cwe}</span>
+                    <span class="tag"><b>OWASP</b> ${f.owasp}</span>
+                    <span class="tag"><b>CVSS</b> ${f.cvss}</span>
+                </div>
+                <h5>Description</h5>
+                <p>${f.desc}</p>
+                <h5>How found</h5>
+                <p>${f.how}</p>
+                <h5>Fix applied</h5>
+                <p>${f.fix}</p>
+                <h5>Files fixed</h5>
+                <div class="ffiles">
+                    ${(f.files && f.files.length)
+                        ? f.files.map(fp => `<span class="tag file">${fp}</span>`).join('')
+                        : `<span class="tag file nf">Not fixed — see section 06</span>`}
+                </div>
+                <div class="code-tabs">
+                    <button data-t="before" class="bad on">Before</button>
+                    <button data-t="after" class="good">After</button>
+                </div>
+                <div class="codebox on" data-t="before"><pre>${esc(f.codeBefore)}</pre></div>
+                <div class="codebox" data-t="after"><pre>${esc(f.codeAfter)}</pre></div>
+                <h5>Verification</h5>
+                <ul class="verify">
+                    ${f.verify.map(v => `<li>${v}</li>`).join('')}
+                </ul>
+            </div>`;
+        el.querySelector('.chead').addEventListener('click', () => {
+            el.classList.toggle('open');
+        });
+        el.querySelectorAll('.code-tabs button').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const t = btn.dataset.t;
+                btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('on'));
+                btn.classList.add('on');
+                el.querySelectorAll('.codebox').forEach(c => c.classList.toggle('on', c.dataset.t === t));
+            });
+        });
+        return el;
+    }
+
+    const fList = $('#fList');
+    FINDINGS.forEach(f => fList.appendChild(renderFinding(f)));
+
+    // chips
+    $('#chips').addEventListener('click', (e) => {
+        const btn = e.target.closest('.chip');
+        if (!btn) return;
+        $('#chips').querySelectorAll('.chip').forEach(c => c.classList.remove('on'));
+        btn.classList.add('on');
+        const k = btn.dataset.k;
+        document.querySelectorAll('.card').forEach(card => {
+            const keys = card.dataset.k.split(',');
+            card.style.display = keys.includes(k) || k === 'all' ? '' : 'none';
+        });
+    });
+
+    // ─────────────────────────────────────────────────────────────
+    // Not-fixed list
+    // ─────────────────────────────────────────────────────────────
+    const nfList = $('#nfList');
+    NOT_FIXED.forEach(nf => {
+        const el = document.createElement('div');
+        el.className = 'deta';
+        el.innerHTML = `
+            <div class="dhead">
+                <span class="dot2"></span>
+                <span class="didn">${nf.id}</span>
+                <span class="dt">${esc(nf.title)}</span>
+                <span class="dsev">${nf.sev}</span>
+            </div>
+            <div class="dbody">
+                <p><strong>Why not fixed</strong></p>
+                <div class="why">${nf.why}</div>
+            </div>`;
+        el.querySelector('.dhead').addEventListener('click', () => el.classList.toggle('open'));
+        nfList.appendChild(el);
+    });
+
+    // ─────────────────────────────────────────────────────────────
+    // Best practices
+    // ─────────────────────────────────────────────────────────────
+    const bpGrid = $('#bpGrid');
+    BEST_PRACTICES.forEach(b => {
+        const el = document.createElement('div');
+        el.className = 'bp';
+        el.innerHTML = `
+            <div class="bno">${b.n}</div>
+            <h5>${esc(b.t)}</h5>
+            <p>${b.d} <span class="free">[OWASP ${b.f}]</span></p>`;
+        bpGrid.appendChild(el);
+    });
+
+    // ─────────────────────────────────────────────────────────────
+    // Summary table
+    // ─────────────────────────────────────────────────────────────
+    const tbody = $('#sumTbl tbody');
+    FINDINGS.forEach(f => {
+        const tr = document.createElement('tr');
+        const status = f.id === 'VULN-14' || f.id === 'VULN-15' ? 'Not fixed' : 'Fixed';
+        tr.innerHTML = `
+            <td class="mono2">${f.id}</td>
+            <td>${esc(f.title)}</td>
+            <td><span class="sev-badge sev-${f.severity}">${f.severity}</span></td>
+            <td>${{ menu: 'Menu', cart: 'Cart', both: 'Both', repo: 'Repo' }[f.svc]}</td>
+            <td>${esc(f.fix.split('.')[0])}</td>
+            <td>${status}</td>`;
+        tbody.appendChild(tr);
+    });
+
+    // ─────────────────────────────────────────────────────────────
+    // ScrollSpy + counts + tooling bars
+    // ─────────────────────────────────────────────────────────────
+    const navLinks = [...document.querySelectorAll('#toc a')];
+    const sections = navLinks.map(a => $(a.getAttribute('href')));
+    function onScroll() {
+        const pos = window.scrollY + 120;
+        let cur = 0;
+        sections.forEach((s, i) => {
+            if (s && s.offsetTop <= pos) cur = i;
+        });
+        navLinks.forEach((a, i) => a.classList.toggle('active', i === cur));
+        $('#upBtn').classList.toggle('show', window.scrollY > 600);
+    }
+    window.addEventListener('scroll', onScroll);
+    onScroll();
+
+    $('#count15').textContent = FINDINGS.length;
+    $('#countF').textContent = FINDINGS.length;
+
+    // counts
+    document.querySelectorAll('.stat .val[data-count]').forEach(el => {
+        const target = +el.dataset.count;
+        const dur = 900;
+        const t0 = performance.now();
+        (function tick(t) {
+            const p = Math.min((t - t0) / dur, 1);
+            el.textContent = Math.round(target * (1 - Math.pow(1 - p, 3)));
+            if (p < 1) requestAnimationFrame(tick);
+        })(t0);
+    });
+
+    // tooling bars
+    document.querySelectorAll('.tool-win .tfill').forEach((f, i) => {
+        const pct = TOOLING[i].pct;
+        requestAnimationFrame(() => { f.style.width = pct + '%'; });
+    });
+
+    // up button
+    $('#upBtn').addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+</script>
+
+</body>
+</html>
